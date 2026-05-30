@@ -1,27 +1,13 @@
 'use client';
 
 import { useMoneda } from '@/lib/useMoneda';
+import { isMesBloqueado, getSaldoFondoCaja, getArqueoDia, getPorcentajeComisionBancaria, getIngresosEfectivoMes, getGastosTotalesMes, getSaldoDisponibleBarbero, getResumenMes, getEfectivoDisponibleCaja, getAdelantosMes, getPagosSocioMes, getVentasDia, guardarArqueo } from '@/lib/business';
+import { useAppConfig } from '@/lib/useAppConfig';
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, DollarSign, TrendingDown, CreditCard, Wallet, X, ChevronDown, AlertCircle, CheckCircle2, Calendar, Edit3, Trash2 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Adelanto, type Barbero as DbBarbero, type GastoFijo, type Socio } from '@/lib/db';
-import {
-  getIngresosEfectivoMes,
-  getComisionesTotalesMes,
-  getGastosTotalesMes,
-  getIngresosTotalesMes,
-  getSaldoDisponibleBarbero,
-  getAdelantosMes,
-  getSaldoFondoCaja,
-  getVentasDia,
-  guardarArqueo,
-  getResumenMes,
-  getPagosSocioMes,
-  isMesBloqueado,
-  getEfectivoDisponibleCaja,
-  getArqueoDia,
-  getPorcentajeComisionBancaria,
-} from '@/lib/business';
+
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { DatePicker } from '@/components/ui/DatePicker';
@@ -56,6 +42,7 @@ function esSocioAdelanto(a: Adelanto): boolean {
 
 export default function ScreenInicio() {
   const { simbolo } = useMoneda();
+  const { t } = useAppConfig();
   // fc es un alias local que aplica el símbolo configurado
   const fc = (n: number) => formatCurrency(n, simbolo);
 
@@ -81,6 +68,8 @@ export default function ScreenInicio() {
   const [adelantosSociosDia, setAdelantosSociosDia] = useState(0);
   const [adelantosBarberosDia, setAdelantosBarberosDia] = useState(0);
   const [comisionBancariaDia, setComisionBancariaDia] = useState(0);
+  // List of commission entries per bank transaction for the selected day
+  const [comisionesTransacciones, setComisionesTransacciones] = useState<Array<{ id: number; fecha: Date; monto: number; comision: number }>>([]);
   const [fechasConRegistro, setFechasConRegistro] = useState<string[]>([]);
   const [registroAEditar, setRegistroAEditar] = useState<any | null>(null);
 
@@ -108,10 +97,10 @@ export default function ScreenInicio() {
 
     const registrosDia = await db.registros_diarios
       .where('fecha').between(inicioDia, finDia, true, true).toArray();
-    const t = registrosDia.reduce((s, r) => s + r.monto_total, 0);
+    const totalDia = registrosDia.reduce((s, r) => s + r.monto_total, 0);
     const eRaw = registrosDia.filter(r => r.metodo_pago === 'efectivo').reduce((s, r) => s + r.monto_total, 0);
     const bRaw = registrosDia.filter(r => r.metodo_pago === 'banco').reduce((s, r) => s + r.monto_total, 0);
-    setTotalVentasDia(t);
+    setTotalVentasDia(totalDia);
 
     const arqueo = await getArqueoDia(fechaDate);
     const bankAmount = arqueo ? arqueo.monto_banco : bRaw;
@@ -128,7 +117,17 @@ export default function ScreenInicio() {
     }
 
     const porcentajeComision = await getPorcentajeComisionBancaria();
-    setComisionBancariaDia(Math.round(bankAmount * porcentajeComision / 100 * 1000) / 1000);
+    const comisiones = registrosDia
+      .filter(r => r.metodo_pago === 'banco')
+      .map(r => ({
+        id: r.id!,
+        fecha: r.fecha,
+        monto: r.monto_total,
+        comision: Math.round(r.monto_total * porcentajeComision / 100 * 1000) / 1000,
+      }));
+    const totalComision = comisiones.reduce((s, c) => s + c.comision, 0);
+    setComisionBancariaDia(totalComision);
+    setComisionesTransacciones(comisiones);
 
     const [registrosMes, gastosMes, adelantosMes] = await Promise.all([
       db.registros_diarios.toArray(),
@@ -163,7 +162,7 @@ export default function ScreenInicio() {
       const b = barberosList.find(x => x.id === r.barbero_id);
       if (b) comisionesDia += r.monto_total * b.porcentaje_comision;
     });
-    setSaldoNeto(t - comisionesDia - gastosDiaArr.reduce((s, g) => s + g.monto, 0) - adelSocios);
+    setSaldoNeto(totalDia - comisionesDia - gastosDiaArr.reduce((s, g) => s + g.monto, 0) - adelSocios);
   }, [fechaFiltro]);
 
   useEffect(() => { recargar(); }, [recargar]);
@@ -199,11 +198,11 @@ export default function ScreenInicio() {
       {/* Filtro de fecha */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 12px', borderRadius: 12, background: 'var(--black-card)', border: '1px solid var(--black-border)' }}>
         <Calendar size={15} color="var(--gold)" style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--white-soft)', flexShrink: 0 }}>Fecha:</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--white-soft)', flexShrink: 0 }}>{t('filterDate')}:</span>
         <DatePicker compact value={fechaFiltro} onChange={setFechaFiltro} markedDates={fechasConRegistro} />
         {fechaFiltro !== hoyStr && (
           <button onClick={() => setFechaFiltro(hoyStr)} style={{ border: 'none', cursor: 'pointer', color: 'var(--gold)', fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6, background: 'rgba(212,175,55,0.1)', flexShrink: 0, fontFamily: 'var(--font-body)' }}>
-            Hoy
+            {t('today')}
           </button>
         )}
       </div>
@@ -211,7 +210,7 @@ export default function ScreenInicio() {
       {/* Métricas del día */}
       <div className="card-gold" style={{ marginBottom: 16, background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(20,20,20,0.95) 100%)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-          <p style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📈 Ventas del Día</p>
+          <p style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📈 {t('todaySales')}</p>
           {arqueoDelDia && (
             <span style={{ fontSize: 10, color: 'var(--success)', background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.3)', borderRadius: 6, padding: '2px 7px', fontWeight: 600 }}>✓ Arqueo aplicado</span>
           )}
@@ -322,6 +321,8 @@ export default function ScreenInicio() {
       <RegistrosDelDia
         fechaFiltro={fechaFiltro}
         simbolo={simbolo}
+        comisionesTransacciones={comisionesTransacciones}
+        comisionBancariaDia={comisionBancariaDia}
         onEdit={handleIniciarEdicion}
         onDelete={(id) => { db.registros_diarios.get(id).then(r => { if (r) handleEliminarVenta(id, new Date(r.fecha)); }); }}
         onRecargar={recargar}
@@ -357,8 +358,8 @@ interface Barbero { id?: number; nombre: string; porcentaje_comision: number; ac
 interface ServicioProducto { id?: number; nombre: string; tipo: 'servicio' | 'producto'; precio: number; stock_actual?: number; stock_minimo?: number }
 
 // ─── RegistrosDelDia ──────────────────────────────────────────────────────────
-function RegistrosDelDia({ fechaFiltro, simbolo, onEdit, onDelete, onRecargar }: {
-  fechaFiltro: string; simbolo: string;
+function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisionBancariaDia, onEdit, onDelete, onRecargar }: {
+  fechaFiltro: string; simbolo: string; comisionesTransacciones: any[]; comisionBancariaDia: number;
   onEdit: (r: any) => void; onDelete: (id: number) => void; onRecargar: () => void;
 }) {
   const fc = (n: number) => formatCurrency(n, simbolo);
@@ -380,7 +381,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, onEdit, onDelete, onRecargar }:
 
   const EMOJI_CAT: Record<string, string> = {
     alquiler: '🏠', internet: '🌐', luz: '💡', agua: '💧', limpieza: '🧹', insumos: '🧴',
-    impuestos: '🧾', camaras: '📷', seguro: '🛡️', gestoria: '📝', otro: '📌',
+    impuestos: '🧾', camaras: '📷', seguro: '🛡️', gestoria: '📝', comision_bancaria: '💸', otro: '📌',
   };
 
   function toggleAcordeon(key: string) { setAcordeonesAbiertos(p => ({ ...p, [key]: !p[key] })); }
@@ -415,7 +416,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, onEdit, onDelete, onRecargar }:
     onRecargar();
   }
 
-  const hayDatos = (registros?.length ?? 0) > 0 || (gastosDia?.length ?? 0) > 0 || (adelantosDia?.length ?? 0) > 0;
+  const hayDatos = (registros?.length ?? 0) > 0 || (gastosDia?.length ?? 0) > 0 || (adelantosDia?.length ?? 0) > 0 || (comisionesTransacciones?.length ?? 0) > 0;
   if (!hayDatos) {
     return (
       <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--gray-muted)' }}>
@@ -546,29 +547,36 @@ function RegistrosDelDia({ fechaFiltro, simbolo, onEdit, onDelete, onRecargar }:
         </>
       )}
 
-      {/* Gastos */}
-      {(gastosDia?.length ?? 0) > 0 && (
-        <>
-          <p className="text-section" style={{ marginBottom: 8 }}>📋 Gastos del día ({gastosDia!.length})</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-            {gastosDia!.map(g => (
-              <div key={g.id} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderColor: 'rgba(224,82,82,0.15)' }}>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--white-soft)' }}>{EMOJI_CAT[g.categoria] || '📌'} {g.descripcion}</p>
-                  <p className="text-hint">{g.categoria} · {format(new Date(g.fecha), 'HH:mm')}</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger)' }}>{fc(g.monto)}</p>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setGastoEditando(g)}><Edit3 size={14} color="var(--gold)" /></button>
-                    <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarGasto(g.id!, new Date(g.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
+      {/* Gastos (incluye comisiones bancarias registradas por Arqueo) */}
+      {(() => {
+        const gastosFiltrados = gastosDia || [];
+        if (gastosFiltrados.length === 0) return null;
+        return (
+          <>
+            <p className="text-section" style={{ marginBottom: 8 }}>📋 Gastos del día ({gastosFiltrados.length})</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {gastosFiltrados.map(g => {
+                const esComisionBancaria = g.categoria === 'comision_bancaria';
+                return (
+                  <div key={g.id} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderColor: esComisionBancaria ? 'rgba(212,175,55,0.25)' : 'rgba(224,82,82,0.15)', background: esComisionBancaria ? 'linear-gradient(135deg, rgba(212,175,55,0.06) 0%, transparent 100%)' : undefined }}>
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 500, color: esComisionBancaria ? 'var(--gold)' : 'var(--white-soft)' }}>{EMOJI_CAT[g.categoria] || '📌'} {g.descripcion}</p>
+                      <p className="text-hint">{g.categoria} · {format(new Date(g.fecha), 'HH:mm')}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <p style={{ fontSize: 16, fontWeight: 700, color: esComisionBancaria ? 'var(--gold)' : 'var(--danger)' }}>{fc(g.monto)}</p>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setGastoEditando(g)}><Edit3 size={14} color="var(--gold)" /></button>
+                        <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarGasto(g.id!, new Date(g.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
 
       {/* Adelantos */}
       {(adelantosDia?.length ?? 0) > 0 && (
@@ -605,6 +613,27 @@ function RegistrosDelDia({ fechaFiltro, simbolo, onEdit, onDelete, onRecargar }:
           </div>
         </>
       )}
+
+        {/* Comisión Bancaria */}
+        {comisionesTransacciones?.length > 0 && (
+          <div style={{ marginTop: 12 }} />
+        )}
+        {comisionesTransacciones?.length > 0 && (
+          <div className="card-gold" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(20,20,20,0.95) 100%)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>💸 Comisión Bancaria</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc(comisionBancariaDia)}</span>
+            </div>
+            <div style={{ borderTop: '1px solid rgba(212,175,55,0.15)', padding: '8px 12px' }}>
+              {comisionesTransacciones.map(c => (
+                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{format(new Date(c.fecha), 'HH:mm')}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>{fc(c.comision)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {gastoEditando && <ModalEditarGasto gasto={gastoEditando} onClose={() => { setGastoEditando(null); onRecargar(); }} />}
       {adelantoEditando && <ModalEditarAdelanto adelanto={adelantoEditando} barberos={barberos || []} socios={socios || []} onClose={() => { setAdelantoEditando(null); onRecargar(); }} />}
@@ -662,6 +691,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
                     { value: 'camaras', label: 'Cámaras', icon: '📷', badge: 'Fijo', badgeColor: '#52B4E0', subtitle: 'Vigilancia' },
                     { value: 'seguro', label: 'Seguro', icon: '🛡️', badge: 'Fijo', badgeColor: '#A052E0', subtitle: 'Seguro' },
                     { value: 'gestoria', label: 'Gestoría', icon: '📝', badge: 'Fijo', badgeColor: '#E0A452', subtitle: 'Gestoría' },
+                    { value: 'comision_bancaria', label: 'Comisión Bancaria', icon: '💸', badge: 'Auto', badgeColor: '#D4AF37', subtitle: 'Generada por transferencias bancarias' },
                     { value: 'otro', label: 'Otro', icon: '📌', badge: 'Varios', badgeColor: '#888888', subtitle: 'Varios' },
                   ]} />
               </div>
@@ -1009,7 +1039,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
   const [error, setError] = useState('');
   const [fecha, setFecha] = useState<string>(fechaInicial ?? (() => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; })());
 
-  const NOMBRE_CAT: Record<string, string> = { alquiler: 'Alquiler', internet: 'Internet', limpieza: 'Limpieza', insumos: 'Insumos', impuestos: 'Impuestos', camaras: 'Cámaras', seguro: 'Seguro', luz: 'Luz', agua: 'Agua', gestoria: 'Gestoría', otro: 'Gasto varios' };
+  const NOMBRE_CAT: Record<string, string> = { alquiler: 'Alquiler', internet: 'Internet', limpieza: 'Limpieza', insumos: 'Insumos', impuestos: 'Impuestos', camaras: 'Cámaras', seguro: 'Seguro', luz: 'Luz', agua: 'Agua', gestoria: 'Gestoría', comision_bancaria: 'Comisión Bancaria', otro: 'Gasto varios' };
 
   async function guardar() {
     if (!monto || !fecha) return;
@@ -1033,6 +1063,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
     { value: 'camaras', label: 'Cámaras', icon: '📷', badge: 'Fijo', badgeColor: '#52B4E0', subtitle: 'Vigilancia' },
     { value: 'seguro', label: 'Seguro', icon: '🛡️', badge: 'Fijo', badgeColor: '#A052E0', subtitle: 'Seguro' },
     { value: 'gestoria', label: 'Gestoría', icon: '📝', badge: 'Fijo', badgeColor: '#E0A452', subtitle: 'Gestoría' },
+    { value: 'comision_bancaria', label: 'Comisión Bancaria', icon: '💸', badge: 'Auto', badgeColor: '#D4AF37', subtitle: 'Generada por transferencias bancarias' },
     { value: 'otro', label: 'Otro', icon: '📌', badge: 'Varios', badgeColor: '#888888', subtitle: 'Varios' },
   ];
 

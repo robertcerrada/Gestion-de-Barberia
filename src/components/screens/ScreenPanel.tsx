@@ -12,7 +12,6 @@ import {
   getGastosPorCategoria,
   getHistoricoAnual,
   cerrarMes,
-  getMesAno,
   reabrirMes,
   getVentasPorBarberoMes,
   getVentasProductosMes,
@@ -23,11 +22,13 @@ import {
   getMetodosPagoMes,
   getMesesAbiertosYPendientes,
 } from '@/lib/business';
+import { getMesAno } from '@/shared/utils/dates';
 import { format, setMonth, setYear, getYear, getMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet } from 'lucide-react';
 import { exportarAGoogleDrive } from '@/lib/drive';
 import { useMoneda } from '@/lib/useMoneda';
+import { useAppConfig } from '@/lib/useAppConfig';
 
 function useFmt() {
   const { simbolo } = useMoneda();
@@ -47,24 +48,23 @@ const ORANGE = '#E09A52';
 
 const COLORES_CATEGORIAS: Record<string, string> = {
   alquiler: BLUE, internet: PURPLE, limpieza: GREEN, insumos: ORANGE,
-  impuestos: '#E0B452', camaras: '#52B4E0', seguro: '#A052E0', luz: '#FFD700', agua: '#52B4E0', gestoria: '#E0A452', otro: '#888888',
+  impuestos: '#E0B452', camaras: '#52B4E0', seguro: '#A052E0', luz: '#FFD700', agua: '#52B4E0', gestoria: '#E0A452', comision_bancaria: GOLD, otro: '#888888',
 };
 
 const EMOJI_CATEGORIAS: Record<string, string> = {
   alquiler: '🏠', internet: '🌐', limpieza: '🧹', insumos: '🧴',
-  impuestos: '🧾', camaras: '📷', seguro: '🛡️', luz: '💡', agua: '💧', gestoria: '📝', otro: '📌',
+  impuestos: '🧾', camaras: '📷', seguro: '🛡️', luz: '💡', agua: '💧', gestoria: '📝', comision_bancaria: '💸', otro: '📌',
 };
 
-const MESES = [
-  'Enero','Febrero','Marzo','Abril','Mayo','Junio',
-  'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
-];
+
 
 type VentaBarbero = Awaited<ReturnType<typeof getVentasPorBarberoMes>>[number];
 type Resumen = Awaited<ReturnType<typeof getResumenMes>>;
 
 export default function ScreenPanel() {
   const formatCurrency = useFmt();
+  const { t } = useAppConfig();
+  const MESES = Array.from({ length: 12 }, (_, i) => t(`month_${i}`));
   const yearActual = getYear(new Date());
   const mesActual = getMonth(new Date());
 
@@ -88,6 +88,7 @@ export default function ScreenPanel() {
   const [mesesPendientes, setMesesPendientes] = useState<Awaited<ReturnType<typeof getMesesAbiertosYPendientes>>>([]);
   const [ingresosMetodoPago, setIngresosMetodoPago] = useState<{ efectivo: number; banco: number; bancoNeto: number; comisionBancaria: number }>({ efectivo: 0, banco: 0, bancoNeto: 0, comisionBancaria: 0 });
   const [modalLiquidacion, setModalLiquidacion] = useState<{ mesAno: string; mes: string } | null>(null);
+  const [comisionesAbiertas, setComisionesAbiertas] = useState(false);
 
   const hoy = new Date();
   const esMesActual = selectedMes === hoy.getMonth() && selectedYear === hoy.getFullYear();
@@ -858,7 +859,7 @@ export default function ScreenPanel() {
                 {MESES[selectedMes]} <ChevronDown size={14} style={{ opacity: 0.7 }} />
               </p>
               <p style={{ fontSize: 13, color: esMesActual ? 'var(--success)' : 'var(--gray-muted)', marginTop: 3, fontWeight: esMesActual ? 600 : 400 }}>
-                {selectedYear}{esMesActual ? ' · En curso' : ''}
+                {selectedYear}{esMesActual ? ` ${t('inProgress')}` : ''}
               </p>
             </div>
           </div>
@@ -883,7 +884,7 @@ export default function ScreenPanel() {
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.15)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.1)')}
           >
-            📅 Ir al mes actual
+            {t('goToCurrentMonth')}
           </button>
         )}
       </div>
@@ -896,14 +897,14 @@ export default function ScreenPanel() {
           border: '1px solid rgba(212,175,55,0.3)', marginBottom: 16, fontSize: 13, color: 'var(--gold)'
         }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Lock size={14} /> Mes cerrado — datos bloqueados
+            <Lock size={14} /> {t('monthClosed2')}
           </span>
           <button onClick={handleReabrirMes} disabled={reabriendo} style={{
             padding: '6px 14px', fontSize: 12, fontWeight: 600, borderRadius: 8,
             background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)',
             color: 'var(--gold)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
           }}>
-            <Unlock size={13} /> {reabriendo ? 'Reabriendo...' : 'Reabrir Mes'}
+            <Unlock size={13} /> {reabriendo ? t('reopening') : t('reopenMonth')}
           </button>
         </div>
       )}
@@ -914,7 +915,7 @@ export default function ScreenPanel() {
           <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(224,82,82,0.1)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--danger)' }}>
             <AlertTriangle size={18} />
             <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              ⚠️ {mesesPendientes.length} Mes{mesesPendientes.length > 1 ? 'es' : ''} Sin Cerrar
+              ⚠️ {mesesPendientes.length} {mesesPendientes.length > 1 ? t('monthsWithoutClosePlural') : t('monthsWithoutClose')}
             </span>
           </div>
           <div style={{ padding: '12px' }}>
@@ -931,17 +932,17 @@ export default function ScreenPanel() {
                     {mesPend.mes}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--gray-muted)', background: 'rgba(224,82,82,0.2)', padding: '2px 8px', borderRadius: 4 }}>
-                    ABIERTO
+                    {t('open')}
                   </span>
                 </div>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8, fontSize: 12 }}>
                   <div>
-                    <span style={{ color: 'var(--gray-muted)', fontSize: 10, display: 'block', marginBottom: 2 }}>Ingresos</span>
+                    <span style={{ color: 'var(--gray-muted)', fontSize: 10, display: 'block', marginBottom: 2 }}>{t('income')}</span>
                     <span style={{ color: 'var(--success)', fontWeight: 600 }}>${mesPend.ingresos.toFixed(2)}</span>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--gray-muted)', fontSize: 10, display: 'block', marginBottom: 2 }}>Utilidad</span>
+                    <span style={{ color: 'var(--gray-muted)', fontSize: 10, display: 'block', marginBottom: 2 }}>{t('utility')}</span>
                     <span style={{ color: mesPend.utilidad >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>${mesPend.utilidad.toFixed(2)}</span>
                   </div>
                 </div>
@@ -949,7 +950,7 @@ export default function ScreenPanel() {
                 {mesPend.sociosSinPagar.length > 0 && (
                   <div style={{ marginBottom: 8, paddingTop: 8, borderTop: '1px solid rgba(224,82,82,0.15)' }}>
                     <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Pendiente de Pago
+                      {t('pending')}
                     </p>
                     {mesPend.sociosSinPagar.map((socio, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: i < mesPend.sociosSinPagar.length - 1 ? 4 : 0, color: 'var(--white-soft)' }}>
@@ -970,7 +971,7 @@ export default function ScreenPanel() {
                       color: 'var(--gold)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
                     }}
                   >
-                    <Wallet size={13} /> Liquidar aquí
+                    <Wallet size={13} /> {t('settleHere')}
                   </button>
                   <button
                     onClick={() => {
@@ -1143,7 +1144,7 @@ export default function ScreenPanel() {
               <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr', padding: '10px 14px', background: 'rgba(224,82,82,0.04)', borderBottom: '1px solid var(--black-border)', fontSize: 11, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 <span>Fecha</span><span>Detalle</span><span style={{ textAlign: 'right' }}>Monto</span>
               </div>
-              {gastosDetallados.map(g => (
+              {gastosDetallados.filter(g => g.categoria !== 'comision_bancaria').map(g => (
                 <div key={g.id} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: 13, alignItems: 'center' }}>
                   <span style={{ color: 'var(--gray-muted)', fontSize: 12 }}>{format(new Date(g.fecha), 'dd/MM')}</span>
                   <div>
@@ -1153,6 +1154,33 @@ export default function ScreenPanel() {
                   <span style={{ textAlign: 'right', color: 'var(--danger)', fontWeight: 600 }}>{formatCurrency(g.monto)}</span>
                 </div>
               ))}
+              {/* Acordeón de Comisiones Bancarias */}
+              {gastosDetallados.filter(g => g.categoria === 'comision_bancaria').length > 0 && (() => {
+                const comisiones = gastosDetallados.filter(g => g.categoria === 'comision_bancaria');
+                const totalComisiones = comisiones.reduce((s, g) => s + g.monto, 0);
+                return (
+                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                    <button type="button" onClick={() => setComisionesAbiertas(!comisionesAbiertas)} style={{ width: '100%', display: 'grid', gridTemplateColumns: '70px 1fr 1fr', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', alignItems: 'center', transition: 'background 0.2s' }}>
+                      <span style={{ color: 'var(--gray-muted)', fontSize: 12 }}>Varias</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>💸 Comisiones Bancarias ({comisiones.length})</span>
+                        <ChevronDown size={14} color="var(--gold)" style={{ transition: 'transform 0.25s', transform: comisionesAbiertas ? 'rotate(180deg)' : 'none' }} />
+                      </div>
+                      <span style={{ textAlign: 'right', color: 'var(--gold)', fontWeight: 700 }}>{formatCurrency(totalComisiones)}</span>
+                    </button>
+                    {comisionesAbiertas && (
+                      <div style={{ background: 'rgba(212,175,55,0.02)', padding: '6px 14px 10px', borderTop: '1px solid rgba(212,175,55,0.1)' }}>
+                        {comisiones.map(c => (
+                          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 12 }}>
+                            <span style={{ color: 'var(--gray-muted)' }}>{format(new Date(c.fecha), 'dd/MM')} — {c.descripcion}</span>
+                            <span style={{ color: 'var(--gold)', fontWeight: 500 }}>{formatCurrency(c.monto)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <div className="card" style={{ marginBottom: 20, padding: '20px 14px', textAlign: 'center', color: 'var(--gray-muted)', fontSize: 13 }}>

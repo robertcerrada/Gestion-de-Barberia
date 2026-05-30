@@ -1,10 +1,9 @@
 import { db, getConfig } from './db';
 import type { Barbero, RegistroDiario, Adelanto, GastoFijo, HistoricoCierre, MovimientoFondo, Socio } from './db';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
-
-export function getMesAno(fecha: Date = new Date()): string {
-  return format(fecha, 'MM-yyyy');
-}
+import { startOfMonth, endOfMonth } from 'date-fns';
+import { getMesAno } from '@/shared/utils/dates';
+export { getMesAno };
+import { sanitizeText, sanitizeNumber, sanitizeMimeType, isValidBase64, toDate, serializarFechas } from '@/shared/utils/sanitize';
 
 function adelantoPerteneceASocio(adelanto: Adelanto, socio: Socio, barberoMismoId?: Barbero) {
   if (!socio.id || adelanto.barbero_id !== socio.id) return false;
@@ -37,19 +36,22 @@ export async function getComisionBrutaMes(barberoId: number, mes: Date = new Dat
   const inicio = startOfMonth(mes);
   const fin = endOfMonth(mes);
 
-  const registros = await db.registros_diarios
-    .where('barbero_id').equals(barberoId)
-    .and(r => r.fecha >= inicio && r.fecha <= fin)
-    .toArray();
+  const [registros, items, barbero] = await Promise.all([
+    db.registros_diarios
+      .where('barbero_id').equals(barberoId)
+      .and(r => r.fecha >= inicio && r.fecha <= fin)
+      .toArray(),
+    db.servicios_productos.toArray(),
+    db.barberos.get(barberoId),
+  ]);
+  if (!barbero) return 0;
+  const itemMap = new Map(items.map(i => [i.id!, i]));
 
   let comisionBruta = 0;
   for (const reg of registros) {
-    const item = await db.servicios_productos.get(reg.item_id);
+    const item = itemMap.get(reg.item_id);
     if (item?.tipo === 'servicio') {
-      const barbero = await db.barberos.get(barberoId);
-      if (barbero) {
-        comisionBruta += reg.monto_total * barbero.porcentaje_comision;
-      }
+      comisionBruta += reg.monto_total * barbero.porcentaje_comision;
     }
   }
   return comisionBruta;
@@ -128,11 +130,19 @@ export async function getComisionesTotalesMes(mes: Date = new Date()): Promise<n
     .where('fecha').between(inicio, fin, true, true)
     .toArray();
 
+  // Pre-fetch en batch para evitar N+1 queries
+  const [items, barberos] = await Promise.all([
+    db.servicios_productos.toArray(),
+    db.barberos.toArray(),
+  ]);
+  const itemMap = new Map(items.map(i => [i.id!, i]));
+  const barberoMap = new Map(barberos.map(b => [b.id!, b]));
+
   let total = 0;
   for (const reg of registros) {
-    const item = await db.servicios_productos.get(reg.item_id);
+    const item = itemMap.get(reg.item_id);
     if (item?.tipo === 'servicio') {
-      const barbero = await db.barberos.get(reg.barbero_id);
+      const barbero = barberoMap.get(reg.barbero_id);
       if (barbero) {
         total += reg.monto_total * barbero.porcentaje_comision;
       }
@@ -179,10 +189,13 @@ export async function getMetodosPagoMes(mes: Date = new Date()): Promise<{
   let diasConArqueo = 0;
 
   for (let d = 1; d <= diasEnMes; d++) {
-    const inicioD = new Date(mes.getFullYear(), mes.getMonth(), d, 0, 0, 0);
-    const finD    = new Date(mes.getFullYear(), mes.getMonth(), d, 23, 59, 59);
+    const inicioD = new Date(mes.getFullYear(), mes.getMonth(), d, 0, 0, 0, 0);
+    const finD    = new Date(mes.getFullYear(), mes.getMonth(), d, 23, 59, 59, 999);
 
-    const arqueo = arqueos.find(a => a.fecha >= inicioD && a.fecha <= finD);
+    const arqueo = arqueos.find(a => {
+      const fa = a.fecha instanceof Date ? a.fecha : new Date(a.fecha);
+      return fa >= inicioD && fa <= finD;
+    });
     if (arqueo) {
       bancoPorArqueo += arqueo.monto_banco;
       diasConArqueo++;
@@ -389,6 +402,26 @@ export async function guardarArqueo(
     await db.arqueo_caja.add(datos);
   }
 
+  // Registrar comisión bancaria como gasto_fijo
+  const comision = await calcularComisionBancaria(montoBanco);
+  // Usar between en lugar de equals para evitar fallos de comparación exacta de milisegundos en IndexedDB
+  const inicioDiaG = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0);
+  const finDiaG = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
+  const gastosComisionExistentes = await db.gastos_fijos
+    .where('fecha').between(inicioDiaG, finDiaG, true, true)
+    .and(g => g.categoria === 'comision_bancaria')
+    .toArray();
+  await Promise.all(gastosComisionExistentes.map(g => db.gastos_fijos.delete(g.id!)));
+  if (comision > 0) {
+    const fechaGasto = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 12, 0, 0);
+    await db.gastos_fijos.add({
+      fecha: fechaGasto,
+      categoria: 'comision_bancaria',
+      monto: comision,
+      descripcion: 'Comisión bancaria (Arqueo)',
+    });
+  }
+
   return { debe_quedar, monto_efectivo, total_ventas, fondo_caja };
 }
 
@@ -497,17 +530,7 @@ export async function exportarTodosLosDatos() {
     db.documentos_barbero.toArray(),
   ]);
 
-  // Serializar fechas a ISO string para evitar problemas en la importación
-  function serializarFechas(arr: any[]) {
-    return arr.map(obj => {
-      const copy = { ...obj };
-      for (const key of Object.keys(copy)) {
-        if (copy[key] instanceof Date) copy[key] = copy[key].toISOString();
-      }
-      return copy;
-    });
-  }
-
+  // serializarFechas se importa desde @/shared/utils/sanitize.ts
   const payload = {
     version: BACKUP_VERSION,
     fecha_exportacion: new Date().toISOString(),
@@ -528,31 +551,9 @@ export async function exportarTodosLosDatos() {
   return JSON.stringify(payload, null, 2);
 }
 
-// Sanitiza texto: elimina tags HTML/script para prevenir XSS e inyección
-function sanitizeText(val: unknown): string {
-  if (typeof val !== 'string') return '';
-  return val.replace(/<[^>]*>/g, '').replace(/[<>"'`]/g, '').trim().slice(0, 500);
-}
-
-function sanitizeNumber(val: unknown, min = 0, max = 9_999_999): number {
-  const n = Number(val);
-  if (!isFinite(n)) return 0;
-  return Math.min(Math.max(n, min), max);
-}
-
-function sanitizeMimeType(val: unknown): string {
-  if (typeof val !== 'string') return '';
-  const normalized = val.trim().toLowerCase();
-  if (/^[a-z]+\/[a-z0-9.+-]+$/.test(normalized)) return normalized;
-  return '';
-}
-
-function isValidBase64(val: unknown): boolean {
-  if (typeof val !== 'string') return false;
-  const cleaned = val.trim();
-  if (cleaned.length === 0 || cleaned.length % 4 !== 0) return false;
-  return /^[A-Za-z0-9+/]+={0,2}$/.test(cleaned);
-}
+// Sanitización movida a @/shared/utils/sanitize.ts
+// Las funciones sanitizeText, sanitizeNumber, sanitizeMimeType, isValidBase64, toDate, serializarFechas
+// se importan desde arriba.
 
 export async function restaurarDesdeDatos(jsonStr: string) {
   // ─ Validaciones básicas ─
@@ -567,19 +568,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
   }
   if (!datos || typeof datos !== 'object') throw new Error('Formato de backup inválido.');
 
-  // ─ Ayudante: convertir strings ISO / timestamps a Date ─
-  function toDate(val: unknown): Date {
-    if (val instanceof Date) return val;
-    if (typeof val === 'string' && val) {
-      const d = new Date(val);
-      if (!isNaN(d.getTime())) return d;
-    }
-    if (typeof val === 'number') {
-      const d = new Date(val);
-      if (!isNaN(d.getTime())) return d;
-    }
-    return new Date(); // fallback a fecha actual si no se puede parsear
-  }
+  // toDate se importa desde @/shared/utils/sanitize.ts — no redefinir localmente.
 
   const categoriasValidas = ['internet','alquiler','limpieza','insumos','impuestos','camaras','seguro','luz','agua','gestoria','otro'];
 

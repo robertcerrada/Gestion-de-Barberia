@@ -40,23 +40,25 @@ export async function isEmailAuthorized(email: string): Promise<boolean> {
 }
 
 // ── Sesión de app ───────────────────────────────────────────────
-function getStorage(): Storage | null {
-  return typeof window !== 'undefined' ? window.sessionStorage : null;
+// Tokens de sesión: sessionStorage (se borran al cerrar el navegador — correcto).
+// Hash/salt del PIN: localStorage (deben sobrevivir entre sesiones).
+const SESSION_KEYS = new Set([AUTH_TOKEN_KEY, GOOGLE_TOKEN_KEY, GOOGLE_USER_KEY]);
+
+function getStorageFor(key: string): Storage | null {
+  if (typeof window === 'undefined') return null;
+  return SESSION_KEYS.has(key) ? window.sessionStorage : window.localStorage;
 }
 
 function getStoredValue(key: string): string | null {
-  const storage = getStorage();
-  return storage?.getItem(key) ?? null;
+  return getStorageFor(key)?.getItem(key) ?? null;
 }
 
 function setStoredValue(key: string, value: string): void {
-  const storage = getStorage();
-  storage?.setItem(key, value);
+  getStorageFor(key)?.setItem(key, value);
 }
 
 function removeStoredValue(key: string): void {
-  const storage = getStorage();
-  storage?.removeItem(key);
+  getStorageFor(key)?.removeItem(key);
 }
 
 export function getAppToken(): string | null {

@@ -38,7 +38,7 @@ export interface Adelanto {
 export interface GastoFijo {
   id?: number;
   fecha: Date;
-  categoria: 'internet' | 'alquiler' | 'limpieza' | 'insumos' | 'impuestos' | 'camaras' | 'seguro' | 'luz' | 'agua' | 'gestoria' | 'otro';
+  categoria: 'internet' | 'alquiler' | 'limpieza' | 'insumos' | 'impuestos' | 'camaras' | 'seguro' | 'luz' | 'agua' | 'gestoria' | 'comision_bancaria' | 'otro';
   monto: number;
   descripcion: string;
 }
@@ -143,31 +143,8 @@ export class BarberiaDexie extends Dexie {
       fondo_caja: '++id, fecha, tipo',
       arqueo_caja: '++id, fecha',
     });
-    this.version(4).stores({
-      barberos: '++id, nombre, activo',
-      servicios_productos: '++id, nombre, tipo',
-      registros_diarios: '++id, fecha, barbero_id, item_id, metodo_pago',
-      Adelantos: '++id, fecha, barbero_id',
-      gastos_fijos: '++id, fecha, categoria',
-      historico_cierres: '++id, mes_ano, bloqueado',
-      fondo_caja: '++id, fecha, tipo',
-      arqueo_caja: '++id, fecha',
-      config_barberia: '++id, clave',
-      socios: '++id, nombre, activo',
-    });
+    // v4-v6 consolidadas en v5: socios + config + adelantos con destinatario
     this.version(5).stores({
-      barberos: '++id, nombre, activo',
-      servicios_productos: '++id, nombre, tipo',
-      registros_diarios: '++id, fecha, barbero_id, item_id, metodo_pago',
-      Adelantos: '++id, fecha, barbero_id, destinatario_tipo, socio_id',
-      gastos_fijos: '++id, fecha, categoria',
-      historico_cierres: '++id, mes_ano, bloqueado',
-      fondo_caja: '++id, fecha, tipo',
-      arqueo_caja: '++id, fecha',
-      config_barberia: '++id, clave',
-      socios: '++id, nombre, activo',
-    });
-    this.version(6).stores({
       barberos: '++id, nombre, activo',
       servicios_productos: '++id, nombre, tipo',
       registros_diarios: '++id, fecha, barbero_id, item_id, metodo_pago',

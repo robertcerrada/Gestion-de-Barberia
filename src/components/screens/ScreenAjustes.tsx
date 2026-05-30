@@ -17,10 +17,11 @@ import { useMoneda, emitirCambioMoneda } from '@/lib/useMoneda';
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
 export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (nombre: string) => void }) {
+  const { t } = useAppConfig();
   if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('PON_TU_CLIENT_ID_AQUI')) {
     return (
       <div style={{ padding: 16 }}>
-        <p className="section-title" style={{ marginBottom: 20 }}>Ajustes</p>
+        <p className="section-title" style={{ marginBottom: 20 }}>{t('settings')}</p>
         <div className="card" style={{ padding: '20px', borderColor: 'rgba(212,175,55,0.3)' }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
             <Shield size={20} color="var(--gold)" style={{ flexShrink: 0, marginTop: 2 }} />
@@ -43,10 +44,6 @@ export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (no
 const IDIOMAS: { code: Lang; label: string; flag: string }[] = [
   { code: 'es', label: 'ES', flag: '🇪🇸' },
   { code: 'en', label: 'EN', flag: '🇺🇸' },
-  { code: 'pt', label: 'PT', flag: '🇧🇷' },
-  { code: 'de', label: 'DE', flag: '🇩🇪' },
-  { code: 'fr', label: 'FR', flag: '🇫🇷' },
-  { code: 'ar', label: 'AR', flag: '🇸🇦' },
 ];
 
 function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string) => void }) {
@@ -94,23 +91,23 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Store size={18} color="var(--gold)" />
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>Mi Barbería</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{t('myBarberShopSection')}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button className="btn-gold" style={{ width: '100%' }} onClick={() => setShowConfigBarberia(true)}>
-            <Edit2 size={18} /> Configurar Nombre y Logo
+            <Edit2 size={18} /> {t('configNameLogoBtn')}
           </button>
           <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowApariencia(true)}>
             <Sun size={18} /> {t('appearance')}
           </button>
           <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowSocios(true)}>
-            <UserCog size={18} /> Gestionar Socios
+            <UserCog size={18} /> {t('manageSociosBtn')}
           </button>
           <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowSeguridad(true)}>
-            <Shield size={18} /> Seguridad y Acceso
+            <Shield size={18} /> {t('securityAccessBtn')}
           </button>
           <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowFinanzas(true)}>
-            <Percent size={18} /> Moneda y Comisión Bancaria
+            <Percent size={18} /> {t('currencyCommissionBtn')}
           </button>
         </div>
       </div>
@@ -121,17 +118,17 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Scissors size={18} color="var(--gold)" />
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>Administración</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{t('administrationSection')}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button className="btn-gold" style={{ width: '100%' }} onClick={() => setShowBarberos(true)}>
-            <Users size={18} /> Gestionar Barberos
+            <Users size={18} /> {t('manageBarbersBtn')}
           </button>
           <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowServicios(true)}>
-            <Package size={18} /> Gestionar Servicios y Productos
+            <Package size={18} /> {t('manageServicesBtn')}
           </button>
           <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowFondo(true)}>
-            <Wallet size={18} /> Fondo de Caja (Cambio)
+            <Wallet size={18} /> {t('cashFundBtn')}
           </button>
         </div>
       </div>
@@ -960,6 +957,7 @@ function DriveSectionEnabled() {
 }
 
 function AjustesGenerales() {
+  const { t } = useAppConfig();
   const [exportStatus, setExportStatus] = useState('');
   const [excelExportStatus, setExcelExportStatus] = useState('');
   const [excelImporting, setExcelImporting] = useState(false);
@@ -1052,8 +1050,8 @@ function AjustesGenerales() {
           <img src={logoSrc} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).src = '/Logo.jpg'; }} />
         </div>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--gold)', marginBottom: 4 }}>Gestión de Barberia</p>
-        <p style={{ fontSize: 12 }}>Versión 1.0.0 — Sistema de Gestión</p>
-        <p style={{ fontSize: 11, marginTop: 4, marginBottom: 20 }}>100% local · Sin servidor · Sin costo</p>
+        <p style={{ fontSize: 12 }}>{t('version')} 1.0.0 — Sistema de Gestión</p>
+        <p style={{ fontSize: 11, marginTop: 4, marginBottom: 20 }}>{t('localSystem')}</p>
         <button className="btn-danger" style={{ width: '100%', marginBottom: 10 }} onClick={async () => {
           if (!confirm('Esto borra el caché del navegador pero NO tus datos. ¿Continuar?')) return;
           try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert('✓ Caché limpiado.'); window.location.reload(); }

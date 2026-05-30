@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
-import { GoogleOAuthProvider } from '@react-oauth/google';
+import ClientProviders from '@/components/ClientProviders';
 import { AppConfigProvider } from '@/lib/useAppConfig';
+
 import './globals.css';
 
 const APP_NAME = 'Templo Barber Shop';
@@ -84,15 +85,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           })()
         ` }} />
         <div className="ambient-glow" />
-        <AppConfigProvider>
-          {googleConfigured ? (
-            <GoogleOAuthProvider clientId={clientId}>
+          <AppConfigProvider>
+            <ClientProviders clientId={clientId} googleConfigured={googleConfigured}>
               {children}
-            </GoogleOAuthProvider>
-          ) : (
-            children
-          )}
-        </AppConfigProvider>
+            </ClientProviders>
+          </AppConfigProvider>
       </body>
     </html>
   );

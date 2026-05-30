@@ -8,6 +8,7 @@ import { ChevronRight, UserCheck, UserX, Plus, X, CheckCircle2, Edit3, Package, 
 import { useEffect } from 'react';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useMoneda } from '@/lib/useMoneda';
+import { useAppConfig } from '@/lib/useAppConfig';
 
 function formatCurrencyWith(n: number, simbolo: string) { const safe = typeof n === 'number' && isFinite(n) ? n : 0; const fixed3 = safe.toFixed(3); return `${simbolo}${fixed3.endsWith('0') ? safe.toFixed(2) : fixed3}`; }
 
@@ -18,6 +19,8 @@ function mesAnioAFecha(mes: number, anio: number): Date {
 }
 
 export default function ScreenBarberos() {
+  const { t } = useAppConfig();
+  const MESES = Array.from({ length: 12 }, (_, i) => t(`month_${i}`));
   const hoy = new Date();
   const [selectedBarbero, setSelectedBarbero] = useState<number | null>(null);
   const [mesNav, setMesNav] = useState(hoy.getMonth());   // 0-11
@@ -68,7 +71,7 @@ export default function ScreenBarberos() {
   return (
     <div style={{ padding: '16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <p className="section-title">Barberos</p>
+        <p className="section-title">{t('barbersTitle')}</p>
       </div>
 
       {/* ── Navegador de mes ── */}
@@ -103,10 +106,10 @@ export default function ScreenBarberos() {
             />
             <div style={{ pointerEvents: 'none' }}>
               <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--gold)', lineHeight: 1, letterSpacing: '-0.02em', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                {MESES_ES[mesNav]} <ChevronDown size={14} style={{ opacity: 0.7 }} />
+                {MESES[mesNav]} <ChevronDown size={14} style={{ opacity: 0.7 }} />
               </p>
               <p style={{ fontSize: 13, color: esMesActual ? 'var(--success)' : 'var(--gray-muted)', marginTop: 3, fontWeight: esMesActual ? 600 : 400 }}>
-                {anioNav}{esMesActual ? ' · En curso' : ''}
+                {anioNav}{esMesActual ? ` · ${t('currentMonth')}` : ''}
               </p>
             </div>
           </div>
@@ -129,7 +132,7 @@ export default function ScreenBarberos() {
             onClick={irAHoy}
             style={{ marginTop: 10, width: '100%', padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 8, background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
           >
-            📅 Ir al mes actual
+            {t('goToCurrentMonth')}
           </button>
         )}
       </div>
@@ -154,7 +157,7 @@ export default function ScreenBarberos() {
                   <p style={{ fontWeight: 600, fontSize: 15 }}>{b.nombre}</p>
                   <div style={{ display: 'flex', gap: 6, marginTop: 3 }}>
                     <span className={`badge ${b.activo ? 'badge-green' : 'badge-red'}`}>
-                      {b.activo ? '● Activo' : '● Inactivo'}
+                      {b.activo ? t('active') : t('inactive')}
                     </span>
                     <span className="badge badge-gold">
                       <Percent size={9} /> {(b.porcentaje_comision * 100).toFixed(0)}%
@@ -171,7 +174,7 @@ export default function ScreenBarberos() {
         {(!barberos || barberos.length === 0) && (
           <div style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--gray-muted)' }}>
             <Scissors size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-            <p>{esMesActual ? 'No hay barberos activos' : `Sin actividad en ${MESES_ES[mesNav]} ${anioNav}`}</p>
+            <p>{esMesActual ? t('noActiveBarbers') : `${t('noActivityMonth')} ${MESES[mesNav]} ${anioNav}`}</p>
           </div>
         )}
       </div>
@@ -181,6 +184,7 @@ export default function ScreenBarberos() {
 
 function BarberoDetalle({ barberoId, porcentaje, mesFecha = new Date() }: { barberoId: number, porcentaje: number, mesFecha?: Date }) {
   const { simbolo } = useMoneda();
+  const { t } = useAppConfig();
   const formatCurrency = (n: number) => formatCurrencyWith(n, simbolo);
   const [comision, setComision] = useState(0);
   const [Adelantos, setAdelantos] = useState(0);
@@ -227,50 +231,46 @@ function BarberoDetalle({ barberoId, porcentaje, mesFecha = new Date() }: { barb
     <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--black-border)' }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div className="stat-card">
-          <span className="stat-label">Generado (mes)</span>
+          <span className="stat-label">{t('generated')}</span>
           <span className="stat-value" style={{ fontSize: 18 }}>{formatCurrency(ingresosBarbero)}</span>
         </div>
         <div className="stat-card">
-          <span className="stat-label">Comisión Bruta</span>
+          <span className="stat-label">{t('grossCommission')}</span>
           <span className="stat-value gold" style={{ fontSize: 18 }}>{formatCurrency(comision)}</span>
         </div>
         <div className="stat-card">
-          <span className="stat-label">Adelantos cobrados</span>
+          <span className="stat-label">{t('advancesPaid')}</span>
           <span className="stat-value red" style={{ fontSize: 18 }}>{formatCurrency(Adelantos)}</span>
         </div>
         <div className="stat-card" style={{ borderColor: saldo > 0 ? 'rgba(76,175,130,0.3)' : saldo === 0 ? 'rgba(212,175,55,0.3)' : 'rgba(224,82,82,0.3)' }}>
-          <span className="stat-label">Saldo neto</span>
+          <span className="stat-label">{t('netBalance2')}</span>
           <span className="stat-value" style={{ fontSize: 18, color: saldo > 0 ? 'var(--success)' : saldo === 0 ? 'var(--gold)' : 'var(--danger)' }}>
             {saldo > 0 ? '+' : ''}{formatCurrency(saldo)}
           </span>
           <p style={{ fontSize: 10, marginTop: 4, color: saldo >= 0 ? 'var(--gray-muted)' : 'var(--danger)' }}>
-            {saldo >= 0 ? 'Comisión generada menos adelantos cobrados' : 'Adelanto menos comisión generada'}
+            {saldo >= 0 ? t('commissionGenMinusAdv') : t('advanceExceedsComm')}
           </p>
           {saldo > 0 && (
             <p style={{ fontSize: 10, color: 'var(--success)', marginTop: 4, fontWeight: 600 }}>
-              ✓ Aún puede cobrar {formatCurrency(saldo)}
+              {t('canStillCollect')} {formatCurrency(saldo)}
             </p>
           )}
           {saldo < 0 && (
             <p style={{ fontSize: 10, color: 'var(--danger)', marginTop: 4, fontWeight: 600 }}>
-              ⚠️ El adelanto supera la comisión en {formatCurrency(Math.abs(saldo))}
+              {t('advanceExceedsBy')} {formatCurrency(Math.abs(saldo))}
             </p>
           )}
           {saldo === 0 && (
-            <p style={{ fontSize: 10, color: 'var(--gold)', marginTop: 4, fontWeight: 600 }}>✓ Saldo cero</p>
+            <p style={{ fontSize: 10, color: 'var(--gold)', marginTop: 4, fontWeight: 600 }}>{t('zeroBalance')}</p>
           )}
         </div>
       </div>
 
       {/* Historial detallado de Adelantos */}
       <div style={{ marginTop: 16 }}>
-        <p className="text-section" style={{ marginBottom: 8 }}>
-          💸 Historial de Adelantos / Pagos
-        </p>
+        <p className="text-section" style={{ marginBottom: 8 }}>{t('advanceHistory')}</p>
         {listaAdelantos.length === 0 ? (
-          <p className="text-hint" style={{ fontStyle: 'italic', padding: '4px 0' }}>
-            No se han registrado Adelantos este mes.
-          </p>
+          <p className="text-hint" style={{ fontStyle: 'italic', padding: '4px 0' }}>{t('noAdvancesMonth')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '220px', overflowY: 'auto', overflowX: 'hidden', paddingRight: 2 }}>
             {listaAdelantos.map(a => (
@@ -291,13 +291,14 @@ function BarberoDetalle({ barberoId, porcentaje, mesFecha = new Date() }: { barb
       </div>
 
         <p className="text-hint" style={{ marginTop: 12, padding: '8px 12px', borderRadius: 10, background: 'var(--black-surface)' }}>
-          Las ventas de productos no generan comisión — van 100% a la barbería
+          {t('productsNoBenefit')}
         </p>
     </div>
   );
 }
 
 export function ModalAddBarbero({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
   const [nombre, setNombre] = useState('');
   const [porcentaje, setPorcentaje] = useState('50');
   const [loading, setLoading] = useState(false);
@@ -322,18 +323,18 @@ export function ModalAddBarbero({ onClose }: { onClose: () => void }) {
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Nuevo Barbero</h2>
+          <h2 className="section-title">{t('newBarber')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}>
             <CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 16, fontWeight: 600 }}>¡Barbero agregado!</p>
+            <p style={{ fontSize: 16, fontWeight: 600 }}>{t('barberAdded')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label>
+              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullName')}</label>
               <input id="barbero-nombre" className="input-dark" type="text" value={nombre}
                 maxLength={100}
                 autoComplete="off"
@@ -342,7 +343,7 @@ export function ModalAddBarbero({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
-                Comisión por Servicios: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong>
+                {t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong>
               </label>
               <input id="barbero-comision" type="range" min="10" max="70" step="5" value={porcentaje}
                 onChange={e => setPorcentaje(e.target.value)}
@@ -358,7 +359,7 @@ export function ModalAddBarbero({ onClose }: { onClose: () => void }) {
             )}
             <button id="btn-guardar-barbero" className="btn-gold" style={{ marginTop: 8 }}
               disabled={!nombre.trim() || loading} onClick={guardar}>
-              {loading ? 'Guardando...' : 'Agregar Barbero'}
+              {loading ? t('loading') : t('addBarber')}
             </button>
           </div>
         )}
@@ -373,6 +374,7 @@ function PrecioItem({ precio }: { precio: number }) {
 }
 
 export function ModalGestionItems({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
   const [tab, setTab] = useState<'servicio' | 'producto'>('servicio');
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
@@ -404,19 +406,19 @@ export function ModalGestionItems({ onClose }: { onClose: () => void }) {
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Servicios & Productos</h2>
+          <h2 className="section-title">{t('servicesProducts')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16, flexShrink: 0 }}>
-          {(['servicio', 'producto'] as const).map(t => (
-            <button key={t} id={`tab-${t}`} onClick={() => setTab(t)}
+          {(['servicio', 'producto'] as const).map(tipo => (
+            <button key={tipo} id={`tab-${tipo}`} onClick={() => setTab(tipo)}
               style={{
-                padding: '10px', borderRadius: 10, border: `2px solid ${tab === t ? 'var(--gold)' : 'var(--black-border)'}`,
-                background: tab === t ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)',
-                color: tab === t ? 'var(--gold)' : 'var(--gray-text)',
+                padding: '10px', borderRadius: 10, border: `2px solid ${tab === tipo ? 'var(--gold)' : 'var(--black-border)'}`,
+                background: tab === tipo ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)',
+                color: tab === tipo ? 'var(--gold)' : 'var(--gray-text)',
                 cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, fontSize: 13, transition: 'all 0.2s'
               }}>
-              {t === 'servicio' ? '🪒 Servicios' : '📦 Productos'}
+              {tipo === 'servicio' ? `🪒 ${t('services')}` : `📦 ${t('products')}`}
             </button>
           ))}
         </div>
@@ -426,7 +428,7 @@ export function ModalGestionItems({ onClose }: { onClose: () => void }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {items?.length === 0 && (
               <p style={{ fontSize: 13, color: 'var(--gray-muted)', textAlign: 'center', padding: '20px 0' }}>
-                No hay {tab === 'servicio' ? 'servicios' : 'productos'} aún
+                {tab === 'servicio' ? t('noServicesYet') : t('noProductsYet')}
               </p>
             )}
             {items?.map(item => (
@@ -450,12 +452,12 @@ export function ModalGestionItems({ onClose }: { onClose: () => void }) {
 
         {/* Formulario fijo al fondo — nunca se oculta */}
         <div style={{ flexShrink: 0, borderTop: '1px solid var(--black-border)', paddingTop: 14 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>+ Agregar {tab}</p>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>+ {tab === 'servicio' ? t('addService') : t('addProduct')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input id="item-nombre" className="input-dark" type="text" value={nombre}
               maxLength={100} autoComplete="off"
               onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))}
-              placeholder={`Nombre del ${tab}`} />
+              placeholder={tab === 'servicio' ? t('serviceName') : t('productName')} />
             <div style={{ position: 'relative' }}>
               <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-muted)', fontSize: 14, pointerEvents: 'none' }}>{simbolo}</span>
               <input id="item-precio" className="input-dark" type="number" inputMode="decimal"
@@ -476,17 +478,17 @@ export function ModalGestionItems({ onClose }: { onClose: () => void }) {
                   value={stockActual}
                   onKeyDown={e => { if (['-','e','E','+','.'].includes(e.key)) e.preventDefault(); }}
                   onChange={e => { const v = e.target.value; if (v === '' || (Number.isInteger(Number(v)) && Number(v) >= 0)) setStockActual(v); }}
-                  placeholder="Stock actual" />
+                  placeholder={t('currentStock')} />
                 <input id="item-stock-min" className="input-dark" type="number" inputMode="numeric"
                   min="0" max="99999" step="1"
                   value={stockMin}
                   onKeyDown={e => { if (['-','e','E','+','.'].includes(e.key)) e.preventDefault(); }}
                   onChange={e => { const v = e.target.value; if (v === '' || (Number.isInteger(Number(v)) && Number(v) >= 0)) setStockMin(v); }}
-                  placeholder="Stock mínimo" />
+                  placeholder={t('minStock')} />
               </div>
             )}
             <button id="btn-agregar-item" className="btn-gold" disabled={!nombre || !precio} onClick={agregar}>
-              {success ? '✓ Agregado' : `Agregar ${tab}`}
+              {success ? t('added') : tab === 'servicio' ? t('addService') : t('addProduct')}
             </button>
           </div>
         </div>

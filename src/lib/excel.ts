@@ -185,11 +185,14 @@ export async function importFromExcel(file: File) {
 
       await db.registros_diarios.add({
         fecha: fechaDate,
-        barbero_id: barbero ? barbero.id! : 0,
+        barbero_id: barbero ? barbero.id! : 0,  // 0 = venta de la barbería (sin barbero asignado)
         item_id: item.id!,
         monto_total: monto,
         metodo_pago: metodo === 'banco' ? 'banco' : 'efectivo',
       });
+      if (!barbero) {
+        errores.push(`Ventas fila ${i + 2}: barbero "${nombreBarbero}" no encontrado — la venta se importó sin barbero asignado (barbero_id=0)`);
+      }
       importedVentas++;
     }
   }
