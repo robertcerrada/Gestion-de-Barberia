@@ -878,52 +878,108 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [barberoId, setBarberoId] = useState('');
-  const [itemId, setItemId] = useState('');
-  const [monto, setMonto] = useState('');
-  const [cantidad, setCantidad] = useState(1);
   const [metodo, setMetodo] = useState<'efectivo' | 'banco'>('efectivo');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [successCount, setSuccessCount] = useState(1);
+  const [successCount, setSuccessCount] = useState(0);
   const [error, setError] = useState('');
   const [fecha, setFecha] = useState<string>(fechaInicial ?? (() => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; })());
 
-  useEffect(() => {
-    if (itemId) { const item = servicios.find(s => s.id === Number(itemId)); if (item) setMonto(String(item.precio)); }
-  }, [itemId, servicios]);
-
-  const selectedItem = servicios.find(s => s.id === Number(itemId));
-  const esProducto = selectedItem?.tipo === 'producto';
-
-  async function guardar() {
-    if ((!esProducto && !barberoId) || !itemId || !monto || !fecha) return;
-    const [y, m, d] = fecha.split('-').map(Number);
-    const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
-    if (await isMesBloqueado(fechaDate)) { setError('El mes está cerrado.'); return; }
-    const item = servicios.find(s => s.id === Number(itemId));
-    if (item?.tipo === 'producto' && item.id) {
-      const prod = await db.servicios_productos.get(item.id);
-      if (prod && prod.stock_actual !== undefined && prod.stock_actual < cantidad) { setError(`Stock insuficiente. Disponible: ${prod.stock_actual}.`); return; }
-    }
-    setLoading(true);
-    const registros = Array.from({ length: cantidad }, () => ({ fecha: fechaDate, barbero_id: barberoId ? Number(barberoId) : 0, item_id: Number(itemId), monto_total: Number(monto), metodo_pago: metodo }));
-    await db.registros_diarios.bulkAdd(registros);
-    if (item?.tipo === 'producto' && item.id) {
-      const prod = await db.servicios_productos.get(item.id);
-      if (prod && prod.stock_actual !== undefined && prod.stock_actual >= cantidad) await db.servicios_productos.update(item.id, { stock_actual: prod.stock_actual - cantidad });
-    }
-    setLoading(false); setSuccessCount(cantidad); setSuccess(true); setTimeout(onClose, 1000);
-  }
+  // Lista de ítems: cada uno tiene itemId, precio custom y cantidad
+  type LineaVenta = { id: string; itemId: string; monto: string; cantidad: number };
+  const nuevoItem = (): LineaVenta => ({ id: crypto.randomUUID(), itemId: '', monto: '', cantidad: 1 });
+  const [lineas, setLineas] = useState<LineaVenta[]>([nuevoItem()]);
 
   const svcFiltrados = servicios.filter(s => s.tipo === 'servicio');
   const prodFiltrados = servicios.filter(s => s.tipo === 'producto');
+  const itemOptions = [
+    ...svcFiltrados.map(s => ({ id: String(s.id), nombre: s.nombre, tipo: 'servicio' as const, precio: s.precio })),
+    ...prodFiltrados.map(s => ({ id: String(s.id), nombre: s.nombre, tipo: 'producto' as const, precio: s.precio, stock_actual: s.stock_actual, stock_minimo: s.stock_minimo })),
+  ];
+
+  function setLineaItemId(lineaId: string, itemId: string) {
+    const item = servicios.find(s => String(s.id) === itemId);
+    setLineas(prev => prev.map(l => l.id === lineaId
+      ? { ...l, itemId, monto: item ? String(item.precio) : '' }
+      : l
+    ));
+  }
+  function setLineaMonto(lineaId: string, monto: string) {
+    setLineas(prev => prev.map(l => l.id === lineaId ? { ...l, monto } : l));
+  }
+  function setLineaCantidad(lineaId: string, cantidad: number) {
+    setLineas(prev => prev.map(l => l.id === lineaId ? { ...l, cantidad } : l));
+  }
+  function agregarLinea() { setLineas(prev => [...prev, nuevoItem()]); }
+  function eliminarLinea(lineaId: string) {
+    setLineas(prev => prev.length > 1 ? prev.filter(l => l.id !== lineaId) : prev);
+  }
+
+  // Calcula si alguna línea es solo producto (sin barbero requerido)
+  const todasProducto = lineas.every(l => {
+    const item = servicios.find(s => String(s.id) === l.itemId);
+    return item?.tipo === 'producto';
+  });
+  const algunaServicio = lineas.some(l => {
+    const item = servicios.find(s => String(s.id) === l.itemId);
+    return item?.tipo === 'servicio';
+  });
+
+  const totalGeneral = lineas.reduce((sum, l) => sum + (Number(l.monto) || 0) * l.cantidad, 0);
+  const lineasValidas = lineas.filter(l => l.itemId && l.monto && Number(l.monto) > 0);
+  const puedeGuardar = lineasValidas.length > 0 && (!algunaServicio || barberoId) && !loading;
+
+  async function guardar() {
+    if (!puedeGuardar) return;
+    const [y, m, d] = fecha.split('-').map(Number);
+    const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
+    if (await isMesBloqueado(fechaDate)) { setError('El mes está cerrado.'); return; }
+
+    // Validar stock de productos
+    for (const l of lineasValidas) {
+      const item = servicios.find(s => String(s.id) === l.itemId);
+      if (item?.tipo === 'producto' && item.id) {
+        const prod = await db.servicios_productos.get(item.id);
+        if (prod && prod.stock_actual !== undefined && prod.stock_actual < l.cantidad) {
+          setError(`Stock insuficiente para "${item.nombre}". Disponible: ${prod.stock_actual}.`);
+          return;
+        }
+      }
+    }
+
+    setLoading(true);
+    let totalRegistros = 0;
+    for (const l of lineasValidas) {
+      const item = servicios.find(s => String(s.id) === l.itemId);
+      const esProducto = item?.tipo === 'producto';
+      const bId = esProducto ? (barberoId ? Number(barberoId) : 0) : Number(barberoId);
+      const registros = Array.from({ length: l.cantidad }, () => ({
+        fecha: fechaDate,
+        barbero_id: bId,
+        item_id: Number(l.itemId),
+        monto_total: Number(l.monto),
+        metodo_pago: metodo,
+      }));
+      await db.registros_diarios.bulkAdd(registros);
+      totalRegistros += l.cantidad;
+      // Descontar stock
+      if (item?.tipo === 'producto' && item.id) {
+        const prod = await db.servicios_productos.get(item.id);
+        if (prod && prod.stock_actual !== undefined && prod.stock_actual >= l.cantidad) {
+          await db.servicios_productos.update(item.id, { stock_actual: prod.stock_actual - l.cantidad });
+        }
+      }
+    }
+    setLoading(false);
+    setSuccessCount(totalRegistros);
+    setSuccess(true);
+    setTimeout(onClose, 1000);
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
-
-        {/* Cabecera */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">Registrar Venta</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
@@ -932,12 +988,11 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}>
             <CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 16, fontWeight: 600 }}>{successCount > 1 ? `¡${successCount} ventas registradas!` : '¡Venta registrada!'}</p>
-            {successCount > 1 && <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 4 }}>Total: {fc(successCount * Number(monto))}</p>}
+            <p style={{ fontSize: 16, fontWeight: 600 }}>{successCount > 1 ? `¡${successCount} registros guardados!` : '¡Venta registrada!'}</p>
+            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 4 }}>Total: {fc(totalGeneral)}</p>
           </div>
         ) : (
           <>
-            {/* Zona scrolleable — fecha + lista de items */}
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
 
               {/* Fecha */}
@@ -948,60 +1003,17 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
                 <DatePicker value={fecha} onChange={setFecha} />
               </div>
 
-              {/* Lista servicios/productos — desplegable */}
+              {/* Barbero (común para todos los servicios) */}
               <div style={{ flexShrink: 0 }}>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 8 }}>Servicio / Producto</label>
-                <ItemSelect
-                  id="venta-item"
-                  value={itemId}
-                  onChange={setItemId}
-                  simbolo={simbolo}
-                  options={[
-                    ...svcFiltrados.map(s => ({ id: String(s.id), nombre: s.nombre, tipo: 'servicio' as const, precio: s.precio })),
-                    ...prodFiltrados.map(s => ({ id: String(s.id), nombre: s.nombre, tipo: 'producto' as const, precio: s.precio, stock_actual: s.stock_actual, stock_minimo: s.stock_minimo })),
-                  ]}
-                />
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
+                  Barbero {!algunaServicio && <span style={{ opacity: .6 }}>(opcional si solo hay productos)</span>}
+                </label>
+                <PersonSelect id="venta-barbero" value={barberoId} onChange={setBarberoId}
+                  placeholder="— Seleccionar barbero —" tipo="barbero"
+                  options={barberos.map(b => ({ id: String(b.id), nombre: b.nombre, subtitle: `Comisión ${(b.porcentaje_comision * 100).toFixed(0)}%` }))} />
               </div>
 
-              {/* Barbero */}
-              {!esProducto && (
-                <div style={{ flexShrink: 0 }}>
-                  <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Barbero</label>
-                  <PersonSelect id="venta-barbero" value={barberoId} onChange={setBarberoId} placeholder="— Seleccionar barbero —" tipo="barbero"
-                    options={barberos.map(b => ({ id: String(b.id), nombre: b.nombre, subtitle: `Comisión ${(b.porcentaje_comision * 100).toFixed(0)}%` }))} />
-                </div>
-              )}
-              {esProducto && (
-                <div style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 10, background: 'rgba(82,136,224,0.08)', border: '1px solid rgba(82,136,224,0.25)', fontSize: 12, color: 'var(--gray-text)' }}>📦 Los productos van 100% a la barbería.</div>
-              )}
-
-              {/* Monto */}
-              <div style={{ flexShrink: 0 }}>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Monto Total</label>
-                <input id="venta-monto" className="input-dark" type="number" inputMode="decimal" min="0" max="99999" step="0.01" value={monto}
-                  onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
-                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) setMonto(v); }} placeholder="0.00" />
-              </div>
-
-              {/* Cantidad */}
-              <div style={{ flexShrink: 0 }}>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 8 }}>Cantidad de trabajos iguales</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <button type="button" onClick={() => setCantidad(c => Math.max(1, c - 1))} style={{ width: 40, height: 40, borderRadius: 10, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>−</button>
-                  <div style={{ flex: 1, textAlign: 'center' }}>
-                    <span style={{ fontSize: 28, fontWeight: 800, color: cantidad > 1 ? 'var(--gold)' : 'var(--white-soft)', fontFamily: 'var(--font-display)' }}>{cantidad}</span>
-                    {cantidad > 1 && monto && <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>Total: <span style={{ color: 'var(--success)', fontWeight: 600 }}>{fc(cantidad * Number(monto))}</span></p>}
-                  </div>
-                  <button type="button" onClick={() => setCantidad(c => Math.min(99, c + 1))} style={{ width: 40, height: 40, borderRadius: 10, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>+</button>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
-                  {[1, 5, 10, 15, 20].map(n => (
-                    <button key={n} type="button" onClick={() => setCantidad(n)} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: `1px solid ${cantidad === n ? 'var(--gold)' : 'var(--black-border)'}`, background: cantidad === n ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.03)', color: cantidad === n ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)' }}>{n}x</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Método de pago */}
+              {/* Método de pago (común para todos) */}
               <div style={{ flexShrink: 0 }}>
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Método de Pago</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -1010,15 +1022,127 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
                 </div>
               </div>
 
+              {/* ── Lista de ítems ── */}
+              <div style={{ flexShrink: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <label style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Servicios / Productos</label>
+                  <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600 }}>{lineasValidas.length} ítem{lineasValidas.length !== 1 ? 's' : ''}</span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {lineas.map((linea, idx) => {
+                    const itemSel = servicios.find(s => String(s.id) === linea.itemId);
+                    const esProducto = itemSel?.tipo === 'producto';
+                    return (
+                      <div key={linea.id} style={{
+                        borderRadius: 12,
+                        border: '1px solid var(--black-border)',
+                        background: 'var(--black-surface)',
+                        overflow: 'hidden',
+                      }}>
+                        {/* Cabecera de la línea */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 6px' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Ítem {idx + 1}{itemSel ? ` · ${esProducto ? '📦' : '✂️'} ${itemSel.tipo}` : ''}
+                          </span>
+                          {lineas.length > 1 && (
+                            <button type="button" onClick={() => eliminarLinea(linea.id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 2, display: 'flex', alignItems: 'center' }}>
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div style={{ padding: '0 10px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {/* Selector de ítem */}
+                          <ItemSelect
+                            id={`venta-item-${linea.id}`}
+                            value={linea.itemId}
+                            onChange={v => setLineaItemId(linea.id, v)}
+                            simbolo={simbolo}
+                            options={itemOptions}
+                          />
+
+                          {linea.itemId && (
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              {/* Monto */}
+                              <div>
+                                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Precio unit.</label>
+                                <input
+                                  className="input-dark"
+                                  type="number" inputMode="decimal" min="0" max="99999" step="0.01"
+                                  value={linea.monto}
+                                  onKeyDown={e => { if (['-','e','E','+'].includes(e.key)) e.preventDefault(); }}
+                                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) setLineaMonto(linea.id, v); }}
+                                  placeholder="0.00"
+                                  style={{ margin: 0 }}
+                                />
+                              </div>
+
+                              {/* Cantidad */}
+                              <div>
+                                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Cantidad</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <button type="button"
+                                    onClick={() => setLineaCantidad(linea.id, Math.max(1, linea.cantidad - 1))}
+                                    style={{ width: 32, height: 38, borderRadius: 8, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>−</button>
+                                  <div style={{ flex: 1, textAlign: 'center', fontSize: 16, fontWeight: 800, color: linea.cantidad > 1 ? 'var(--gold)' : 'var(--white-soft)', fontFamily: 'var(--font-display)' }}>{linea.cantidad}</div>
+                                  <button type="button"
+                                    onClick={() => setLineaCantidad(linea.id, Math.min(99, linea.cantidad + 1))}
+                                    style={{ width: 32, height: 38, borderRadius: 8, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 16, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Subtotal de la línea */}
+                          {linea.itemId && linea.monto && Number(linea.monto) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6 }}>
+                              {linea.cantidad > 1 && (
+                                <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{linea.cantidad} × {fc(Number(linea.monto))} =</span>
+                              )}
+                              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)' }}>{fc(Number(linea.monto) * linea.cantidad)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Botón agregar ítem */}
+                <button type="button" onClick={agregarLinea}
+                  style={{
+                    width: '100%', marginTop: 8, padding: '9px', borderRadius: 10,
+                    border: '1.5px dashed rgba(212,175,55,0.35)',
+                    background: 'rgba(212,175,55,0.04)',
+                    color: 'var(--gold)', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'var(--font-body)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.09)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.04)')}
+                >
+                  <Plus size={14} /> Agregar otro ítem
+                </button>
+              </div>
+
               {error && <div style={{ flexShrink: 0, padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
 
-            {/* Botón guardar — siempre visible al fondo */}
+            {/* Pie fijo: total + guardar */}
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
+              {lineasValidas.length > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(76,175,130,0.07)', border: '1px solid rgba(76,175,130,0.2)' }}>
+                  <span style={{ fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600 }}>Total {lineasValidas.length} ítems</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--success)', fontFamily: 'var(--font-display)' }}>{fc(totalGeneral)}</span>
+                </div>
+              )}
               <button id="btn-guardar-venta" className="btn-gold" style={{ width: '100%' }}
-                disabled={(!esProducto && !barberoId) || !itemId || !monto || loading}
+                disabled={!puedeGuardar}
                 onClick={guardar}>
-                {loading ? 'Guardando...' : 'Guardar Venta'}
+                {loading ? 'Guardando...' : `Guardar ${lineasValidas.length > 1 ? `${lineasValidas.reduce((s,l)=>s+l.cantidad,0)} registros` : 'Venta'}`}
               </button>
             </div>
           </>
