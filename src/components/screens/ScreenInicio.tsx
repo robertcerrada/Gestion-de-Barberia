@@ -1123,15 +1123,11 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
   const sociosActivos = useLiveQuery(() => db.socios.filter(s => s.activo).toArray(), []) ?? [];
 
   useEffect(() => {
-    async function cargar() {
-      const [y, m, d] = fecha.split('-').map(Number);
-      const ini = new Date(y, m - 1, d, 0, 0, 0);
-      const fi = new Date(y, m - 1, d, 23, 59, 59);
-      const regs = await db.registros_diarios.where('fecha').between(ini, fi, true, true).toArray();
-      setBarberosConVentas(Array.from(new Set(regs.map(r => r.barbero_id).filter(id => id !== 0))));
-    }
-    cargar();
-  }, [fecha]);
+    // No filtramos por ventas del día: los pagos/adelantos son del saldo
+    // acumulado del mes y no requieren ventas en la fecha seleccionada.
+    // Mantenemos el estado por compatibilidad pero lo poblamos con todos los barberos.
+    setBarberosConVentas(barberos.map(b => b.id!).filter(Boolean));
+  }, [fecha, barberos]);
 
   useEffect(() => {
     async function calcular() {
@@ -1139,6 +1135,8 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
       const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
       setEfectivoCaja(await getEfectivoDisponibleCaja(fechaDate));
       if (!barberoId) { setSaldoBarbero(null); setBeneficioSocio(null); setAdelantadoSocio(null); return; }
+      setMonto('');   // ← resetear monto al cambiar de persona
+      setError('');
       if (destinatarioTipo === 'barbero') {
         const [pagado, saldo] = await Promise.all([getAdelantosMes(Number(barberoId), fechaDate), getSaldoDisponibleBarbero(Number(barberoId), fechaDate)]);
         setAdelantadoSocio(pagado); setSaldoBarbero(saldo); setBeneficioSocio(null);
@@ -1161,9 +1159,11 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
     setLoading(true);
     const montoNum = Number(monto);
     if (destinatarioTipo === 'barbero') {
+      // El saldo disponible se calcula sobre el mes completo del pago,
+      // sin importar si ese día en particular hubo ventas o no.
       const saldoActual = await getSaldoDisponibleBarbero(Number(barberoId), fechaDate);
-      if (saldoActual <= 0) { setError(`Sin saldo disponible.`); setLoading(false); return; }
-      if (montoNum > saldoActual) { setError(`Excede la comisión disponible (${saldoActual.toFixed(2)}).`); setLoading(false); return; }
+      if (saldoActual <= 0) { setError(`Sin saldo acumulado disponible en este mes.`); setLoading(false); return; }
+      if (montoNum > saldoActual) { setError(`Excede el saldo acumulado disponible (${saldoActual.toFixed(2)}).`); setLoading(false); return; }
       await db.Adelantos.add({ fecha: fechaDate, barbero_id: Number(barberoId), monto: montoNum, motivo, destinatario_tipo: 'barbero' });
     } else if (destinatarioTipo === 'socio') {
       const res = await getResumenMes(fechaDate);
@@ -1238,9 +1238,9 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
                 </label>
                 {destinatarioTipo === 'barbero' ? (
                   <PersonSelect id="Adelanto-barbero" value={barberoId} onChange={setBarberoId}
-                    placeholder={barberosConVentas.length === 0 ? '— Sin ventas este día —' : '— Seleccionar barbero —'}
+                    placeholder="— Seleccionar barbero —"
                     tipo="barbero"
-                    options={barberos.filter(b => barberosConVentas.includes(b.id!)).map(b => ({ id: String(b.id), nombre: b.nombre, subtitle: `Comisión ${(b.porcentaje_comision * 100).toFixed(0)}%` }))} />
+                    options={barberos.map(b => ({ id: String(b.id), nombre: b.nombre, subtitle: `Comisión ${(b.porcentaje_comision * 100).toFixed(0)}%` }))} />
                 ) : (
                   <PersonSelect id="Adelanto-socio" value={barberoId} onChange={setBarberoId}
                     placeholder="— Seleccionar socio —" tipo="socio"
@@ -1249,7 +1249,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
               </div>
               {destinatarioTipo === 'barbero' && barberoId && saldoBarbero !== null && (
                 <div className="card" style={{ padding: '12px 14px', background: saldoBarbero <= 0 ? 'rgba(224,82,82,0.07)' : 'rgba(212,175,55,0.06)', borderColor: saldoBarbero <= 0 ? 'rgba(224,82,82,0.35)' : 'rgba(212,175,55,0.3)' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💈 Comisiones del mes</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💈 Saldo acumulado del mes</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Generado:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc((saldoBarbero ?? 0) + (adelantadoSocio ?? 0))}</span></div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Ya cobrado:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--warning)' }}>-{fc(adelantadoSocio ?? 0)}</span></div>
@@ -1289,10 +1289,121 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
                   {destinatarioTipo === 'devolucion_socio' ? 'Monto que ingresa' : 'Monto Entregado'}
                 </label>
-                <input id="Adelanto-monto" className="input-dark" type="number" inputMode="decimal" min="0.01" max="99999" step="0.01" value={monto}
-                  onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
-                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) { setMonto(v); setError(''); } }}
-                  placeholder="0.00" style={{ borderColor: excedeCaja ? 'var(--danger)' : undefined }} />
+                {/* Campo monto con botón MAX + flechas +/- */}
+                {(() => {
+                  // Límite máximo según contexto
+                  const maxMonto = destinatarioTipo === 'barbero'
+                    ? Math.max(0, saldoBarbero ?? 0)
+                    : destinatarioTipo === 'socio'
+                    ? Math.max(0, saldoBarbero ?? 0)
+                    : deudaSocio;
+                  const step = 0.5;
+                  return (
+                    <div style={{ position: 'relative' }}>
+                      {/* Fila: − input + */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* Botón − */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = Number(monto) || 0;
+                            const next = Math.max(0, parseFloat((cur - step).toFixed(2)));
+                            setMonto(next === 0 ? '' : String(next));
+                            setError('');
+                          }}
+                          disabled={!barberoId || Number(monto) <= 0}
+                          style={{
+                            width: 40, height: 44, borderRadius: 10, flexShrink: 0,
+                            border: '1px solid var(--black-border)',
+                            background: 'rgba(255,255,255,0.04)',
+                            color: 'var(--white-soft)', fontSize: 20, fontWeight: 700,
+                            cursor: (!barberoId || Number(monto) <= 0) ? 'default' : 'pointer',
+                            opacity: (!barberoId || Number(monto) <= 0) ? 0.35 : 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'background 0.15s',
+                          }}
+                        >−</button>
+
+                        {/* Input numérico */}
+                        <div style={{ flex: 1, position: 'relative' }}>
+                          <input
+                            id="Adelanto-monto"
+                            className="input-dark"
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            max={maxMonto > 0 ? maxMonto : 99999}
+                            step={step}
+                            value={monto}
+                            onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
+                            onChange={e => {
+                              const v = e.target.value;
+                              if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) { setMonto(v); setError(''); }
+                            }}
+                            placeholder="0.00"
+                            style={{
+                              borderColor: excedeCaja ? 'var(--danger)' : undefined,
+                              paddingRight: barberoId && maxMonto > 0 ? 52 : undefined,
+                              margin: 0, width: '100%',
+                            }}
+                          />
+                          {/* Botón MAX — solo si hay alguien seleccionado y tiene saldo */}
+                          {barberoId && maxMonto > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => { setMonto(maxMonto.toFixed(2)); setError(''); }}
+                              title={`Completar máximo: ${fc(maxMonto)}`}
+                              style={{
+                                position: 'absolute', right: 8, top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'rgba(212,175,55,0.18)',
+                                border: '1px solid rgba(212,175,55,0.45)',
+                                borderRadius: 6, padding: '2px 7px',
+                                fontSize: 10, fontWeight: 800,
+                                color: 'var(--gold)', cursor: 'pointer',
+                                letterSpacing: '0.04em', lineHeight: 1.6,
+                                transition: 'background 0.15s',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.30)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.18)')}
+                            >
+                              MAX
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Botón + */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = Number(monto) || 0;
+                            const next = Math.min(maxMonto > 0 ? maxMonto : 99999, parseFloat((cur + step).toFixed(2)));
+                            setMonto(String(next));
+                            setError('');
+                          }}
+                          disabled={!barberoId || (maxMonto > 0 && Number(monto) >= maxMonto)}
+                          style={{
+                            width: 40, height: 44, borderRadius: 10, flexShrink: 0,
+                            border: '1px solid var(--black-border)',
+                            background: 'rgba(255,255,255,0.04)',
+                            color: 'var(--white-soft)', fontSize: 20, fontWeight: 700,
+                            cursor: (!barberoId || (maxMonto > 0 && Number(monto) >= maxMonto)) ? 'default' : 'pointer',
+                            opacity: (!barberoId || (maxMonto > 0 && Number(monto) >= maxMonto)) ? 0.35 : 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            transition: 'background 0.15s',
+                          }}
+                        >+</button>
+                      </div>
+
+                      {/* Hint de máximo disponible */}
+                      {barberoId && maxMonto > 0 && (
+                        <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginTop: 5, textAlign: 'right' }}>
+                          Máx. disponible: <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{fc(maxMonto)}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
                 {excedeCaja && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, color: 'var(--danger)', fontSize: 12 }}><AlertCircle size={14} /> Excede efectivo en caja ({fc(efectivoCaja!)})</div>}
               </div>
               <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Motivo</label><input id="Adelanto-motivo" className="input-dark" type="text" value={motivo} maxLength={200} onChange={e => setMotivo(e.target.value.replace(/[<>"'`]/g, ''))} placeholder={destinatarioTipo === 'devolucion_socio' ? 'Ej: Devolución por adelanto de más' : 'Ej: Pago mensual'} /></div>

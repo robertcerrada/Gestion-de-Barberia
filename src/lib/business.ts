@@ -36,16 +36,19 @@ export async function getComisionBrutaMes(barberoId: number, mes: Date = new Dat
   const inicio = startOfMonth(mes);
   const fin = endOfMonth(mes);
 
-  const [registros, items, barbero] = await Promise.all([
+  // Usamos between() en lugar de .and() con comparación de fechas para evitar
+  // inconsistencias cuando IndexedDB almacena fechas como strings vs Date objects.
+  // Luego filtramos por barbero_id en memoria.
+  const [todosRegistros, items, barbero] = await Promise.all([
     db.registros_diarios
-      .where('barbero_id').equals(barberoId)
-      .and(r => r.fecha >= inicio && r.fecha <= fin)
+      .where('fecha').between(inicio, fin, true, true)
       .toArray(),
     db.servicios_productos.toArray(),
     db.barberos.get(barberoId),
   ]);
   if (!barbero) return 0;
   const itemMap = new Map(items.map(i => [i.id!, i]));
+  const registros = todosRegistros.filter(r => r.barbero_id === barberoId);
 
   let comisionBruta = 0;
   for (const reg of registros) {
@@ -60,14 +63,16 @@ export async function getComisionBrutaMes(barberoId: number, mes: Date = new Dat
 export async function getAdelantosMes(barberoId: number, mes: Date = new Date()): Promise<number> {
   const inicio = startOfMonth(mes);
   const fin = endOfMonth(mes);
-  const [Adelantos, socioMismoId, barberoMismoId] = await Promise.all([
+  // Usamos between() para consistencia con el resto de consultas de fechas.
+  // Luego filtramos por barbero_id en memoria para evitar inconsistencias de tipos.
+  const [todosAdelantos, socioMismoId, barberoMismoId] = await Promise.all([
     db.Adelantos
-      .where('barbero_id').equals(barberoId)
-      .and(a => a.fecha >= inicio && a.fecha <= fin)
+      .where('fecha').between(inicio, fin, true, true)
       .toArray(),
     db.socios.get(barberoId),
     db.barberos.get(barberoId),
   ]);
+  const Adelantos = todosAdelantos.filter(a => a.barbero_id === barberoId);
 
   return Adelantos
     .filter(a => {
@@ -84,16 +89,16 @@ export async function getAdelantosMes(barberoId: number, mes: Date = new Date())
 export async function getPagosSocioMes(socioId: number, mes: Date = new Date()): Promise<number> {
   const inicio = startOfMonth(mes);
   const fin = endOfMonth(mes);
-  const [socio, barberoMismoId, adelantos] = await Promise.all([
+  const [socio, barberoMismoId, todosAdelantos] = await Promise.all([
     db.socios.get(socioId),
     db.barberos.get(socioId),
     db.Adelantos
-      .where('barbero_id').equals(socioId)
-      .and(a => a.fecha >= inicio && a.fecha <= fin)
+      .where('fecha').between(inicio, fin, true, true)
       .toArray(),
   ]);
 
   if (!socio) return 0;
+  const adelantos = todosAdelantos.filter(a => a.barbero_id === socioId);
   return adelantos
     .filter(a => adelantoPerteneceASocio(a, socio, barberoMismoId))
     .reduce((sum, a) => sum + a.monto, 0);
