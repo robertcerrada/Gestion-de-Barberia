@@ -174,33 +174,9 @@ export function CustomSelect({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(prev => !prev)}
-        className={className}
+        className={`cs-trigger ${className} ${open ? 'cs-trigger--open' : ''} ${selected ? 'cs-trigger--selected' : ''}`}
         style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '10px 14px',
-          borderRadius: 12,
-          border: `1.5px solid ${
-            open
-              ? 'var(--gold)'
-              : selected
-              ? 'rgba(212,175,55,0.35)'
-              : 'var(--black-border)'
-          }`,
-          background: open
-            ? 'rgba(212,175,55,0.06)'
-            : selected
-            ? 'rgba(212,175,55,0.04)'
-            : 'var(--black-surface)',
-          cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.5 : 1,
-          transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
-          fontFamily: 'var(--font-body)',
-          textAlign: 'left',
-          outline: 'none',
-          boxShadow: open ? '0 0 0 3px rgba(212,175,55,0.1)' : 'none',
           minHeight: 46,
         }}
       >
@@ -223,7 +199,7 @@ export function CustomSelect({
             {selected ? selected.label : placeholder}
           </p>
           {selected?.subtitle && (
-            <p style={{ fontSize: 11, color: 'var(--gold)', marginTop: 1, margin: 0 }}>
+            <p style={{ fontSize: 12, color: 'var(--gold)', marginTop: 1, margin: 0 }}>
               {selected.subtitle}
             </p>
           )}
@@ -245,20 +221,14 @@ export function CustomSelect({
         {/* Clear + chevron */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {selected && !disabled && (
-            <div
+            <button
+              type="button"
               onClick={handleClear}
-              style={{
-                width: 22, height: 22, borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(255,255,255,0.06)',
-                cursor: 'pointer',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,82,82,0.18)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+              aria-label="Borrar selección"
+              className="cs-clear-button"
             >
               <X size={12} color="var(--gray-muted)" />
-            </div>
+            </button>
           )}
           <ChevronDown
             size={16}
@@ -276,90 +246,45 @@ export function CustomSelect({
       {open && pos && createPortal(
         <>
           {/* Backdrop translúcido */}
-          <div
+          <button
+            type="button"
+            className="dropdown-backdrop-button"
+            aria-label="Cerrar selección"
             onClick={() => setOpen(false)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 99998,
-              background: 'rgba(0,0,0,0.25)',
-              backdropFilter: 'blur(1px)',
-              animation: 'csFadeIn 0.15s ease',
-            }}
           />
 
           {/* Panel */}
-          <div ref={dropdownRef} style={dropdownStyle}>
+          <div ref={dropdownRef} className="cs-dropdown-panel" style={dropdownStyle}>
 
             {/* Buscador */}
             {showSearch && (
-              <div style={{
-                padding: '10px 10px 6px',
-                borderBottom: '1px solid var(--black-border)',
-                flexShrink: 0,
-              }}>
+              <div className="cs-search-wrapper">
                 <input
                   ref={searchRef}
                   type="text"
+                  className="cs-search-input"
                   placeholder="🔍 Buscar..."
+                  aria-label="Buscar opciones"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '7px 12px',
-                    borderRadius: 9,
-                    border: '1px solid var(--black-border)',
-                    background: 'var(--black-surface)',
-                    color: 'var(--white-soft)',
-                    fontSize: 13,
-                    fontFamily: 'var(--font-body)',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = 'rgba(212,175,55,0.45)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--black-border)')}
                 />
               </div>
             )}
 
             {/* Lista */}
-            <div style={{
-              overflowY: 'auto',
-              padding: '6px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              flex: 1,
-            }}>
+            <div className="cs-rows-container">
               {/* Opción vacía / placeholder */}
               <button
                 type="button"
                 onClick={() => handleSelect('')}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '9px 12px',
-                  borderRadius: 9,
-                  border: 'none',
-                  background: !value ? 'rgba(212,175,55,0.09)' : 'transparent',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-body)',
-                  textAlign: 'left',
-                  transition: 'background 0.13s',
-                }}
-                onMouseEnter={e => { if (value) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseLeave={e => { if (value) e.currentTarget.style.background = 'transparent'; }}
+                className="cs-option-btn cs-option-placeholder"
+                style={{ background: !value ? 'rgba(212,175,55,0.09)' : 'transparent' }}
               >
-                <span style={{ flex: 1, fontSize: 13, color: 'var(--gray-muted)', fontStyle: 'italic' }}>
+                <span className="cs-option-placeholder-label">
                   {placeholder}
                 </span>
                 {!value && (
-                  <div style={{
-                    width: 18, height: 18, borderRadius: '50%',
-                    background: 'var(--gold)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
+                  <div className="cs-option-placeholder-check">
                     <Check size={11} color="#0a0a0a" strokeWidth={3} />
                   </div>
                 )}
@@ -377,12 +302,7 @@ export function CustomSelect({
               {rows.map((row, idx) => {
                 if (row.type === 'header') {
                   return (
-                    <p key={`h-${idx}`} style={{
-                      fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                      textTransform: 'uppercase', color: 'var(--gray-muted)',
-                      padding: '8px 12px 4px',
-                      margin: 0,
-                    }}>
+                    <p key={`h-${idx}`} className="cs-row-header">
                       {row.group}
                     </p>
                   );
@@ -398,23 +318,8 @@ export function CustomSelect({
                     type="button"
                     disabled={isDisabled}
                     onClick={() => !isDisabled && handleSelect(o.value)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '9px 12px',
-                      borderRadius: 9,
-                      border: 'none',
-                      background: isSelected ? 'rgba(212,175,55,0.1)' : 'transparent',
-                      cursor: isDisabled ? 'not-allowed' : 'pointer',
-                      opacity: isDisabled ? 0.4 : 1,
-                      fontFamily: 'var(--font-body)',
-                      textAlign: 'left',
-                      transition: 'background 0.13s',
-                    }}
-                    onMouseEnter={e => { if (!isSelected && !isDisabled) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                    onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = isSelected ? 'rgba(212,175,55,0.1)' : 'transparent'; }}
+                    className={`cs-option-btn ${isSelected ? 'cs-option-btn--selected' : ''}`}
+                    style={{ background: isSelected ? 'rgba(212,175,55,0.1)' : 'transparent' }}
                   >
                     {/* Icono */}
                     {o.icon && (
@@ -423,21 +328,11 @@ export function CustomSelect({
 
                     {/* Texto */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{
-                        fontSize: 14,
-                        fontWeight: isSelected ? 700 : 500,
-                        color: isSelected ? 'var(--gold)' : isDisabled ? 'var(--gray-muted)' : 'var(--white-soft)',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        transition: 'color 0.13s', margin: 0,
-                      }}>
+                      <p className={`cs-option-label ${isSelected ? 'cs-option-label--selected' : ''}`}>
                         {o.label}
                       </p>
                       {o.subtitle && (
-                        <p style={{
-                          fontSize: 11,
-                          color: isSelected ? 'rgba(212,175,55,0.7)' : 'var(--gray-muted)',
-                          marginTop: 1, margin: 0,
-                        }}>
+                        <p className={`cs-option-subtitle ${isSelected ? 'cs-option-subtitle--selected' : ''}`}>
                           {o.subtitle}
                         </p>
                       )}
@@ -445,34 +340,25 @@ export function CustomSelect({
 
                     {/* Badge */}
                     {o.badge && (
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
-                        background: o.badgeColor ? `${o.badgeColor}22` : 'rgba(212,175,55,0.15)',
-                        color: o.badgeColor ?? 'var(--gold)',
-                        border: `1px solid ${o.badgeColor ? `${o.badgeColor}44` : 'rgba(212,175,55,0.3)'}`,
-                        flexShrink: 0, whiteSpace: 'nowrap',
-                      }}>
+                      <span
+                        className="cs-badge"
+                        style={{
+                          background: o.badgeColor ? `${o.badgeColor}22` : 'rgba(212,175,55,0.15)',
+                          color: o.badgeColor ?? 'var(--gold)',
+                          border: `1px solid ${o.badgeColor ? `${o.badgeColor}44` : 'rgba(212,175,55,0.3)'}`,
+                        }}
+                      >
                         {o.badge}
                       </span>
                     )}
 
                     {/* Radio indicator */}
                     {isSelected ? (
-                      <div style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        background: 'var(--gold)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                        boxShadow: '0 2px 6px rgba(212,175,55,0.35)',
-                      }}>
+                      <div className="cs-radio-indicator cs-radio-indicator--selected">
                         <Check size={12} color="#0a0a0a" strokeWidth={3} />
                       </div>
                     ) : (
-                      <div style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        border: '2px solid var(--black-border)',
-                        flexShrink: 0,
-                      }} />
+                      <div className="cs-radio-indicator" />
                     )}
                   </button>
                 );

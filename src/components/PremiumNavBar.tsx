@@ -28,46 +28,20 @@ export default function PremiumNavBar({ activeTab, onTabChange, items }: Premium
   const itemWidth = 100 / items.length;
 
   return (
-    <nav
-      className="premium-nav-bar"
-      style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: 'var(--tab-bar-height)',
-        paddingBottom: bottomSafeArea,
-        zIndex: 100,
-        background: 'var(--black-card)',
-        backdropFilter: 'blur(20px)',
-        borderTop: '1px solid var(--black-border)',
-        display: 'flex',
-        alignItems: 'flex-start',
-        justifyContent: 'space-around',
-        paddingTop: '8px'
-      }}
-    >
+    <nav id="premium-nav-bar" className="premium-nav-bar" style={{ paddingBottom: bottomSafeArea }}>
+
       {/* Animated background curve */}
       <div
-        className="nav-bg-curve"
+        className="premium-nav-bg-curve"
         style={{
-          position: 'absolute',
-          bottom: 0,
           left: `${activeIndex * itemWidth}%`,
           width: `${itemWidth}%`,
-          height: '100%',
-          background: 'linear-gradient(180deg, rgba(212,175,55,0.15) 0%, rgba(212,175,55,0.05) 100%)',
-          borderRadius: '50% 50% 0 0 / 20% 20% 0 0',
-          transition: 'left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          pointerEvents: 'none',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(212,175,55,0.25)',
-          borderBottom: 'none'
         }}
       />
 
+
       {/* Nav items */}
-      <div style={{ display: 'flex', width: '100%', position: 'relative', zIndex: 10 }}>
+      <div className="premium-nav-items">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -77,34 +51,19 @@ export default function PremiumNavBar({ activeTab, onTabChange, items }: Premium
             <button
               key={item.id}
               id={`tab-${item.id}`}
+              type="button"
               onClick={() => onTabChange(item.id)}
               onMouseEnter={() => setHoveredItem(item.id)}
               onMouseLeave={() => setHoveredItem(null)}
+              className="premium-nav-item"
               style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 0',
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                 color: isActive ? 'var(--gold)' : 'var(--gray-muted)',
                 transform: isActive ? 'translateY(-2px)' : isHovered ? 'translateY(-1px)' : 'translateY(0)',
-                WebkitTapHighlightColor: 'transparent'
               }}
             >
               {/* Icon with glow effect */}
-              <div
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
+              <div className="premium-nav-item-icon">
+
                 {isActive && (
                   <div
                     style={{
@@ -122,7 +81,7 @@ export default function PremiumNavBar({ activeTab, onTabChange, items }: Premium
                   size={22}
                   style={{
                     color: isActive ? 'var(--gold)' : isHovered ? 'rgba(212,175,55,0.6)' : 'var(--gray-muted)',
-                    transition: 'all 0.3s ease',
+                    transition: 'color 0.3s ease',
                     filter: isActive ? 'drop-shadow(0 0 8px rgba(212,175,55,0.4))' : 'none'
                   }}
                 />
@@ -130,13 +89,10 @@ export default function PremiumNavBar({ activeTab, onTabChange, items }: Premium
 
               {/* Label */}
               <span
+                className="premium-nav-label"
                 style={{
-                  fontSize: '10px',
-                  fontWeight: isActive ? '600' : '400',
                   color: isActive ? 'var(--gold)' : isHovered ? 'rgba(212,175,55,0.6)' : 'var(--gray-muted)',
-                  transition: 'all 0.3s ease',
-                  fontFamily: 'var(--font-body)',
-                  letterSpacing: '0.01em'
+                  fontWeight: isActive ? 600 : 400,
                 }}
               >
                 {item.label}
@@ -147,30 +103,8 @@ export default function PremiumNavBar({ activeTab, onTabChange, items }: Premium
       </div>
 
       {/* Decorative corner ornaments */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '12px',
-          left: '12px',
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          background: 'rgba(212,175,55,0.2)',
-          pointerEvents: 'none'
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '12px',
-          right: '12px',
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          background: 'rgba(212,175,55,0.2)',
-          pointerEvents: 'none'
-        }}
-      />
+      <div className="premium-nav-ornament" />
+      <div className="premium-nav-ornament premium-nav-ornament--right" />
 
       <style>{`
         @keyframes navGlow {

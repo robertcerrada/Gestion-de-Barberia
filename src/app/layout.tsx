@@ -23,8 +23,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 5,           // ← era 1, Lighthouse penaliza bloquear el zoom
-  userScalable: true,        // ← era false, accesibilidad requiere true
+  maximumScale: 5,
+  userScalable: true,
   themeColor: '#D4AF37',
 };
 
@@ -38,7 +38,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Favicon e iconos */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icons/icon-192x192.png" type="image/png" sizes="192x192" />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        {/* Apple touch icon — usa 512 para mejor calidad en iOS */}
+        <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
         {/* Preconnect para Google Fonts — mejora LCP */}

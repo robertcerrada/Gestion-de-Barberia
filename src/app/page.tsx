@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Home, Users, BarChart3, Settings } from 'lucide-react';
+import { Home, BarChart3, Settings } from 'lucide-react';
 import { seedInitialData, getConfig } from '@/lib/db';
 import { getAppToken, setAppToken } from '@/lib/auth';
 import { useAppConfig } from '@/lib/useAppConfig';
@@ -14,6 +14,30 @@ import ScreenLogin from '@/components/screens/ScreenLogin';
 import PremiumNavBar from '@/components/PremiumNavBar';
 
 type Tab = 'inicio' | 'barberos' | 'panel' | 'ajustes';
+
+// ── Ícono máquina cortadora de pelo (clipper) ──
+function ClipperIcon({ size = 22, style, className }: { size?: number; style?: React.CSSProperties; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+      style={style} className={className}>
+      {/* Cuerpo principal */}
+      <rect x="2" y="7" width="14" height="10" rx="3" />
+      {/* Cabezal cortador */}
+      <rect x="16" y="9" width="5" height="6" rx="1.5" />
+      {/* Dientes de la cuchilla */}
+      <line x1="16" y1="10.5" x2="21" y2="10.5" />
+      <line x1="16" y1="12" x2="21" y2="12" />
+      <line x1="16" y1="13.5" x2="21" y2="13.5" />
+      {/* Cable saliendo por la izquierda */}
+      <path d="M2 13 Q0 17 3 20" strokeDasharray="1.5 1.5" />
+      {/* Botón de encendido */}
+      <circle cx="7" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      {/* Ranura decorativa */}
+      <line x1="10.5" y1="9.5" x2="13.5" y2="9.5" strokeWidth="1" opacity="0.45" />
+    </svg>
+  );
+}
 
 // ── Hook de inicialización de la app ──────────────────────────────────────────
 // Extraído de page.tsx para separar lógica de carga del componente de presentación
@@ -135,7 +159,7 @@ export default function Page() {
   // Las etiquetas de navegación ahora usan el sistema de i18n
   const TABS = [
     { id: 'inicio' as Tab, label: t('navHome'), icon: Home },
-    { id: 'barberos' as Tab, label: t('navBarbers'), icon: Users },
+    { id: 'barberos' as Tab, label: t('navBarbers'), icon: ClipperIcon },
     { id: 'panel' as Tab, label: t('navPanel'), icon: BarChart3 },
     { id: 'ajustes' as Tab, label: t('navSettings'), icon: Settings },
   ];

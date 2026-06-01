@@ -79,6 +79,7 @@ export default function ScreenBarberos() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           {/* Flecha izquierda */}
           <button
+            type="button"
             onClick={navAnterior}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--black-border)', borderRadius: 10, padding: '8px 10px', cursor: 'pointer', color: 'var(--white-soft)', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'background 0.15s' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.12)')}
@@ -116,6 +117,7 @@ export default function ScreenBarberos() {
 
           {/* Flecha derecha */}
           <button
+            type="button"
             onClick={navSiguiente}
             disabled={esMesActual}
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--black-border)', borderRadius: 10, padding: '8px 10px', cursor: esMesActual ? 'default' : 'pointer', color: esMesActual ? 'var(--black-border)' : 'var(--white-soft)', display: 'flex', alignItems: 'center', flexShrink: 0, opacity: esMesActual ? 0.35 : 1, transition: 'background 0.15s' }}
@@ -129,6 +131,7 @@ export default function ScreenBarberos() {
         {/* Botón "Ir a hoy" — solo si no estamos en el mes actual */}
         {!esMesActual && (
           <button
+            type="button"
             onClick={irAHoy}
             style={{ marginTop: 10, width: '100%', padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 8, background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', color: 'var(--gold)', cursor: 'pointer', fontFamily: 'var(--font-body)' }}
           >
@@ -139,10 +142,11 @@ export default function ScreenBarberos() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {barberos?.map(b => (
-          <div key={b.id}
+          <button key={b.id}
+            type="button"
             id={`barbero-card-${b.id}`}
             className="card"
-            style={{ cursor: 'pointer', transition: 'border-color 0.2s', borderColor: selectedBarbero === b.id ? 'var(--gold)' : 'var(--black-border)', opacity: (!esMesActual && !b.activo) ? 0.75 : 1, overflow: 'hidden' }}
+            style={{ width: '100%', textAlign: 'left', cursor: 'pointer', transition: 'border-color 0.2s', borderColor: selectedBarbero === b.id ? 'var(--gold)' : 'var(--black-border)', opacity: (!esMesActual && !b.activo) ? 0.75 : 1, overflow: 'hidden' }}
             onClick={() => setSelectedBarbero(selectedBarbero === b.id ? null : b.id!)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>

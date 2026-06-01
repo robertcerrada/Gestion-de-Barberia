@@ -39,12 +39,14 @@ export default function DeleteConfirmModal({
         {/* Botones — traducidos */}
         <div className="flex gap-3 justify-end">
           <button
+            type="button"
             onClick={onCancel}
             className="px-4 py-2 border rounded text-gray-700 hover:bg-gray-50"
           >
             {t('common.cancel')}
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >

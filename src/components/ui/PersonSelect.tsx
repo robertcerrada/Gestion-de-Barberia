@@ -226,7 +226,7 @@ export function PersonSelect({
             {selected ? selected.nombre : placeholder}
           </p>
           {selected?.subtitle && (
-            <p style={{ fontSize: 11, color: 'var(--gold)', marginTop: 1, margin: '1px 0 0' }}>
+            <p style={{ fontSize: 12, color: 'var(--gold)', marginTop: 1, margin: '1px 0 0' }}>
               {selected.subtitle}
             </p>
           )}
@@ -235,20 +235,14 @@ export function PersonSelect({
         {/* Clear + chevron */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {selected && (
-            <div
+            <button
+              type="button"
               onClick={handleClear}
-              style={{
-                width: 22, height: 22, borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'rgba(255,255,255,0.06)',
-                cursor: 'pointer',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,82,82,0.18)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+              aria-label="Borrar selección"
+              className="cs-clear-button"
             >
               <X size={12} color="var(--gray-muted)" />
-            </div>
+            </button>
           )}
           <ChevronDown
             size={16}
@@ -262,14 +256,11 @@ export function PersonSelect({
       {open && pos && createPortal(
         <>
           {/* Backdrop */}
-          <div
+          <button
+            type="button"
+            aria-label="Cerrar selección"
+            className="dropdown-backdrop-button"
             onClick={() => setOpen(false)}
-            style={{
-              position: 'fixed', inset: 0, zIndex: 99998,
-              background: 'rgba(0,0,0,0.3)',
-              backdropFilter: 'blur(1px)',
-              animation: 'psFadeIn 0.15s ease',
-            }}
           />
 
           {/* Panel */}
@@ -290,42 +281,23 @@ export function PersonSelect({
           >
             {/* Buscador — solo si hay más de 4 opciones */}
             {showSearch && (
-              <div style={{
-                padding: '8px 10px',
-                borderBottom: '1px solid var(--black-border)',
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'var(--black-card)',
-              }}>
-                <Search size={14} color="var(--gray-muted)" style={{ flexShrink: 0 }} />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  placeholder={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}...`}
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  style={{
-                    flex: 1,
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    color: 'var(--white-soft)',
-                    fontSize: 13,
-                    fontFamily: 'var(--font-body)',
-                  }}
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch('')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}
-                  >
-                    <X size={13} color="var(--gray-muted)" />
-                  </button>
-                )}
-              </div>
+              <div className="cs-search-wrapper">
+              <Search size={14} color="var(--gray-muted)" style={{ flexShrink: 0 }} />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}...`}
+                aria-label={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}`}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="cs-search-input"
+              />
+              {search && (
+                <button type="button" onClick={() => setSearch('')} className="cs-clear-button">
+                  <X size={13} color="var(--gray-muted)" />
+                </button>
+              )}
+            </div>
             )}
 
             {/* Lista scrolleable */}
