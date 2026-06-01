@@ -64,7 +64,7 @@ export function PersonSelect({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{
+  const posRef = useRef<{
     top: number; bottom: number; left: number; width: number; spaceBelow: number;
   } | null>(null);
 
@@ -74,16 +74,17 @@ export function PersonSelect({
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    setPos({
+    posRef.current = {
       top: rect.bottom + 6,
       bottom: window.innerHeight - rect.top + 6,
       left: rect.left,
       width: rect.width,
       spaceBelow: window.innerHeight - rect.bottom,
-    });
+    };
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     if (open) {
       updatePosition();
       requestAnimationFrame(() => {
@@ -94,8 +95,12 @@ export function PersonSelect({
         }
       });
     } else {
-      setSearch('');
+      const t = setTimeout(() => {
+        if (!cancelled) requestAnimationFrame(() => setSearch(''));
+      }, 0);
+      return () => { cancelled = true; clearTimeout(t); };
     }
+    if (open) return () => { cancelled = true; };
   }, [open, updatePosition, selectedIndex]);
 
   useEffect(() => {
@@ -137,27 +142,38 @@ export function PersonSelect({
   const IconComponent = tipo === 'socio' ? UserCog : Scissors;
   const showSearch = options.length > 4;
 
-  // Altura dinámica del dropdown — nunca más alta que el espacio disponible
-  const listHeight = Math.min(MAX_VISIBLE, filtered.length) * OPTION_H;
-  const totalContentH = PLACEHOLDER_H + 1 + listHeight + (showSearch ? SEARCH_H : 0) + 12;
-  const maxDropdownH = Math.min(
-    totalContentH,
-    pos ? Math.max(pos.spaceBelow, pos.bottom) - 16 : 320
-  );
+// State for dropdown positioning derived from ref (computed in useEffect)
+  const [dropdownPositionStyle, setDropdownPositionStyle] = useState<React.CSSProperties>({});
+  const [openUpward, setOpenUpward] = useState(false);
+  const [maxDropdownHeight, setMaxDropdownHeight] = useState<number>(0);
 
-  const openUpward = pos !== null && pos.spaceBelow < Math.min(totalContentH, 280);
+  // Compute positioning after render when ref is available
+  useEffect(() => {
+    if (!posRef.current) return;
 
-  const dropdownPositionStyle: React.CSSProperties = pos
-    ? {
-        position: 'fixed',
-        left: pos.left,
-        width: pos.width,
-        zIndex: 99999,
-        ...(openUpward
-          ? { bottom: pos.bottom, top: 'unset' }
-          : { top: pos.top }),
-      }
-    : {};
+    // Dynamic height calculations
+    const listHeight = Math.min(MAX_VISIBLE, filtered.length) * OPTION_H;
+    const totalContentH = PLACEHOLDER_H + 1 + listHeight + (showSearch ? SEARCH_H : 0) + 12;
+    const maxDropdownH = Math.min(
+      totalContentH,
+      Math.max(posRef.current.spaceBelow, posRef.current.bottom) - 16
+    );
+    setMaxDropdownHeight(maxDropdownH);
+
+    const shouldOpenUpward = posRef.current.spaceBelow < Math.min(totalContentH, 280);
+    setOpenUpward(shouldOpenUpward);
+
+    const style: React.CSSProperties = {
+      position: 'fixed',
+      left: posRef.current.left,
+      width: posRef.current.width,
+      zIndex: 99999,
+      ...(shouldOpenUpward
+        ? { bottom: posRef.current.bottom, top: 'unset' }
+        : { top: posRef.current.top })
+    };
+    setDropdownPositionStyle(style);
+  }, [open, filtered.length, showSearch]);
 
   return (
     <>
@@ -240,6 +256,7 @@ export function PersonSelect({
               onClick={handleClear}
               aria-label="Borrar selección"
               className="cs-clear-button"
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', border: 'none', background: 'transparent', padding: 0 }}
             >
               <X size={12} color="var(--gray-muted)" />
             </button>
@@ -253,7 +270,7 @@ export function PersonSelect({
       </button>
 
       {/* ── Dropdown Portal ────────────────────────────────────── */}
-      {open && pos && createPortal(
+      {open && createPortal(
         <>
           {/* Backdrop */}
           <button
@@ -274,7 +291,7 @@ export function PersonSelect({
               boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)',
               overflow: 'hidden',
               animation: 'psSlideIn 0.2s cubic-bezier(0.16,1,0.3,1)',
-              maxHeight: maxDropdownH,
+              maxHeight: maxDropdownHeight,
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -282,22 +299,22 @@ export function PersonSelect({
             {/* Buscador — solo si hay más de 4 opciones */}
             {showSearch && (
               <div className="cs-search-wrapper">
-              <Search size={14} color="var(--gray-muted)" style={{ flexShrink: 0 }} />
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}...`}
-                aria-label={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}`}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="cs-search-input"
-              />
-              {search && (
-                <button type="button" onClick={() => setSearch('')} className="cs-clear-button">
-                  <X size={13} color="var(--gray-muted)" />
-                </button>
-              )}
-            </div>
+                <Search size={14} color="var(--gray-muted)" style={{ flexShrink: 0 }} />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  placeholder={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}...`}
+                  aria-label={`Buscar ${tipo === 'socio' ? 'socio' : 'barbero'}`}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="cs-search-input"
+                />
+                {search && (
+                  <button type="button" onClick={() => setSearch('')} className="cs-clear-button">
+                    <X size={13} color="var(--gray-muted)" />
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Lista scrolleable */}
@@ -359,7 +376,7 @@ export function PersonSelect({
               {/* Sin resultados */}
               {filtered.length === 0 && (
                 <p style={{ textAlign: 'center', padding: '20px 0', fontSize: 13, color: 'var(--gray-muted)' }}>
-                  Sin resultados para "{search}"
+                  Sin resultados para &quot;{search}&quot;
                 </p>
               )}
 

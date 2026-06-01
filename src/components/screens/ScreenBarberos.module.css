@@ -1,0 +1,170 @@
+.navButton {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--black-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  color: var(--white-soft);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.navButton:hover {
+  background: rgba(212,175,55,0.12);
+}
+
+.navButton:disabled {
+  cursor: default;
+  opacity: 0.35;
+  color: var(--black-border);
+}
+
+.cardGold {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(212,175,55,0.07) 0%, transparent 100%);
+}
+
+.navContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.navTitle {
+  text-align: center;
+  flex: 1;
+  position: relative;
+}
+
+.hiddenMonthInput {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  cursor: pointer;
+}
+
+.monthDisplay {
+  pointer-events: none;
+}
+
+.monthText {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--gold);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.chevronIcon {
+  opacity: 0.7;
+}
+
+.yearText {
+  font-size: 13px;
+  color: var(--gray-muted);
+  margin-top: 3px;
+  font-weight: 400;
+}
+
+.goToCurrentButton {
+  margin-top: 10px;
+  width: 100%;
+  padding: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: var(--gold);
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.barberosList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  border: 1px solid var(--black-border);
+}
+
+.selectedCard {
+  border-color: var(--gold);
+}
+
+.inactiveCard {
+  opacity: 0.75;
+}
+
+.cardContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.barberoInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatarActive {
+  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+}
+
+.avatarInactive {
+  background: var(--black-surface);
+}
+
+.barberoName {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.badgeContainer {
+  display: flex;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.chevronBase {
+  color: var(--gray-muted);
+  transition: transform 0.2s;
+}
+
+.chevronRotated {
+  composes: chevronBase;
+  transform: rotate(90deg);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--gray-muted);
+}

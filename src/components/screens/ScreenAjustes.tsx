@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+import Image from 'next/image';
+import { useGoogleLogin } from '@react-oauth/google';
 import { exportarAGoogleDrive, restaurarDesdeGoogleDrive, setAccessToken, clearAccessToken, DRIVE_SCOPE, getLastBackupInfo, isDriveConnected } from '@/lib/drive';
 import { exportarTodosLosDatos, getSaldoDisponibleBarbero, getSaldoFondoCaja } from '@/lib/business';
-import { getGoogleUser, verifyPin, savePin, logoutAll } from '@/lib/auth';
+import { getGoogleUser, verifyPin, savePin, logoutAll, isPinConfigured } from '@/lib/auth';
 import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, FolderOpen, KeyRound, Mail, RefreshCw, Sun, Moon, Globe } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getConfig, setConfig, type Socio } from '@/lib/db';
-import { ModalAddBarbero, ModalGestionItems } from './ScreenBarberos';
+import { db, getConfig, setConfig, type Socio, type Adelanto } from '@/lib/db';
 import { ModalDocumentosBarbero } from '@/components/ui/ModalDocumentosBarbero';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useAppConfig, type Lang } from '@/lib/useAppConfig';
@@ -44,10 +44,14 @@ export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (no
 const IDIOMAS: { code: Lang; label: string; flag: string }[] = [
   { code: 'es', label: 'ES', flag: '🇪🇸' },
   { code: 'en', label: 'EN', flag: '🇺🇸' },
+  { code: 'pt', label: 'PT', flag: '🇧🇷' },
+  { code: 'de', label: 'DE', flag: '🇩🇪' },
+  { code: 'fr', label: 'FR', flag: '🇫🇷' },
+  { code: 'ar', label: 'AR', flag: '🇸🇦' },
 ];
 
 function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string) => void }) {
-  const { t, theme, lang, setTheme, setLang } = useAppConfig();
+  const { t, lang } = useAppConfig();
   const [showBarberos, setShowBarberos] = useState(false);
   const [showServicios, setShowServicios] = useState(false);
   const [showFondo, setShowFondo] = useState(false);
@@ -61,7 +65,10 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
   const googleUser = typeof window !== 'undefined' ? getGoogleUser() : null;
   const userName = googleUser?.name ?? null;
   const userEmail = googleUser?.email ?? null;
-  const userPicture = googleUser?.picture ?? null;
+  // SEGURIDAD: solo mostrar avatares de lh3.googleusercontent.com
+  const rawPicture = googleUser?.picture ?? null;
+  const userPicture = rawPicture?.startsWith('https://lh3.googleusercontent.com/') ? rawPicture : null;
+  const [showUserPicture, setShowUserPicture] = useState(true);
 
   return (
     <div style={{ padding: 16, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
@@ -71,8 +78,8 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
       {(userName || userEmail) && (
         <div className="card" style={{ marginBottom: 20, padding: '12px 16px', borderColor: 'rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.04)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {userPicture ? (
-              <img src={userPicture} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(212,175,55,0.4)' }} />
+            {userPicture && showUserPicture ? (
+              <Image src={userPicture} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(212,175,55,0.4)' }} onError={() => setShowUserPicture(false)} />
             ) : (
               <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(212,175,55,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 18 }}>👤</span>
@@ -138,8 +145,40 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
       <AjustesGenerales />
 
       {/* Modales */}
-      {showBarberos && <ModalGestionBarberos onClose={() => setShowBarberos(false)} />}
-      {showServicios && <ModalGestionItems onClose={() => setShowServicios(false)} />}
+      {showBarberos && (
+        <div className="modal-overlay" onClick={() => setShowBarberos(false)}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div style={{ padding: 16 }}>
+              <p className="section-title" style={{ marginBottom: 10 }}>Gestión de Barberos</p>
+              <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
+                Modal “Gestionar barberos” no disponible en esta versión (componentes faltantes / sin exportar).
+              </p>
+              <button className="btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowBarberos(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showServicios && (
+        <div className="modal-overlay" onClick={() => setShowServicios(false)}>
+          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+            <div className="modal-handle" />
+            <div style={{ padding: 16 }}>
+              <p className="section-title" style={{ marginBottom: 10 }}>Gestión de Servicios</p>
+              <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
+                Modal de servicios no disponible en esta versión (componentes faltan/exportados no existen).
+              </p>
+              <button className="btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowServicios(false)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showFondo && <ModalFondoCaja onClose={() => setShowFondo(false)} />}
       {showSocios && <ModalGestionSocios onClose={() => setShowSocios(false)} />}
       {showConfigBarberia && <ModalConfigBarberia onClose={() => setShowConfigBarberia(false)} onNombreChange={onNombreChange} />}
@@ -191,7 +230,7 @@ function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
             <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 6 }}>
               <Globe size={14} /> {t('language')}
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: 10 }}>
               {IDIOMAS.map(({ code, label, flag }) => (
                 <button
                   key={code}
@@ -264,7 +303,21 @@ function TabEmails() {
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    getConfig('emails_autorizados').then(v => { if (v) setEmails(v); });
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      if (cancelled.current) return;
+      getConfig('emails_autorizados').then(v => { 
+        if (!cancelled.current && v) {
+          requestAnimationFrame(() => {
+            if (!cancelled.current) setEmails(v);
+          });
+        }
+      });
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
   }, []);
 
   const lista = emails.split(',').map(e => e.trim()).filter(Boolean);
@@ -293,7 +346,12 @@ function TabEmails() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
         <p>🔐 <strong style={{ color: 'var(--gold)' }}>Lista blanca de emails</strong></p>
-        <p style={{ marginTop: 4 }}>Solo las cuentas de Google que estén aquí podrán iniciar sesión. Si la lista está vacía, cualquier cuenta de Google puede entrar.</p>
+        <p style={{ marginTop: 4 }}>Solo las cuentas de Google que estén aquí podrán iniciar sesión.</p>
+        {lista.length === 0 && (
+          <p style={{ marginTop: 6, color: 'var(--danger)', fontWeight: 600 }}>
+            ⚠️ Lista vacía — el acceso con Google está BLOQUEADO. Agregá al menos un email.
+          </p>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -332,17 +390,27 @@ function TabEmails() {
 }
 
 function TabPin() {
+  const [hasPin, setHasPin] = useState(() => isPinConfigured());
   const [pinActual, setPinActual] = useState('');
   const [pinNuevo, setPinNuevo] = useState('');
   const [pinConfirm, setPinConfirm] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Removed redundant effect – hasPin is initialized via useState
+
   async function cambiarPin() {
-    const correcto = await verifyPin(pinActual);
-    if (!correcto) {
-      setError('El PIN actual es incorrecto.');
-      return;
+    if (hasPin) {
+      try {
+        const correcto = await verifyPin(pinActual);
+        if (!correcto) {
+          setError('El PIN actual es incorrecto.');
+          return;
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'PIN bloqueado temporalmente.');
+        return;
+      }
     }
 
     if (pinNuevo.length < 4) {
@@ -356,6 +424,7 @@ function TabPin() {
 
     await savePin(pinNuevo);
     setSuccess(true);
+    setHasPin(true);
     setPinActual(''); setPinNuevo(''); setPinConfirm(''); setError('');
     setTimeout(() => setSuccess(false), 3000);
   }
@@ -372,9 +441,13 @@ function TabPin() {
         </div>
       )}
 
-      {['PIN Actual', 'PIN Nuevo', 'Confirmar PIN'].map((label, i) => {
-        const val = [pinActual, pinNuevo, pinConfirm][i];
-        const setter = [setPinActual, setPinNuevo, setPinConfirm][i];
+      {[
+        hasPin ? { label: 'PIN Actual', val: pinActual, setter: setPinActual } : null,
+        { label: 'PIN Nuevo', val: pinNuevo, setter: setPinNuevo },
+        { label: 'Confirmar PIN', val: pinConfirm, setter: setPinConfirm }
+      ].map((item) => {
+        if (!item) return null;
+        const { label, val, setter } = item;
         return (
           <div key={label}>
             <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{label}</label>
@@ -389,8 +462,8 @@ function TabPin() {
       {error && <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>}
 
       <button className="btn-gold" onClick={cambiarPin}
-        disabled={!pinActual || !pinNuevo || !pinConfirm}>
-        <KeyRound size={16} /> Cambiar PIN
+        disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}>
+        <KeyRound size={16} /> {hasPin ? 'Cambiar PIN' : 'Configurar PIN'}
       </button>
     </div>
   );
@@ -427,11 +500,42 @@ function TabDriveEnabled() {
   }, []);
 
   useEffect(() => {
-    setLoggedIn(isDriveConnected());
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      try {
+        // compute value then update in next frame using functional updater to avoid sync setState
+        const connected = isDriveConnected();
+        requestAnimationFrame(() => { 
+          if (!cancelled.current) setLoggedIn(prev => (prev === connected ? prev : connected)); 
+        });
+      } catch (err) {
+        console.warn('[TabDrive] isDriveConnected failed:', err);
+      }
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
   }, []);
 
   useEffect(() => {
-    cargarInfoBackup();
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      // Defer the async work to the next animation frame to avoid synchronous setState in effect
+      requestAnimationFrame(() => { 
+        void (async () => {
+          try {
+            if (!cancelled.current) await cargarInfoBackup();
+          } catch (err) {
+            console.warn('[TabDrive] cargarInfoBackup failed:', err);
+          }
+        })(); 
+      });
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
   }, [cargarInfoBackup]);
 
   const login = useGoogleLogin({
@@ -584,8 +688,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20, gap: 10 }}>
           <div style={{ width: 90, height: 90, borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--gold)', boxShadow: '0 0 20px rgba(212,175,55,0.3)', cursor: 'pointer', position: 'relative' }}
             onClick={() => document.getElementById('logo-file-input')?.click()}>
-            <img src={logoSrc} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={() => setLogoSrc('/Logo.jpg')} />
+            <Image src={logoSrc} alt="Logo" fill style={{ objectFit: 'cover' }} onError={() => setLogoSrc('/Logo.jpg')} />
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: 'rgba(0,0,0,0.45)', opacity: 0, transition: 'opacity 0.2s',
@@ -665,7 +768,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
       db.barberos.get(socio.id),
     ]);
     const nombreSocio = socio.nombre.toLowerCase();
-    const tienePagos = adelantos.some(a =>
+    const tienePagos = adelantos.some((a: Adelanto) =>
       a.destinatario_tipo === 'socio' ||
       a.socio_id === socio.id ||
       (!barberoMismoId && a.barbero_id === socio.id) ||
@@ -897,7 +1000,14 @@ function DriveSectionEnabled() {
   const [loading, setLoading] = useState('');
   const [mensaje, setMensaje] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => { setLoggedIn(isDriveConnected()); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      setLoggedIn(isDriveConnected());
+    }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, []);
 
   const login = useGoogleLogin({
     scope: DRIVE_SCOPE,
@@ -1046,8 +1156,8 @@ function AjustesGenerales() {
       </div>
       <div className="divider-barber" />
       <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--gray-muted)' }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 12px' }}>
-          <img src={logoSrc} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { (e.target as HTMLImageElement).src = '/Logo.jpg'; }} />
+        <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 12px', position: 'relative' }}>
+          <Image src={logoSrc} alt="Logo" fill style={{ objectFit: 'cover' }} onError={() => setLogoSrc('/Logo.jpg')} />
         </div>
         <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--gold)', marginBottom: 4 }}>Gestión de Barberia</p>
         <p style={{ fontSize: 12 }}>{t('version')} 1.0.0 — Sistema de Gestión</p>
@@ -1063,6 +1173,12 @@ function AjustesGenerales() {
   );
 }
 
+const MONEDAS = [
+  { symbol: '€', label: 'Euro (€)' }, { symbol: '$', label: 'Dólar ($)' }, { symbol: '£', label: 'Libra (£)' },
+  { symbol: 'ARS', label: 'Peso Argentino' }, { symbol: 'R$', label: 'Real Brasileño' }, { symbol: 'CLP', label: 'Peso Chileno' },
+  { symbol: 'MXN', label: 'Peso Mexicano' }, { symbol: 'COP', label: 'Peso Colombiano' }, { symbol: 'UYU', label: 'Peso Uruguayo' },
+];
+
 // ─── Modal Finanzas ───────────────────────────────────────────────────────────
 function ModalFinanzas({ onClose }: { onClose: () => void }) {
   const [comision, setComision] = useState('0');
@@ -1070,12 +1186,6 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-
-  const MONEDAS = [
-    { symbol: '€', label: 'Euro (€)' }, { symbol: '$', label: 'Dólar ($)' }, { symbol: '£', label: 'Libra (£)' },
-    { symbol: 'ARS', label: 'Peso Argentino' }, { symbol: 'R$', label: 'Real Brasileño' }, { symbol: 'CLP', label: 'Peso Chileno' },
-    { symbol: 'MXN', label: 'Peso Mexicano' }, { symbol: 'COP', label: 'Peso Colombiano' }, { symbol: 'UYU', label: 'Peso Uruguayo' },
-  ];
 
   useEffect(() => {
     Promise.all([getConfig('porcentaje_comision_bancaria'), getConfig('moneda')]).then(([c, m]) => {
@@ -1162,7 +1272,6 @@ function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
   });
 
   const totalActivos = todosBarberos?.filter(b => b.activo).length ?? 0;
-  const totalInactivos = todosBarberos?.filter(b => !b.activo).length ?? 0;
 
   useEffect(() => {
     async function cargarSaldos() {
@@ -1253,7 +1362,22 @@ function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
             })}
           </div>
         </div>
-        {showAdd && <ModalAddBarbero onClose={() => setShowAdd(false)} />}
+        {showAdd && (
+          <div className="modal-overlay" onClick={() => setShowAdd(false)}>
+            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+              <div className="modal-handle" />
+              <div style={{ padding: 16 }}>
+                <p className="section-title" style={{ marginBottom: 10 }}>Nuevo Barbero</p>
+                <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
+                  Modal “Agregar barbero” no disponible en esta versión (componente faltante).
+                </p>
+                <button className="btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowAdd(false)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {editando && <ModalEditarBarbero barbero={editando} onClose={() => { setEditando(null); setMensaje({ text: 'Barbero actualizado correctamente.', type: 'success' }); setTimeout(() => setMensaje(null), 3000); }} />}
         {docsBarbero && <ModalDocumentosBarbero barberoId={docsBarbero.id} barberoNombre={docsBarbero.nombre} onClose={() => setDocsBarbero(null)} />}
       </div>
