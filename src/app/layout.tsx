@@ -1,8 +1,24 @@
 import type { Metadata, Viewport } from 'next';
+import { DM_Sans, Playfair_Display } from 'next/font/google';
 import ClientProviders from '@/components/ClientProviders';
+import Script from 'next/script';
 import { AppConfigProvider } from '@/lib/useAppConfig';
 
 import './globals.css';
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+  variable: '--font-body',
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  display: 'swap',
+  variable: '--font-display',
+});
 
 const APP_NAME = 'Templo Barber Shop';
 
@@ -33,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const googleConfigured = !!(clientId && !clientId.includes('PON_TU_CLIENT_ID'));
 
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" className={`${playfairDisplay.variable} ${dmSans.variable}`} suppressHydrationWarning>
       <head>
         {/* Favicon e iconos */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -43,49 +59,49 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-        {/* Preconnect para Google Fonts — mejora LCP */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
-        {/* Fuentes con font-display=swap — evita FOIT */}
-        <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
 
         {/* Service Worker — inline para no bloquear el render */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js', { scope: '/' })
-                .then(function(reg) {
-                  reg.addEventListener('updatefound', function() {
-                    var newSW = reg.installing;
-                    if (newSW) {
-                      newSW.addEventListener('statechange', function() {
-                        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                          newSW.postMessage('SKIP_WAITING');
-                        }
-                      });
-                    }
-                  });
-                })
-                .catch(function() {});
-            });
-          }
-        ` }} />
+        <Script strategy="afterInteractive" id="sw-register">
+          {`
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function(reg) {
+          reg.addEventListener('updatefound', function() {
+            var newSW = reg.installing;
+            if (newSW) {
+              newSW.addEventListener('statechange', function() {
+                if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                  newSW.postMessage('SKIP_WAITING');
+                }
+              });
+            }
+          });
+        })
+        .catch(function() {});
+    });
+  }
+`}
+        </Script>
       </head>
       <body className="bg-noise-texture">
         {/* Script inline para aplicar tema ANTES del primer render — evita flash */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function(){
-            var t = localStorage.getItem('barberia_theme') || 'dark';
-            var l = localStorage.getItem('barberia_lang') || 'es';
-            document.documentElement.setAttribute('data-theme', t);
-            document.documentElement.setAttribute('lang', l);
-            document.documentElement.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
-          })()
-        ` }} />
+        {/* SEGURIDAD: validar valores de localStorage contra lista blanca antes de usarlos como atributos DOM */}
+        <Script id="theme-init" strategy="beforeInteractive">
+{`
+(function(){
+  var TEMAS = ['dark', 'light'];
+  var LANGS = ['es', 'en', 'pt', 'de', 'fr', 'ar'];
+  var t = localStorage.getItem('barberia_theme');
+  var l = localStorage.getItem('barberia_lang');
+  if (!TEMAS.includes(t)) t = 'dark';
+  if (!LANGS.includes(l)) l = 'es';
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.setAttribute('lang', l);
+  document.documentElement.setAttribute('dir', l === 'ar' ? 'rtl' : 'ltr');
+})();
+`}
+</Script>
         <div className="ambient-glow" />
           <AppConfigProvider>
             <ClientProviders clientId={clientId} googleConfigured={googleConfigured}>

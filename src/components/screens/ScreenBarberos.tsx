@@ -102,7 +102,7 @@ export default function ScreenBarberos() {
       {/* ── Navegador de mes ── */}
       <div className={styles.cardGold} style={{ marginBottom: 16 }}>
         <div className={styles.navContainer}>
-          <button type="button" onClick={navAnterior} className={styles.navButton}>
+          <button type="button" onClick={navAnterior} className={styles.navButton} aria-label="Mes anterior">
             <ChevronLeft size={18} />
           </button>
 
@@ -134,6 +134,7 @@ export default function ScreenBarberos() {
             type="button"
             onClick={navSiguiente}
             disabled={esMesActual}
+            aria-label="Mes siguiente"
             className={esMesActual ? styles.navButtonDisabled : styles.navButton}
           >
             <ChevronRight size={18} />

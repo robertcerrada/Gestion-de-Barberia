@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, createContext, use, type ReactNode } from 'react';
 // import { useLanguage } from '@/shared/i18n/LanguageContext'; // removed - not used
 
 
@@ -50,7 +50,6 @@ const translations: Record<Lang, Record<string, string>> = {
     addNew: 'Agregar Nuevo',
     // ScreenInicio
     registerSale: 'Registrar Venta',
-    expenses: 'Gastos',
     advancePayment: 'Adelanto / Pago',
     cashAudit: 'Arqueo / Cerrar Caja del Día',
     quickRegister: 'Registro Rápido',
@@ -293,7 +292,6 @@ const translations: Record<Lang, Record<string, string>> = {
     saveChanges: 'Save Changes',
     addNew: 'Add New',
     registerSale: 'Register Sale',
-    expenses: 'Expenses',
     advancePayment: 'Advance / Payment',
     cashAudit: 'Cash Audit / Close Day',
     quickRegister: 'Quick Register',
@@ -789,16 +787,27 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
   // Cargar desde localStorage al montar
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const cancelled = { current: false };
     const savedTheme = localStorage.getItem(STORAGE_THEME_KEY) as Theme | null;
     const savedLang = localStorage.getItem(STORAGE_LANG_KEY) as Lang | null;
     const validThemes: Theme[] = ['dark', 'light'];
     const validLangs: Lang[] = ['es', 'en', 'pt', 'de', 'fr', 'ar'];
-    if (savedTheme && validThemes.includes(savedTheme)) setThemeState(savedTheme);
-    if (savedLang && validLangs.includes(savedLang)) setLangState(savedLang);
-    if (savedLang && validLangs.includes(savedLang)) {
-      document.documentElement.setAttribute('lang', savedLang);
-      document.documentElement.setAttribute('dir', savedLang === 'ar' ? 'rtl' : 'ltr');
-    }
+    const t = setTimeout(() => {
+      if (cancelled.current) return;
+      requestAnimationFrame(() => {
+        if (cancelled.current) return;
+        if (savedTheme && validThemes.includes(savedTheme)) setThemeState(savedTheme);
+        if (savedLang && validLangs.includes(savedLang)) setLangState(savedLang);
+        if (savedLang && validLangs.includes(savedLang)) {
+          document.documentElement.setAttribute('lang', savedLang);
+          document.documentElement.setAttribute('dir', savedLang === 'ar' ? 'rtl' : 'ltr');
+        }
+      });
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
   }, []);
 
   // Aplicar tema al <html> cada vez que cambia
@@ -837,7 +846,7 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
 // ─── Hook para consumir el contexto global ────────────────────────────────────
 // USAR ESTE HOOK en todos los componentes (no useAppConfig directamente)
 export function useAppConfig() {
-  const ctx = useContext(AppConfigContext);
+  const ctx = use(AppConfigContext);
   if (!ctx) {
     // Fallback si se usa fuera del Provider (no debería ocurrir)
     throw new Error('useAppConfig debe usarse dentro de AppConfigProvider');

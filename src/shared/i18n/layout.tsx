@@ -1,41 +1,12 @@
-// src/app/layout.tsx  ← SI usas App Router (Next.js 13+)
+// ⚠️  ARCHIVO DE REFERENCIA — NO SE USA EN PRODUCCIÓN
+// Este layout es un ejemplo de integración para Pages Router.
+// El layout activo de la app está en src/app/layout.tsx
+// Si usas App Router (Next.js 13+), ignora este archivo.
 
-import type { Metadata } from 'next';
-import { LanguageProvider } from '@/contexts/LanguageContext';
-import './globals.css';
-
-export const metadata: Metadata = {
-  title: 'Barbería App',
-  description: 'Sistema de gestión para barbería',
-};
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="es">
-      <body>
-        {/*
-          ✅ LanguageProvider envuelve TODO.
-          Cualquier componente hijo puede usar useLanguage() o useTranslation()
-          sin importar qué tan anidado esté.
-        */}
-        <LanguageProvider defaultLocale="es">
-          {children}
-        </LanguageProvider>
-      </body>
-    </html>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SI usas Pages Router (_app.tsx en lugar de layout.tsx), usa esto:
-// ─────────────────────────────────────────────────────────────────────────────
+// Si necesitaras Pages Router (_app.tsx), el patrón sería:
 //
 // import type { AppProps } from 'next/app';
-// import { LanguageProvider } from '@/contexts/LanguageContext';
+// import { LanguageProvider } from '@/shared/i18n/LanguageContext';
 //
 // export default function MyApp({ Component, pageProps }: AppProps) {
 //   return (
@@ -44,3 +15,4 @@ export default function RootLayout({
 //     </LanguageProvider>
 //   );
 // }
+export {};

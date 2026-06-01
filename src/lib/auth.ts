@@ -1,9 +1,12 @@
 /**
  * auth.ts — Gestión de autenticación Google + PIN
  *
- * La lista de emails autorizados se guarda en config_barberia (clave: 'authorized_emails')
- * como JSON array. Si está vacía, cualquier cuenta de Google puede entrar
- * (útil para el primer acceso; luego el dueño la restringe desde Ajustes).
+ * SEGURIDAD:
+ * - La lista de emails autorizados se guarda en config_barberia (clave: 'emails_autorizados').
+ *   Si está vacía, el acceso Google está DENEGADO (excepto durante el primer setup).
+ * - El PIN usa PBKDF2 con 200.000 iteraciones + salt de 16 bytes (Web Crypto API).
+ * - Límite de intentos de PIN: 5 → bloqueo 15 min → 1h → 24h (exponential backoff).
+ * - Google access token NO se persiste entre operaciones.
  */
 
 import { getConfig, setConfig } from './db';
@@ -13,7 +16,56 @@ export const GOOGLE_TOKEN_KEY    = 'google_access_token';
 export const GOOGLE_USER_KEY     = 'google_user_info';
 export const PIN_HASH_KEY        = 'barberia_pin_hash';
 export const PIN_SALT_KEY        = 'barberia_pin_salt';
-export const DEFAULT_PIN         = '1234';
+
+// ── Comprobación de si el PIN ya fue configurado por el usuario ──────────────
+export function isPinConfigured(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!(window.localStorage.getItem(PIN_HASH_KEY) && window.localStorage.getItem(PIN_SALT_KEY));
+}
+
+// ── Rate limiting de intentos de PIN ─────────────────────────────────────────
+const PIN_ATTEMPTS_KEY   = 'barberia_pin_attempts';
+const PIN_LOCKOUT_KEY    = 'barberia_pin_lockout_until';
+const MAX_ATTEMPTS       = 5;
+// Tiempos de bloqueo en ms según número de ciclos de bloqueo
+const LOCKOUT_DURATIONS  = [15 * 60_000, 60 * 60_000, 24 * 60 * 60_000];
+
+export function getPinAttempts(): number {
+  if (typeof window === 'undefined') return 0;
+  return parseInt(window.localStorage.getItem(PIN_ATTEMPTS_KEY) ?? '0', 10);
+}
+
+export function getPinLockoutUntil(): number {
+  if (typeof window === 'undefined') return 0;
+  return parseInt(window.localStorage.getItem(PIN_LOCKOUT_KEY) ?? '0', 10);
+}
+
+export function isPinLocked(): boolean {
+  return Date.now() < getPinLockoutUntil();
+}
+
+export function getPinLockoutRemainingMs(): number {
+  return Math.max(0, getPinLockoutUntil() - Date.now());
+}
+
+function recordPinFailure(): void {
+  if (typeof window === 'undefined') return;
+  const attempts = getPinAttempts() + 1;
+  window.localStorage.setItem(PIN_ATTEMPTS_KEY, String(attempts));
+  if (attempts >= MAX_ATTEMPTS) {
+    // Calcular nivel de bloqueo: cuántas veces se ha llegado al límite
+    const lockoutCycles = Math.floor(attempts / MAX_ATTEMPTS) - 1;
+    const duration = LOCKOUT_DURATIONS[Math.min(lockoutCycles, LOCKOUT_DURATIONS.length - 1)];
+    const until = Date.now() + duration;
+    window.localStorage.setItem(PIN_LOCKOUT_KEY, String(until));
+  }
+}
+
+function resetPinAttempts(): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(PIN_ATTEMPTS_KEY);
+  window.localStorage.removeItem(PIN_LOCKOUT_KEY);
+}
 
 export interface GoogleUserInfo {
   email: string;
@@ -24,18 +76,31 @@ export interface GoogleUserInfo {
 
 // ── Emails autorizados ──────────────────────────────────────────
 export async function getAuthorizedEmails(): Promise<string[]> {
-  const raw = await getConfig('authorized_emails');
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  // Soportamos ambas claves por compatibilidad con versiones anteriores
+
+  const emailsConfig = (await getConfig('emails_autorizados')) ?? (await getConfig('authorized_emails'));
+  if (!emailsConfig) return [];
+  // Puede estar guardado como CSV (clave 'emails_autorizados') o JSON (legacy)
+  const trimmed = emailsConfig.trim();
+  if (trimmed.startsWith('[')) {
+    try { return JSON.parse(trimmed); } catch { return []; }
+  }
+  return emailsConfig.split(',').flatMap(e => { const t = e.trim().toLowerCase(); return t ? [t] : []; });
 }
 
 export async function setAuthorizedEmails(emails: string[]): Promise<void> {
-  await setConfig('authorized_emails', JSON.stringify(emails.map(e => e.toLowerCase().trim()).filter(Boolean)));
+  const clean = emails.flatMap(e => { const t = e.toLowerCase().trim(); return t ? [t] : []; });
+  await setConfig('emails_autorizados', clean.join(', '));
 }
 
-export async function isEmailAuthorized(email: string): Promise<boolean> {
+/**
+ * SECURITY: lista vacía = ACCESO DENEGADO.
+ * Solo se permite acceso abierto si explícitamente está en modo primer-setup
+ * (parámetro allowEmptyList = true), que solo se usa durante el onboarding.
+ */
+export async function isEmailAuthorized(email: string, allowEmptyList = false): Promise<boolean> {
   const list = await getAuthorizedEmails();
-  if (list.length === 0) return true; // lista vacía = acceso abierto (primer setup)
+  if (list.length === 0) return allowEmptyList;
   return list.includes(email.toLowerCase().trim());
 }
 
@@ -122,11 +187,25 @@ export function logoutAll(): void {
   clearGoogleUser();
 }
 
-async function hashValue(value: string): Promise<string> {
+// ── Derivación de clave con PBKDF2 (200.000 iteraciones) ────────────────────
+async function derivePinKey(pin: string, saltHex: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(pin),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveBits'],
+  );
+  const saltBytes = new Uint8Array(
+    saltHex.match(/.{1,2}/g)!.map(h => parseInt(h, 16))
+  );
+  const derivedBits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBytes, iterations: 200_000, hash: 'SHA-256' },
+    keyMaterial,
+    256,
+  );
+  return Array.from(new Uint8Array(derivedBits)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function getPinHash(): string | null {
@@ -142,28 +221,66 @@ function getLegacyPin(): string | null {
   return window.localStorage.getItem('barberia_pin');
 }
 
+/**
+ * Verifica el PIN con rate limiting.
+ * Lanza un error si está bloqueado para que el caller pueda mostrar el tiempo restante.
+ */
 export async function verifyPin(pin: string): Promise<boolean> {
+  if (isPinLocked()) {
+    throw new Error(`PIN bloqueado. Intentá en ${Math.ceil(getPinLockoutRemainingMs() / 60_000)} minutos.`);
+  }
+
   const hash = getPinHash();
   const salt = getPinSalt();
 
+  let valid = false;
+
   if (hash && salt) {
-    return await hashValue(`${salt}:${pin}`) === hash;
+    // Verificar si el hash tiene formato PBKDF2 (longitud 64 hex = 256 bits)
+    // o SHA-256 legacy (también 64 hex, pero distinguimos por prefijo en salt)
+    const isPbkdf2 = salt.startsWith('pbkdf2:');
+    if (isPbkdf2) {
+      const realSalt = salt.slice(7);
+      valid = (await derivePinKey(pin, realSalt)) === hash;
+    } else {
+      // Legacy SHA-256: migrar en caliente si el PIN es correcto
+      const encoder = new TextEncoder();
+      const data = encoder.encode(`${salt}:${pin}`);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const legacyHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+      valid = legacyHash === hash;
+      if (valid) {
+        // Migrar a PBKDF2 silenciosamente
+        await savePin(pin);
+      }
+    }
+  } else {
+    // PIN de texto plano legacy
+    const legacy = getLegacyPin();
+    if (legacy) {
+      valid = legacy === pin;
+      if (valid) {
+        await savePin(pin);
+        if (typeof window !== 'undefined') window.localStorage.removeItem('barberia_pin');
+      }
+    }
+    // Sin ningún PIN configurado: no hay PIN por defecto — forzar configuración
   }
 
-  const legacy = getLegacyPin();
-  if (legacy) {
-    const valid = legacy === pin;
-    if (valid) await savePin(pin);
-    if (typeof window !== 'undefined') window.localStorage.removeItem('barberia_pin');
-    return valid;
+  if (valid) {
+    resetPinAttempts();
+  } else {
+    recordPinFailure();
   }
 
-  return pin === DEFAULT_PIN;
+  return valid;
 }
 
 export async function savePin(pin: string): Promise<void> {
-  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16))).map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  const hash = await hashValue(`${salt}:${pin}`);
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hash = await derivePinKey(pin, saltHex);
   setStoredValue(PIN_HASH_KEY, hash);
-  setStoredValue(PIN_SALT_KEY, salt);
+  // Prefijo 'pbkdf2:' para distinguir del hash SHA-256 legacy
+  setStoredValue(PIN_SALT_KEY, `pbkdf2:${saltHex}`);
 }

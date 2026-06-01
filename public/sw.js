@@ -24,13 +24,13 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((k) => k !== CACHE_NAME)
-            .map((k) => caches.delete(k))
-        )
-      )
+        .then(async (keys) => {
+          for (const k of keys) {
+            if (k !== CACHE_NAME) {
+              await caches.delete(k);
+            }
+          }
+        })
       .then(() => self.clients.claim())
   );
 });

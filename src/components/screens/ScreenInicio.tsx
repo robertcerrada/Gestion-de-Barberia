@@ -4,15 +4,14 @@ import { useMoneda } from '@/lib/useMoneda';
 import { isMesBloqueado, getSaldoFondoCaja, getArqueoDia, getPorcentajeComisionBancaria, getIngresosEfectivoMes, getGastosTotalesMes, getSaldoDisponibleBarbero, getResumenMes, getEfectivoDisponibleCaja, getAdelantosMes, getPagosSocioMes, getVentasDia, guardarArqueo } from '@/lib/business';
 import { useAppConfig } from '@/lib/useAppConfig';
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, DollarSign, TrendingDown, CreditCard, Wallet, X, ChevronDown, AlertCircle, CheckCircle2, Calendar, Edit3, Trash2 } from 'lucide-react';
+import { Plus, DollarSign, TrendingDown, Wallet, X, ChevronDown, AlertCircle, CheckCircle2, Calendar, Edit3, Trash2 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type Adelanto, type Barbero as DbBarbero, type GastoFijo, type Socio } from '@/lib/db';
+import { db, type Adelanto, type GastoFijo } from '@/lib/db';
 
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { DatePicker } from '@/components/ui/DatePicker';
-import { PersonSelect, type PersonOption } from '@/components/ui/PersonSelect';
-import { CustomSelect, type SelectOption } from '@/components/ui/CustomSelect';
+import { PersonSelect } from '@/components/ui/PersonSelect';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { ItemSelect } from '@/components/ui/ItemSelect';
 
 // formatCurrency acepta símbolo dinámico; el default '€' solo aplica a
@@ -54,7 +53,6 @@ export default function ScreenInicio() {
   const [efectivoEnCaja, setEfectivoEnCaja] = useState(0);
   const [fondoCaja, setFondoCaja] = useState(0);
   const [gastosDia, setGastosDia] = useState(0);
-  const [adelantosDia, setAdelantosDia] = useState(0);
   const [saldoNeto, setSaldoNeto] = useState(0);
   const [arqueoDelDia, setArqueoDelDia] = useState<{ monto_banco: number; monto_efectivo: number } | null>(null);
   const [fechaFiltro, setFechaFiltro] = useState<string>(() => {
@@ -68,7 +66,6 @@ export default function ScreenInicio() {
   const [adelantosSociosDia, setAdelantosSociosDia] = useState(0);
   const [adelantosBarberosDia, setAdelantosBarberosDia] = useState(0);
   const [comisionBancariaDia, setComisionBancariaDia] = useState(0);
-  // List of commission entries per bank transaction for the selected day
   const [comisionesTransacciones, setComisionesTransacciones] = useState<Array<{ id: number; fecha: Date; monto: number; comision: number }>>([]);
   const [fechasConRegistro, setFechasConRegistro] = useState<string[]>([]);
   const [registroAEditar, setRegistroAEditar] = useState<any | null>(null);
@@ -78,12 +75,14 @@ export default function ScreenInicio() {
   const [mesFiltroActivo, setMesFiltroActivo] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function checkMes() {
       const [y, m, d] = fechaFiltro.split('-').map(Number);
       const locked = await isMesBloqueado(new Date(y, m - 1, d, 12, 0, 0));
-      setMesFiltroActivo(locked);
+      if (!cancelled) setMesFiltroActivo(locked);
     }
-    checkMes();
+    const t = setTimeout(() => { void checkMes().catch(err => console.warn('[ScreenInicio] checkMes failed:', err)); }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [fechaFiltro]);
 
   const recargar = useCallback(async () => {
@@ -103,7 +102,6 @@ export default function ScreenInicio() {
     setTotalVentasDia(totalDia);
 
     const arqueo = await getArqueoDia(fechaDate);
-    const bankAmount = arqueo ? arqueo.monto_banco : bRaw;
     if (arqueo) {
       setArqueoDelDia({ monto_banco: arqueo.monto_banco, monto_efectivo: arqueo.monto_efectivo });
       setEfectivoDia(arqueo.monto_efectivo);
@@ -154,7 +152,6 @@ export default function ScreenInicio() {
       .reduce((s, a) => s + a.monto, 0);
     setAdelantosSociosDia(adelSocios);
     setAdelantosBarberosDia(adelBarberos);
-    setAdelantosDia(adelSocios + adelBarberos);
 
     const barberosList = await db.barberos.toArray();
     let comisionesDia = 0;
@@ -165,7 +162,15 @@ export default function ScreenInicio() {
     setSaldoNeto(totalDia - comisionesDia - gastosDiaArr.reduce((s, g) => s + g.monto, 0) - adelSocios);
   }, [fechaFiltro]);
 
-  useEffect(() => { recargar(); }, [recargar]);
+  useEffect(() => {
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (!cancelled) {
+        try { recargar(); } catch (err) { console.warn('[ScreenInicio] recargar failed:', err); }
+      }
+    }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [recargar]);
 
   async function handleEliminarVenta(id: number, fechaReg: Date) {
     const locked = await isMesBloqueado(fechaReg);
@@ -330,7 +335,7 @@ export default function ScreenInicio() {
 
       {/* Modales */}
       {showVentaModal && (
-        <ModalVenta barberos={barberos || []} servicios={servicios || []} fechaInicial={fechaFiltro}
+        <ModalVenta barberos={barberos || []} servicios={servicios || []} fechaInicial={fechaFiltro} fechasConRegistro={fechasConRegistro}
           onClose={() => { setShowVentaModal(false); recargar(); }} />
       )}
       {showGastoModal && (
@@ -357,6 +362,11 @@ export default function ScreenInicio() {
 interface Barbero { id?: number; nombre: string; porcentaje_comision: number; activo: boolean }
 interface ServicioProducto { id?: number; nombre: string; tipo: 'servicio' | 'producto'; precio: number; stock_actual?: number; stock_minimo?: number }
 
+const EMOJI_CAT: Record<string, string> = {
+  alquiler: '🏠', internet: '🌐', luz: '💡', agua: '💧', limpieza: '🧹', insumos: '🧴',
+  impuestos: '🧾', camaras: '📷', seguro: '🛡️', gestoria: '📝', comision_bancaria: '💸', otro: '📌',
+};
+
 // ─── RegistrosDelDia ──────────────────────────────────────────────────────────
 function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisionBancariaDia, onEdit, onDelete, onRecargar }: {
   fechaFiltro: string; simbolo: string; comisionesTransacciones: any[]; comisionBancariaDia: number;
@@ -378,11 +388,6 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
   const [adelantoEditando, setAdelantoEditando] = useState<any | null>(null);
   const [acordeonesAbiertos, setAcordeonesAbiertos] = useState<Record<string, boolean>>({});
   const [serviciosAbiertos, setServiciosAbiertos] = useState<Record<string, boolean>>({});
-
-  const EMOJI_CAT: Record<string, string> = {
-    alquiler: '🏠', internet: '🌐', luz: '💡', agua: '💧', limpieza: '🧹', insumos: '🧴',
-    impuestos: '🧾', camaras: '📷', seguro: '🛡️', gestoria: '📝', comision_bancaria: '💸', otro: '📌',
-  };
 
   function toggleAcordeon(key: string) { setAcordeonesAbiertos(p => ({ ...p, [key]: !p[key] })); }
   function toggleServicio(key: string) { setServiciosAbiertos(p => ({ ...p, [key]: !p[key] })); }
@@ -514,12 +519,12 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--white-soft)' }}>{fc(r.monto_total)}</span>
                                       <div style={{ display: 'flex', gap: 2 }}>
-                                        <button className="btn-ghost" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
-                                          onClick={() => { if (gb.barberoInactivo) { alert('Activá el barbero primero.'); return; } onEdit(r); }} title="Editar venta">
+                                        <button className="btn-ghost" aria-label="Editar venta" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
+                                          onClick={() => { if (gb.barberoInactivo) { alert('Activá el barbero primero.'); return; } onEdit(r); }}>
                                           <Edit3 size={13} color="var(--gold)" />
                                         </button>
-                                        <button className="btn-ghost" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
-                                          onClick={() => { if (gb.barberoInactivo) { alert('Activá el barbero primero.'); return; } onDelete(r.id!); }} title="Eliminar venta">
+                                        <button className="btn-ghost" aria-label="Eliminar venta" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
+                                          onClick={() => { if (gb.barberoInactivo) { alert('Activá el barbero primero.'); return; } onDelete(r.id!); }}>
                                           <Trash2 size={13} color="var(--danger)" />
                                         </button>
                                       </div>
@@ -566,8 +571,8 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                       <p style={{ fontSize: 16, fontWeight: 700, color: esComisionBancaria ? 'var(--gold)' : 'var(--danger)' }}>{fc(g.monto)}</p>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setGastoEditando(g)}><Edit3 size={14} color="var(--gold)" /></button>
-                        <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarGasto(g.id!, new Date(g.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
+                        <button className="btn-ghost" aria-label="Editar gasto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setGastoEditando(g)}><Edit3 size={14} color="var(--gold)" /></button>
+                        <button className="btn-ghost" aria-label="Eliminar gasto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarGasto(g.id!, new Date(g.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
                       </div>
                     </div>
                   </div>
@@ -603,8 +608,8 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                       <span className="text-hint">{esDevolucion ? 'Ingreso al fondo' : esSocio ? 'Socio/Dueño' : 'Barbero'}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setAdelantoEditando(a)}><Edit3 size={14} color="var(--gold)" /></button>
-                      <button className="btn-ghost" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarAdelanto(a, new Date(a.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
+                      <button className="btn-ghost" aria-label="Editar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setAdelantoEditando(a)}><Edit3 size={14} color="var(--gold)" /></button>
+                      <button className="btn-ghost" aria-label="Eliminar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarAdelanto(a, new Date(a.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
                     </div>
                   </div>
                 </div>
@@ -643,8 +648,6 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
 
 // ─── MODAL EDITAR GASTO ───────────────────────────────────────────────────────
 function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void }) {
-  const { simbolo } = useMoneda();
-  const fc = (n: number) => formatCurrency(n, simbolo);
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>(gasto.categoria);
   const [monto, setMonto] = useState(String(gasto.monto));
   const [descripcion, setDescripcion] = useState(gasto.descripcion);
@@ -669,7 +672,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">✏️ Editar Gasto</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button aria-label="Cerrar" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Gasto actualizado!</p></div>
@@ -711,8 +714,6 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
 
 // ─── MODAL EDITAR ADELANTO ────────────────────────────────────────────────────
 function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto: any; barberos: any[]; socios: any[]; onClose: () => void }) {
-  const { simbolo } = useMoneda();
-  const fc = (n: number) => formatCurrency(n, simbolo);
   const [monto, setMonto] = useState(String(adelanto.monto));
   const [motivo, setMotivo] = useState(adelanto.motivo);
   const [fecha, setFecha] = useState<string>(() => { const d = new Date(adelanto.fecha); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
@@ -769,7 +770,6 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
 // ─── MODAL EDITAR VENTA ───────────────────────────────────────────────────────
 function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro: any; barberos: Barbero[]; servicios: ServicioProducto[]; onClose: () => void }) {
   const { simbolo } = useMoneda();
-  const fc = (n: number) => formatCurrency(n, simbolo);
   const [barberoId, setBarberoId] = useState(String(registro.barbero_id || ''));
   const [itemId, setItemId] = useState(String(registro.item_id));
   const [monto, setMonto] = useState(String(registro.monto_total));
@@ -786,8 +786,12 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
   const barberoNuevo = barberos.find(b => String(b.id) === barberoId)?.nombre || `Barbero #${barberoId}`;
 
   useEffect(() => {
-    const item = servicios.find(s => s.id === Number(itemId));
-    if (item && Number(itemId) !== registro.item_id) setMonto(String(item.precio));
+    let cancelled = false;
+    const t = setTimeout(() => {
+      const item = servicios.find(s => s.id === Number(itemId));
+      if (!cancelled && item && Number(itemId) !== registro.item_id) setMonto(String(item.precio));
+    }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [itemId, servicios, registro.item_id]);
 
   async function guardar() {
@@ -874,7 +878,7 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
 }
 
 // ─── MODAL VENTA ──────────────────────────────────────────────────────────────
-function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: Barbero[]; servicios: ServicioProducto[]; fechaInicial?: string; onClose: () => void }) {
+function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onClose }: { barberos: Barbero[]; servicios: ServicioProducto[]; fechaInicial?: string; fechasConRegistro?: string[]; onClose: () => void }) {
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [barberoId, setBarberoId] = useState('');
@@ -916,10 +920,6 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
   }
 
   // Calcula si alguna línea es solo producto (sin barbero requerido)
-  const todasProducto = lineas.every(l => {
-    const item = servicios.find(s => String(s.id) === l.itemId);
-    return item?.tipo === 'producto';
-  });
   const algunaServicio = lineas.some(l => {
     const item = servicios.find(s => String(s.id) === l.itemId);
     return item?.tipo === 'servicio';
@@ -1000,7 +1000,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Fecha</span>
                 </label>
-                <DatePicker value={fecha} onChange={setFecha} />
+                <DatePicker value={fecha} onChange={setFecha} markedDates={fechasConRegistro} />
               </div>
 
               {/* Barbero (común para todos los servicios) */}
@@ -1154,7 +1154,6 @@ function ModalVenta({ barberos, servicios, fechaInicial, onClose }: { barberos: 
 
 // ─── MODAL GASTO ──────────────────────────────────────────────────────────────
 function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
-  const { simbolo } = useMoneda();
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>('alquiler');
   const [monto, setMonto] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -1228,8 +1227,6 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
 
 // ─── MODAL ADELANTO ───────────────────────────────────────────────────────────
 function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[]; fechaInicial?: string; onClose: () => void }) {
-  const { simbolo } = useMoneda();
-  const fc = (n: number) => formatCurrency(n, simbolo);
   const [destinatarioTipo, setDestinatarioTipo] = useState<'barbero' | 'socio' | 'devolucion_socio'>('barbero');
   const [barberoId, setBarberoId] = useState('');
   const [monto, setMonto] = useState('');
@@ -1241,38 +1238,41 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [barberosConVentas, setBarberosConVentas] = useState<number[]>([]);
   const [fecha, setFecha] = useState<string>(fechaInicial ?? (() => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; })());
+
+  const { simbolo } = useMoneda();
+  const fc = (n: number) => formatCurrency(n, simbolo);
 
   const sociosActivos = useLiveQuery(() => db.socios.filter(s => s.activo).toArray(), []) ?? [];
 
   useEffect(() => {
-    // No filtramos por ventas del día: los pagos/adelantos son del saldo
-    // acumulado del mes y no requieren ventas en la fecha seleccionada.
-    // Mantenemos el estado por compatibilidad pero lo poblamos con todos los barberos.
-    setBarberosConVentas(barberos.map(b => b.id!).filter(Boolean));
-  }, [fecha, barberos]);
-
-  useEffect(() => {
+    let cancelled = false;
     async function calcular() {
       const [y, m, d] = fecha.split('-').map(Number);
       const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
-      setEfectivoCaja(await getEfectivoDisponibleCaja(fechaDate));
-      if (!barberoId) { setSaldoBarbero(null); setBeneficioSocio(null); setAdelantadoSocio(null); return; }
+      const efectivo = await getEfectivoDisponibleCaja(fechaDate);
+      if (cancelled) return;
+      setEfectivoCaja(efectivo);
+      if (!barberoId) { if (!cancelled) { setSaldoBarbero(null); setBeneficioSocio(null); setAdelantadoSocio(null); } return; }
+      if (cancelled) return;
       setMonto('');   // ← resetear monto al cambiar de persona
       setError('');
       if (destinatarioTipo === 'barbero') {
         const [pagado, saldo] = await Promise.all([getAdelantosMes(Number(barberoId), fechaDate), getSaldoDisponibleBarbero(Number(barberoId), fechaDate)]);
+        if (cancelled) return;
         setAdelantadoSocio(pagado); setSaldoBarbero(saldo); setBeneficioSocio(null);
       } else {
         const res = await getResumenMes(fechaDate);
+        if (cancelled) return;
         const si = res.pagosPorSocio.find(p => p.id === Number(barberoId));
         const ben = si?.monto ?? 0;
         const ade = si?.pagado ?? await getPagosSocioMes(Number(barberoId), fechaDate);
+        if (cancelled) return;
         setBeneficioSocio(ben); setAdelantadoSocio(ade); setSaldoBarbero(ben - ade);
       }
     }
-    calcular();
+    const t = setTimeout(() => { void calcular().catch(err => console.warn('[ModalAdelanto] calcular failed:', err)); }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [barberoId, destinatarioTipo, fecha]);
 
   async function guardar() {
@@ -1561,15 +1561,18 @@ function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onC
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     async function cargar() {
       const [y, m, d] = fecha.split('-').map(Number);
       const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
       const [ventas, fondo, arqueo] = await Promise.all([getVentasDia(fechaDate), getSaldoFondoCaja(), getArqueoDia(fechaDate)]);
+      if (cancelled) return;
       setTotalVentas(ventas); setFondoCaja(fondo);
       if (arqueo) { setTieneArqueo(true); setMontoBanco(arqueo.monto_banco > 0 ? String(arqueo.monto_banco) : ''); setNotas(arqueo.notas ?? ''); }
       else { setTieneArqueo(false); setMontoBanco(''); setNotas(''); }
     }
-    cargar();
+    const t = setTimeout(() => { void cargar().catch(err => console.warn('[ModalArqueoCaja] cargar failed:', err)); }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [fecha]);
 
   async function guardar() {

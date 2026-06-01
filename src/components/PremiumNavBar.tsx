@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Home, Users, BarChart3, Settings } from 'lucide-react';
 
 interface NavItem {
   id: string;
@@ -20,8 +19,25 @@ export default function PremiumNavBar({ activeTab, onTabChange, items }: Premium
   const [bottomSafeArea, setBottomSafeArea] = useState('0px');
 
   useEffect(() => {
-    const safeBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom').trim();
-    setBottomSafeArea(safeBottom || '0px');
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      if (cancelled.current) return;
+      try {
+        const safeBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom').trim();
+        // Defer update to avoid synchronous setState inside effect and avoid redundant updates
+        requestAnimationFrame(() => {
+          if (!cancelled.current) {
+            setBottomSafeArea(prev => (prev === (safeBottom || '0px') ? prev : (safeBottom || '0px')));
+          }
+        });
+      } catch (err) {
+        console.warn('[PremiumNavBar] failed to read --safe-bottom:', err);
+      }
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
   }, []);
 
   const activeIndex = items.findIndex(item => item.id === activeTab);

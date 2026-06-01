@@ -1,1 +1,7 @@
-{}
+{
+  "language": {
+    "select": "Language",
+    "es": "Spanish",
+    "en": "English"
+  }
+}

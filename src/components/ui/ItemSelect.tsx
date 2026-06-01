@@ -65,12 +65,17 @@ export function ItemSelect({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     if (open) {
       updatePosition();
       requestAnimationFrame(() => searchRef.current?.focus());
     } else {
-      setSearch('');
+      const t = setTimeout(() => {
+        if (!cancelled) requestAnimationFrame(() => setSearch(''));
+      }, 0);
+      return () => { cancelled = true; clearTimeout(t); };
     }
+    if (open) return () => { cancelled = true; };
   }, [open, updatePosition]);
 
   useEffect(() => {
@@ -183,9 +188,12 @@ export function ItemSelect({
           {selected && (
             <button
               type="button"
+              tabIndex={0}
               onClick={handleClear}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClear(e as any); }}
               aria-label="Borrar selección"
               className="cs-clear-button"
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', padding: 0, margin: 0 }}
             >
               <X size={12} color="var(--gray-muted)" />
             </button>
@@ -250,7 +258,7 @@ export function ItemSelect({
 
               {totalFiltered === 0 && (
                 <p style={{ textAlign: 'center', padding: '24px 0', fontSize: 13, color: 'var(--gray-muted)' }}>
-                  Sin resultados para "{search}"
+                  Sin resultados para &quot;{search}&quot;
                 </p>
               )}
 
@@ -267,7 +275,7 @@ export function ItemSelect({
                   }}>
                     <Scissors size={11} /> Servicios ({servicios.length})
                   </div>
-                  {servicios.map((opt, idx) => {
+                  {servicios.map((opt) => {
                     const isSel = value === opt.id;
                     return (
                       <button key={opt.id} type="button" onClick={() => handleSelect(opt.id)}

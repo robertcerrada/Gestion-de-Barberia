@@ -6,4 +6,4 @@
  *   const { t } = useTranslation();
  *   <button>{t('common.save')}</button>
  */
-export { useLanguage as useTranslation } from '@/contexts/LanguageContext';
+export { useLanguage as useTranslation } from '@/shared/i18n/LanguageContext';

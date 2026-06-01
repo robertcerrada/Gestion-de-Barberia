@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { X, Upload, FileText, Image, Trash2, Download, Eye, FileBadge, FileSignature, Home, Award, User, File } from 'lucide-react';
+import { X, Upload, FileText, Trash2, Download, Eye, FileBadge, FileSignature, Home, Award, User, File } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type DocumentoBarbero, type TipoDocumento } from '@/lib/db';
 
@@ -93,7 +93,7 @@ export function ModalDocumentosBarbero({ barberoId, barberoNombre, onClose }: Mo
 
       setDescripcion('');
       if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (e) {
+    } catch {
       setError('Error al guardar el archivo. Intenta de nuevo.');
     }
     setSubiendo(false);
@@ -322,6 +322,8 @@ function DocCard({ doc, color, onDelete, onDownload, onPreview }: {
         }}
       >
         {esImg ? (
+          // data: URIs used for thumbnails — next/image cannot optimize data URIs reliably
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={`data:${doc.mime_type};base64,${doc.data}`}
             alt={doc.nombre}
@@ -442,6 +444,8 @@ function ModalVistaPrevia({ doc, onClose, onDownload, onDelete }: {
         {/* Contenido */}
         <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)' }}>
           {esImg && (
+            // Preview uses data: URI — keep <img> and disable rule for this case
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={dataUrl}
               alt={doc.nombre}

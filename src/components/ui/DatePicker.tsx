@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -14,14 +14,21 @@ interface DatePickerProps {
   markedDates?: string[];
 }
 
-export function DatePicker({ value, onChange, className = '', compact = false, markedDates = [] }: DatePickerProps) {
+const DEFAULT_MARKED_DATES: string[] = [];
+const WEEK_DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+
+export function DatePicker({ value, onChange, className = '', compact = false, markedDates = DEFAULT_MARKED_DATES }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(() => value && isValid(parseISO(value)) ? parseISO(value) : new Date());
   
   useEffect(() => {
-    if (value && isValid(parseISO(value))) {
-      setCurrentMonth(parseISO(value));
-    }
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (!cancelled && value && isValid(parseISO(value))) {
+        requestAnimationFrame(() => setCurrentMonth(parseISO(value)));
+      }
+    }, 0);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [value]);
 
   const selectedDate = value && isValid(parseISO(value)) ? parseISO(value) : null;
@@ -32,7 +39,6 @@ export function DatePicker({ value, onChange, className = '', compact = false, m
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
-  const weekDays = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
   const renderCalendar = () => {
     return (
@@ -46,6 +52,7 @@ export function DatePicker({ value, onChange, className = '', compact = false, m
             setIsOpen(false);
           }
         }}
+        style={{ background: 'transparent', border: 'none', padding: 0, margin: 0 }}
       >
         <div
           className="card datepicker-card"
@@ -66,7 +73,7 @@ export function DatePicker({ value, onChange, className = '', compact = false, m
 
           {/* Días de la semana */}
           <div className="datepicker-weekdays">
-            {weekDays.map(d => (
+            {WEEK_DAYS.map(d => (
               <span key={d} className="datepicker-weekday">{d}</span>
             ))}
           </div>

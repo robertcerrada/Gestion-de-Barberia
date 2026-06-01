@@ -29,19 +29,41 @@ export function useMoneda() {
   }, []);
 
   useEffect(() => {
-    // Cargar al montar
-    cargar();
+    // Deferir la carga inicial para evitar llamadas sincronas a setState dentro del effect
+    // (evita la regla react-hooks/set-state-in-effect)
+    const cancelled = { current: false };
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          const v = await getConfig('moneda');
+          if (cancelled.current) return;
+          const nuevo = v || DEFAULT_SIMBOLO;
+          _simboloCached = nuevo;
+          requestAnimationFrame(() => {
+            if (!cancelled.current) setSimbolo(nuevo);
+          });
+        } catch (err) {
+          console.warn('[useMoneda] Error cargando configuración de moneda:', err);
+        }
+      })();
+    }, 0);
 
     // Escuchar cambios emitidos desde Ajustes
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ simbolo: string }>).detail;
       if (detail?.simbolo) {
         _simboloCached = detail.simbolo;
-        setSimbolo(detail.simbolo);
+        requestAnimationFrame(() => {
+          if (!cancelled.current) setSimbolo(detail.simbolo);
+        });
       }
     };
     window.addEventListener(MONEDA_CHANGE_EVENT, handler);
-    return () => window.removeEventListener(MONEDA_CHANGE_EVENT, handler);
+    return () => {
+      cancelled.current = true;
+      clearTimeout(timer);
+      window.removeEventListener(MONEDA_CHANGE_EVENT, handler);
+    };
   }, [cargar]);
 
   /** Formatea un número con el símbolo activo.

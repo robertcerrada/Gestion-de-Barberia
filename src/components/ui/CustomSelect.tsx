@@ -72,12 +72,17 @@ export function CustomSelect({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     if (open) {
       updatePosition();
       requestAnimationFrame(() => searchRef.current?.focus());
     } else {
-      setSearch('');
+      const t = setTimeout(() => {
+        if (!cancelled) requestAnimationFrame(() => setSearch(''));
+      }, 0);
+      return () => { cancelled = true; clearTimeout(t); };
     }
+    if (open) return () => { cancelled = true; };
   }, [open, updatePosition]);
 
   // Cerrar al hacer click fuera o al presionar Escape
@@ -221,14 +226,16 @@ export function CustomSelect({
         {/* Clear + chevron */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {selected && !disabled && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClear(e as unknown as React.MouseEvent); } }}
               aria-label="Borrar selección"
               className="cs-clear-button"
             >
               <X size={12} color="var(--gray-muted)" />
-            </button>
+            </span>
           )}
           <ChevronDown
             size={16}
@@ -299,14 +306,16 @@ export function CustomSelect({
                 </p>
               )}
 
-              {rows.map((row, idx) => {
+              {rows.map((row) => {
                 if (row.type === 'header') {
+                  // group string es estable para encabezados (y evita usar el índice)
                   return (
-                    <p key={`h-${idx}`} className="cs-row-header">
+                    <p key={`h-${row.group}`} className="cs-row-header">
                       {row.group}
                     </p>
                   );
                 }
+
 
                 const o = row.option;
                 const isSelected = value === o.value;

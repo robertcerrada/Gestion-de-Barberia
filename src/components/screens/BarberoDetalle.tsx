@@ -4,9 +4,7 @@ import { useMoneda } from '@/lib/useMoneda';
 import { db } from '@/lib/db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { getComisionBrutaMes, getAdelantosMes, getSaldoDisponibleBarbero } from '@/lib/business';
-import { CheckCircle2, Percent, X, Plus } from 'lucide-react';
-
-export default function BarberoDetalle({ barberoId, porcentaje, mesFecha = new Date() }: { barberoId: number; porcentaje: number; mesFecha?: Date }) {
+export default function BarberoDetalle({ barberoId, mesFecha = new Date() }: { barberoId: number; porcentaje: number; mesFecha?: Date }) {
   const { simbolo } = useMoneda();
   const { t } = useAppConfig();
   const formatCurrency = (n: number) => `${simbolo}${n.toFixed(2)}`;

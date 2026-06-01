@@ -1,113 +1,42 @@
+/**
+ * lib/db.ts — Capa de infraestructura: definición de la base de datos IndexedDB.
+ *
+ * REGLA: Este archivo solo define el schema de Dexie y las operaciones de
+ * configuración básica (getConfig / setConfig / seedInitialData).
+ * Toda lógica de negocio vive en lib/business.ts y application/.
+ * Los tipos de entidad se importan desde domain/types.ts — única fuente de verdad.
+ */
 import Dexie, { type Table } from 'dexie';
+import type {
+  Barbero,
+  ServicioProducto,
+  RegistroDiario,
+  Adelanto,
+  GastoFijo,
+  HistoricoCierre,
+  ConfigBarberia,
+  Socio,
+  MovimientoFondo,
+  ArqueoCaja,
+  DocumentoBarbero,
+} from '@/domain/types';
 
-export interface Barbero {
-  id?: number;
-  nombre: string;
-  porcentaje_comision: number;
-  activo: boolean;
-}
-
-export interface ServicioProducto {
-  id?: number;
-  nombre: string;
-  tipo: 'servicio' | 'producto';
-  precio: number;
-  stock_actual?: number;
-  stock_minimo?: number;
-}
-
-export interface RegistroDiario {
-  id?: number;
-  fecha: Date;
-  barbero_id: number;
-  item_id: number;
-  monto_total: number;
-  metodo_pago: 'efectivo' | 'banco';
-}
-
-export interface Adelanto {
-  id?: number;
-  fecha: Date;
-  barbero_id: number;
-  monto: number;
-  motivo: string;
-  destinatario_tipo?: 'barbero' | 'socio' | 'devolucion_socio';
-  socio_id?: number;
-}
-
-export interface GastoFijo {
-  id?: number;
-  fecha: Date;
-  categoria: 'internet' | 'alquiler' | 'limpieza' | 'insumos' | 'impuestos' | 'camaras' | 'seguro' | 'luz' | 'agua' | 'gestoria' | 'comision_bancaria' | 'otro';
-  monto: number;
-  descripcion: string;
-}
-
-export interface HistoricoCierre {
-  id?: number;
-  mes_ano: string;
-  ingresos_totales: number;
-  gastos_totales: number;
-  comisiones_pagadas: number;
-  utilidad_neta: number;
-  pago_esposa: number;
-  pago_socio: number;
-  bloqueado: boolean;
-  fecha_cierre: Date;
-}
-
-export interface ConfigBarberia {
-  id?: number;
-  clave: string;
-  valor: string;
-}
-
-export interface Socio {
-  id?: number;
-  nombre: string;
-  porcentaje_utilidad: number;
-  activo: boolean;
-  rol: string;
-}
-
-export interface MovimientoFondo {
-  id?: number;
-  fecha: Date;
-  monto: number;
-  tipo: 'ingreso' | 'egreso';
-  motivo: string;
-}
-
-export interface ArqueoCaja {
-  id?: number;
-  fecha: Date;
-  total_ventas: number;
-  monto_banco: number;
-  monto_efectivo: number;
-  fondo_caja: number;
-  debe_quedar: number;
-  notas?: string;
-}
-
-export type TipoDocumento =
-  | 'dni'
-  | 'contrato'
-  | 'alquiler_silla'
-  | 'certificado'
-  | 'foto_perfil'
-  | 'otro';
-
-export interface DocumentoBarbero {
-  id?: number;
-  barbero_id: number;
-  tipo: TipoDocumento;
-  nombre: string;          // nombre del archivo original
-  descripcion?: string;    // nota opcional del usuario
-  mime_type: string;       // 'image/jpeg', 'application/pdf', etc.
-  data: string;            // base64 del archivo
-  fecha_subida: Date;
-  tamano_bytes: number;
-}
+// Re-exportar desde domain para compatibilidad con imports existentes.
+// Los screens deben migrar gradualmente a importar desde @/domain directamente.
+export type {
+  Barbero,
+  ServicioProducto,
+  RegistroDiario,
+  Adelanto,
+  GastoFijo,
+  HistoricoCierre,
+  ConfigBarberia,
+  Socio,
+  MovimientoFondo,
+  ArqueoCaja,
+  DocumentoBarbero,
+  TipoDocumento,
+} from '@/domain/types';
 
 export class BarberiaDexie extends Dexie {
   barberos!: Table<Barbero, number>;
@@ -190,40 +119,58 @@ export async function setConfig(clave: string, valor: string): Promise<void> {
 export const db = new BarberiaDexie();
 
 export async function seedInitialData() {
-  const count = await db.barberos.count();
-  if (count === 0) {
-    await db.barberos.bulkAdd([
-      { nombre: 'Barbero 1', porcentaje_comision: 0.5, activo: true },
-      { nombre: 'Barbero 2', porcentaje_comision: 0.4, activo: true },
-    ]);
-    await db.servicios_productos.bulkAdd([
-      { nombre: 'Corte Clásico', tipo: 'servicio', precio: 12 },
-      { nombre: 'Corte + Barba', tipo: 'servicio', precio: 20 },
-      { nombre: 'Corte + Barba + Ceja', tipo: 'servicio', precio: 24 },
-      { nombre: 'Barba', tipo: 'servicio', precio: 8 },
-      { nombre: 'Ceja', tipo: 'servicio', precio: 4 },
-      { nombre: 'Barba + Ceja', tipo: 'servicio', precio: 12 },
-      { nombre: 'Tinte', tipo: 'servicio', precio: 35 },
-      { nombre: 'Champú', tipo: 'producto', precio: 18, stock_actual: 20, stock_minimo: 5 },
-      { nombre: 'Cera para Cabello', tipo: 'producto', precio: 12, stock_actual: 15, stock_minimo: 3 },
-    ]);
-  }
+  console.log('[db] seedInitialData started');
+  try {
+    const count = await db.barberos.count();
+    console.log('[db] barberos count:', count);
+    if (count === 0) {
+      console.log('[db] seeding barberos...');
+      await db.barberos.bulkAdd([
+        { nombre: 'Barbero 1', porcentaje_comision: 0.5, activo: true },
+        { nombre: 'Barbero 2', porcentaje_comision: 0.4, activo: true },
+      ]);
+      console.log('[db] barberos seeded');
+      console.log('[db] seeding servicios...');
+      await db.servicios_productos.bulkAdd([
+        { nombre: 'Corte Clásico', tipo: 'servicio', precio: 12 },
+        { nombre: 'Corte + Barba', tipo: 'servicio', precio: 20 },
+        { nombre: 'Corte + Barba + Ceja', tipo: 'servicio', precio: 24 },
+        { nombre: 'Barba', tipo: 'servicio', precio: 8 },
+        { nombre: 'Ceja', tipo: 'servicio', precio: 4 },
+        { nombre: 'Barba + Ceja', tipo: 'servicio', precio: 12 },
+        { nombre: 'Tinte', tipo: 'servicio', precio: 35 },
+        { nombre: 'Champú', tipo: 'producto', precio: 18, stock_actual: 20, stock_minimo: 5 },
+        { nombre: 'Cera para Cabello', tipo: 'producto', precio: 12, stock_actual: 15, stock_minimo: 3 },
+      ]);
+      console.log('[db] servicios seeded');
+    }
 
-  const countFondo = await db.fondo_caja.count();
-  if (countFondo === 0) {
-    await db.fondo_caja.add({
-      fecha: new Date(),
-      monto: 0,
-      tipo: 'ingreso',
-      motivo: 'Fondo de caja inicial'
-    });
-  }
+    const countFondo = await db.fondo_caja.count();
+    console.log('[db] fondo_caja count:', countFondo);
+    if (countFondo === 0) {
+      console.log('[db] seeding fondo_caja...');
+      await db.fondo_caja.add({
+        fecha: new Date(),
+        monto: 0,
+        tipo: 'ingreso',
+        motivo: 'Fondo de caja inicial'
+      });
+      console.log('[db] fondo_caja seeded');
+    }
 
-  const countSocios = await db.socios.count();
-  if (countSocios === 0) {
-    await db.socios.bulkAdd([
-      { nombre: 'Socio 1', porcentaje_utilidad: 0.5, activo: true, rol: 'Dueño' },
-      { nombre: 'Socio 2', porcentaje_utilidad: 0.5, activo: true, rol: 'Socio' },
-    ]);
+    const countSocios = await db.socios.count();
+    console.log('[db] socios count:', countSocios);
+    if (countSocios === 0) {
+      console.log('[db] seeding socios...');
+      await db.socios.bulkAdd([
+        { nombre: 'Socio 1', porcentaje_utilidad: 0.5, activo: true, rol: 'Dueño' },
+        { nombre: 'Socio 2', porcentaje_utilidad: 0.5, activo: true, rol: 'Socio' },
+      ]);
+      console.log('[db] socios seeded');
+    }
+    console.log('[db] seedInitialData completed');
+  } catch (e) {
+    console.error('[db] error in seedInitialData:', e);
+    throw e;
   }
 }

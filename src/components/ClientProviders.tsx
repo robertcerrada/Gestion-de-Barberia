@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import { AppConfigProvider } from '@/lib/useAppConfig';
 import { LanguageProvider } from '@/shared/i18n/LanguageContext';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
@@ -11,8 +10,11 @@ interface ClientProvidersProps {
 
 /**
  * Centraliza todos los proveedores globales de la aplicación.
- * - AppConfigProvider: gestión de tema y idioma persistido.
- * - LanguageProvider: contexto de traducciones (i18n).
+ * NOTA: AppConfigProvider NO se incluye aquí — ya está en app/layout.tsx.
+ * Incluirlo aquí causaría un contexto duplicado donde el exterior nunca
+ * recibiría las actualizaciones del interior.
+ *
+ * - LanguageProvider: contexto de traducciones del Sistema B (i18n anidado).
  * - GoogleOAuthProvider: opcional, solo si se configuró el clientId.
  */
 export default function ClientProviders({
@@ -21,16 +23,14 @@ export default function ClientProviders({
   children,
 }: ClientProvidersProps) {
   return (
-    <AppConfigProvider>
-      <LanguageProvider>
-        {googleConfigured ? (
-          <GoogleOAuthProvider clientId={clientId}>
-            {children}
-          </GoogleOAuthProvider>
-        ) : (
-          children
-        )}
-      </LanguageProvider>
-    </AppConfigProvider>
+    <LanguageProvider>
+      {googleConfigured ? (
+        <GoogleOAuthProvider clientId={clientId}>
+          {children}
+        </GoogleOAuthProvider>
+      ) : (
+        children
+      )}
+    </LanguageProvider>
   );
 }

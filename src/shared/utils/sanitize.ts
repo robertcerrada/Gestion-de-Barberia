@@ -34,10 +34,19 @@ export function isValidBase64(val: unknown): boolean {
   return /^[A-Za-z0-9+/]+={0,2}$/.test(cleaned);
 }
 
-/** Convierte cualquier valor a Date de forma segura */
+/** Convierte cualquier valor a Date de forma segura.
+ *  Si el string es solo una fecha (YYYY-MM-DD), se interpreta en hora local
+ *  para evitar que la zona horaria UTC desplace el día (e.g. UTC-3 → día anterior). */
 export function toDate(val: unknown): Date {
   if (val instanceof Date) return val;
   if (typeof val === 'string' && val) {
+    // ISO date-only strings (YYYY-MM-DD) se parsean como medianoche UTC en JS
+    // lo que desplaza el día en zonas horarias negativas. Lo corregimos.
+    const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(val);
+    if (dateOnly) {
+      const [, y, m, d] = dateOnly;
+      return new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0);
+    }
     const d = new Date(val);
     if (!isNaN(d.getTime())) return d;
   }
@@ -49,12 +58,12 @@ export function toDate(val: unknown): Date {
 }
 
 /** Serializa fechas a ISO string en un array de objetos */
-export function serializarFechas<T extends object>(arr: T[]): any[] {
+export function serializarFechas<T extends object>(arr: T[]): T[] {
   return arr.map(obj => {
-    const copy: any = { ...obj };
+    const copy = { ...obj } as Record<string, unknown>;
     for (const key of Object.keys(copy)) {
-      if (copy[key] instanceof Date) copy[key] = copy[key].toISOString();
+      if (copy[key] instanceof Date) copy[key] = (copy[key] as Date).toISOString();
     }
-    return copy;
+    return copy as T;
   });
 }

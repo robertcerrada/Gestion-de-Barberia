@@ -4,12 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useGoogleLogin } from '@react-oauth/google';
 import { exportarAGoogleDrive, restaurarDesdeGoogleDrive, setAccessToken, clearAccessToken, DRIVE_SCOPE, getLastBackupInfo, isDriveConnected } from '@/lib/drive';
-import { exportarTodosLosDatos, getSaldoDisponibleBarbero, getSaldoFondoCaja } from '@/lib/business';
+import { exportarTodosLosDatos, getSaldoFondoCaja } from '@/lib/business';
 import { getGoogleUser, verifyPin, savePin, logoutAll, isPinConfigured } from '@/lib/auth';
-import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, FolderOpen, KeyRound, Mail, RefreshCw, Sun, Moon, Globe } from 'lucide-react';
+import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, RefreshCw, Sun, Moon, Globe } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getConfig, setConfig, type Socio, type Adelanto } from '@/lib/db';
-import { ModalDocumentosBarbero } from '@/components/ui/ModalDocumentosBarbero';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useAppConfig, type Lang } from '@/lib/useAppConfig';
 import { useMoneda, emitirCambioMoneda } from '@/lib/useMoneda';
@@ -320,7 +319,7 @@ function TabEmails() {
     };
   }, []);
 
-  const lista = emails.split(',').map(e => e.trim()).filter(Boolean);
+  const lista = emails.split(',').flatMap(e => { const v = e.trim(); return v ? [v] : []; });
 
   async function agregar() {
     const email = nuevo.trim().toLowerCase();
@@ -1254,178 +1253,7 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
-  const { simbolo } = useMoneda();
-  const [showAdd, setShowAdd] = useState(false);
-  const [editando, setEditando] = useState<any | null>(null);
-  const [docsBarbero, setDocsBarbero] = useState<{ id: number; nombre: string } | null>(null);
-  const [balances, setBalances] = useState<Record<number, number>>({});
-  const [mensaje, setMensaje] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [mostrarInactivos, setMostrarInactivos] = useState(false);
-  const [busqueda, setBusqueda] = useState('');
 
-  const todosBarberos = useLiveQuery(() => db.barberos.orderBy('nombre').toArray(), []);
-  const barberos = todosBarberos?.filter(b => {
-    const coincideEstado = mostrarInactivos ? true : b.activo;
-    const coincideNombre = busqueda.trim() === '' || b.nombre.toLowerCase().includes(busqueda.toLowerCase());
-    return coincideEstado && coincideNombre;
-  });
-
-  const totalActivos = todosBarberos?.filter(b => b.activo).length ?? 0;
-
-  useEffect(() => {
-    async function cargarSaldos() {
-      if (!todosBarberos) return;
-      const mapa: Record<number, number> = {};
-      await Promise.all(todosBarberos.map(async (b) => { if (b.id) { mapa[b.id] = await getSaldoDisponibleBarbero(b.id); } }));
-      setBalances(mapa);
-    }
-    cargarSaldos();
-  }, [todosBarberos]);
-
-  async function toggleActivo(barbero: any) {
-    if (barbero.activo) {
-      const saldo = balances[barbero.id] || 0;
-      if (saldo !== 0) {
-        setMensaje({ text: `No se puede desactivar a ${barbero.nombre} porque tiene un saldo pendiente de ${simbolo}${saldo.toFixed(2)}.`, type: 'error' });
-        setTimeout(() => setMensaje(null), 5000);
-        return;
-      }
-    }
-    await db.barberos.update(barbero.id, { activo: !barbero.activo });
-    setMensaje({ text: `${barbero.nombre} ha sido ${!barbero.activo ? 'activado' : 'desactivado'}.`, type: 'success' });
-    setTimeout(() => setMensaje(null), 3000);
-  }
-
-  async function eliminar(barbero: any) {
-    if (!barbero.id) return;
-    const [registros, adelantos] = await Promise.all([db.registros_diarios.where('barbero_id').equals(barbero.id).toArray(), db.Adelantos.where('barbero_id').equals(barbero.id).toArray()]);
-    const tieneData = registros.length > 0 || adelantos.length > 0;
-    if (tieneData) {
-      if (barbero.activo) { await db.barberos.update(barbero.id, { activo: false }); setMensaje({ text: `${barbero.nombre} tiene servicios asociados. Se marcó como inactivo.`, type: 'success' }); }
-      else { setMensaje({ text: `${barbero.nombre} tiene servicios asociados y no se puede eliminar.`, type: 'error' }); }
-      setTimeout(() => setMensaje(null), 4000);
-      return;
-    }
-    if (!confirm(`¿Eliminar a ${barbero.nombre} definitivamente?`)) return;
-    await db.barberos.delete(barbero.id);
-    setMensaje({ text: `${barbero.nombre} eliminado.`, type: 'success' });
-    setTimeout(() => setMensaje(null), 4000);
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Gestionar Barberos</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-        <div style={{ position: 'relative', marginBottom: 10, flexShrink: 0 }}>
-          <input className="input-dark" type="text" placeholder="🔍 Buscar barbero por nombre..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', paddingRight: busqueda ? 36 : 12 }} />
-          {busqueda && <button onClick={() => setBusqueda('')} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', padding: 0, display: 'flex' }}><X size={14} /></button>}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexShrink: 0 }}>
-          <button onClick={() => setMostrarInactivos(false)} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `2px solid ${!mostrarInactivos ? 'var(--success)' : 'var(--black-border)'}`, background: !mostrarInactivos ? 'rgba(76,175,130,0.1)' : 'var(--black-surface)', color: !mostrarInactivos ? 'var(--success)' : 'var(--gray-muted)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, transition: 'all 0.2s' }}>● Activos ({totalActivos})</button>
-          <button onClick={() => setMostrarInactivos(true)} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `2px solid ${mostrarInactivos ? 'var(--gold)' : 'var(--black-border)'}`, background: mostrarInactivos ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: mostrarInactivos ? 'var(--gold)' : 'var(--gray-muted)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, transition: 'all 0.2s' }}>👥 Todos ({(todosBarberos?.length ?? 0)})</button>
-        </div>
-        {mensaje && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, padding: '10px 14px', borderRadius: 10, marginBottom: 10, fontSize: 13, background: mensaje.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${mensaje.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: mensaje.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
-            {mensaje.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-            <span style={{ flex: 1 }}>{mensaje.text}</span>
-          </div>
-        )}
-        <button className="btn-gold" style={{ width: '100%', marginBottom: 10, flexShrink: 0 }} onClick={() => setShowAdd(true)}><Plus size={18} /> Agregar Nuevo Barbero</button>
-        <div className="modal-body">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {barberos?.length === 0 && <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--gray-muted)' }}><p style={{ fontSize: 13 }}>{busqueda ? `Sin resultados para "${busqueda}"` : 'No hay barberos en este filtro'}</p></div>}
-            {barberos?.map(b => {
-              const saldo = balances[b.id!] ?? 0;
-              return (
-                <div key={b.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', opacity: b.activo ? 1 : 0.65 }}>
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: 15 }}>{b.nombre}</p>
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
-                      <span className={`badge ${b.activo ? 'badge-green' : 'badge-red'}`}>{b.activo ? '● Activo' : '● Inactivo'}</span>
-                      <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>Comisión: {(b.porcentaje_comision * 100).toFixed(0)}%</span>
-                    </div>
-                    <p style={{ fontSize: 12, marginTop: 4, color: saldo === 0 ? 'var(--gray-muted)' : saldo > 0 ? 'var(--success)' : 'var(--danger)' }}>Saldo: <strong>{simbolo}{saldo.toFixed(2)}</strong></p>
-                  </div>
-                  <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginLeft: 8 }}>
-                    <button onClick={() => setDocsBarbero({ id: b.id!, nombre: b.nombre })} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(82,136,224,0.4)', color: '#5288E0' }} title="Documentos"><FolderOpen size={12} /></button>
-                    <button onClick={() => setEditando(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> Editar</button>
-                    <button onClick={() => toggleActivo(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: b.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: b.activo ? 'var(--danger)' : 'var(--success)' }}>{b.activo ? 'Pausar' : 'Activar'}</button>
-                    <button onClick={() => eliminar(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        {showAdd && (
-          <div className="modal-overlay" onClick={() => setShowAdd(false)}>
-            <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-              <div className="modal-handle" />
-              <div style={{ padding: 16 }}>
-                <p className="section-title" style={{ marginBottom: 10 }}>Nuevo Barbero</p>
-                <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
-                  Modal “Agregar barbero” no disponible en esta versión (componente faltante).
-                </p>
-                <button className="btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowAdd(false)}>
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {editando && <ModalEditarBarbero barbero={editando} onClose={() => { setEditando(null); setMensaje({ text: 'Barbero actualizado correctamente.', type: 'success' }); setTimeout(() => setMensaje(null), 3000); }} />}
-        {docsBarbero && <ModalDocumentosBarbero barberoId={docsBarbero.id} barberoNombre={docsBarbero.nombre} onClose={() => setDocsBarbero(null)} />}
-      </div>
-    </div>
-  );
-}
-
-function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () => void }) {
-  const [nombre, setNombre] = useState(barbero.nombre);
-  const [porcentaje, setPorcentaje] = useState(String(Math.round(barbero.porcentaje_comision * 100)));
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  async function guardar() {
-    if (!nombre.trim() || !barbero.id) return;
-    const existe = await db.barberos.filter(b => b.id !== barbero.id && b.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
-    if (existe) { alert(`Ya existe un barbero llamado "${nombre.trim()}".`); return; }
-    setLoading(true);
-    await db.barberos.update(barbero.id, { nombre: nombre.trim(), porcentaje_comision: Number(porcentaje) / 100 });
-    setLoading(false);
-    setSuccess(true);
-    setTimeout(onClose, 800);
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Editar Barbero</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-        {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Barbero actualizado!</p></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} placeholder="Ej: Juan Pérez" /></div>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje de Comisión: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
-              <input type="range" min="0" max="100" step="5" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
-            </div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Guardar Cambios'}</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function ModalFondoCaja({ onClose }: { onClose: () => void }) {
   const { simbolo } = useMoneda();

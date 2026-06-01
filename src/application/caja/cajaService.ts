@@ -10,7 +10,6 @@ import { adelantosRepository } from '@/infrastructure/repositories/adelantos.rep
 import { arqueoRepository } from '@/infrastructure/repositories/arqueo.repository';
 import { fondoCajaRepository } from '@/infrastructure/repositories/fondo-caja.repository';
 import { calcularComisionBancaria } from '@/application/comisiones/comisionesService';
-import { startOfDay, endOfDay } from '@/shared/utils/dates';
 import { startOfMonth, endOfMonth } from 'date-fns';
 
 export async function getSaldoFondoCaja(): Promise<number> {

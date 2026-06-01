@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
-  PieChart, Pie, Cell, ComposedChart, Line, Area
+  PieChart, Pie, Cell, ComposedChart, Area
 } from 'recharts';
 import { db, type GastoFijo } from '@/lib/db';
 import {
@@ -24,7 +24,6 @@ import {
 } from '@/lib/business';
 import { getMesAno } from '@/shared/utils/dates';
 import { format, setMonth, setYear, getYear, getMonth } from 'date-fns';
-import { es } from 'date-fns/locale';
 import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet } from 'lucide-react';
 import { exportarAGoogleDrive } from '@/lib/drive';
 import { useMoneda } from '@/lib/useMoneda';
@@ -156,9 +155,25 @@ export default function ScreenPanel() {
 
     const mp = await getMetodosPagoMes(fecha);
     setIngresosMetodoPago({ efectivo: mp.efectivo, banco: mp.banco, bancoNeto: mp.bancoNeto, comisionBancaria: mp.comisionBancaria });
-  }, [selectedMes, selectedYear]);
+  }, [fecha, selectedMes, selectedYear]);
 
-  useEffect(() => { cargarDatos(); }, [cargarDatos]);
+  useEffect(() => {
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      if (cancelled.current) return;
+      try { 
+        requestAnimationFrame(() => {
+          if (!cancelled.current) cargarDatos();
+        });
+      } catch (err) { 
+        console.warn('[ScreenPanel] cargarDatos failed:', err); 
+      }
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
+  }, [cargarDatos]);
 
   async function handleReabrirMes() {
     if (!confirm(`¿Estás seguro de que deseas reabrir ${MESES[selectedMes]} ${selectedYear}?`)) return;
@@ -739,7 +754,6 @@ export default function ScreenPanel() {
       const debeBarberia = s.saldoPendiente < -0.005;
       const leDebemos    = s.saldoPendiente >  0.005;
       const accent = debeBarberia ? '#c62828' : leDebemos ? '#9a7700' : '#2e7d32';
-      const estadoTxt = debeBarberia ? `Debe ${formatCurrency(Math.abs(s.saldoPendiente))}` : leDebemos ? `Pendiente ${formatCurrency(s.saldoPendiente)}` : '✓ Saldado';
 
       // Tarjeta del socio
       roundRect(PAD, y, W - PAD * 2, 52, 8);
@@ -820,8 +834,6 @@ export default function ScreenPanel() {
       [selectedYear - 1]: anterior?.ingresos_totales ?? 0,
     };
   });
-
-  const years = Array.from({ length: 5 }, (_, i) => yearActual - i);
 
   return (
     <div style={{ padding: '16px', paddingBottom: 100 }}>
@@ -919,10 +931,10 @@ export default function ScreenPanel() {
             </span>
           </div>
           <div style={{ padding: '12px' }}>
-            {mesesPendientes.slice(0, 5).map((mesPend, idx) => (
-              <div key={mesPend.mesAno} style={{ 
-                padding: '12px', 
-                marginBottom: idx < Math.min(5, mesesPendientes.length - 1) ? 8 : 0,
+            {mesesPendientes.slice(0, 5).map((mesPend) => (
+                <div key={mesPend.mesAno} style={{ 
+                	padding: '12px', 
+                	marginBottom: 8,
                 borderRadius: 8, 
                 background: 'rgba(224,82,82,0.08)',
                 border: '1px solid rgba(224,82,82,0.15)'
@@ -1129,7 +1141,7 @@ export default function ScreenPanel() {
                       align="center" 
                       iconType="circle"
                       wrapperStyle={{ paddingTop: 20, fontSize: 12, color: 'var(--gray-muted)' }}
-                      formatter={(value, entry: any) => <span style={{ color: 'var(--white-soft)', fontWeight: 500, marginRight: 8 }}>{value}</span>}
+                      formatter={(value) => <span style={{ color: 'var(--white-soft)', fontWeight: 500, marginRight: 8 }}>{value}</span>}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -1251,7 +1263,7 @@ export default function ScreenPanel() {
                   </div>
                   {debeBarberia && (
                     <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.2)', fontSize: 12, color: 'var(--danger)' }}>
-                      Este socio cobró <strong>{formatCurrency(Math.abs(socio.saldoPendiente))}</strong> más de lo correspondiente. Registrá una "Devolución" en Inicio.
+                      Este socio cobró <strong>{formatCurrency(Math.abs(socio.saldoPendiente))}</strong> más de lo correspondiente. Registrá una &quot;Devolución&quot; en Inicio.
                     </div>
                   )}
                 </div>
@@ -1358,8 +1370,8 @@ export default function ScreenPanel() {
                 <Tooltip 
                   cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                   formatter={(val: number, name: string) => [
-                    <span style={{ color: 'var(--white-soft)', fontWeight: 700 }}>{formatCurrency(val)}</span>, 
-                    <span style={{ color: 'var(--gray-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em' }}>{name === 'ingresos' ? 'Ingresos' : 'Gastos'}</span>
+                    <span key="value" style={{ color: 'var(--white-soft)', fontWeight: 700 }}>{formatCurrency(val)}</span>, 
+                    <span key="label" style={{ color: 'var(--gray-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em' }}>{name === 'ingresos' ? 'Ingresos' : 'Gastos'}</span>
                   ]} 
                   contentStyle={{ 
                     background: 'rgba(15, 15, 15, 0.95)', 
@@ -1523,7 +1535,7 @@ export default function ScreenPanel() {
                   align="center" 
                   iconType="circle"
                   wrapperStyle={{ paddingTop: 30, fontSize: 12, color: 'var(--gray-muted)' }}
-                  formatter={(value, entry: any) => <span style={{ color: 'var(--white-soft)', fontWeight: 500, marginRight: 8 }}>{value}</span>}
+                  formatter={(value) => <span style={{ color: 'var(--white-soft)', fontWeight: 500, marginRight: 8 }}>{value}</span>}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -1708,7 +1720,7 @@ function ModalLiquidacionRapida({
 }) {
   const formatCurrency = useFmt();
   const [mesNum, anio] = mesAno.split('-').map(Number);
-  const fechaMes = new Date(anio, mesNum - 1, 15, 12, 0, 0);
+  const fechaMes = useMemo(() => new Date(anio, mesNum - 1, 15, 12, 0, 0), [anio, mesNum]);
 
   const [barberos, setBarberos] = useState<any[]>([]);
   const [socios, setSocios] = useState<any[]>([]);
@@ -1749,7 +1761,7 @@ function ModalLiquidacionRapida({
       setCargando(false);
     }
     cargar();
-  }, [mesAno]);
+  }, [mesAno, mesLabel, fechaMes]);
 
   async function pagarBarbero(b: any) {
     const key = `b-${b.barberoId}`;

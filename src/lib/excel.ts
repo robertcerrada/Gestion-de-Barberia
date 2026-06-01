@@ -154,7 +154,7 @@ export async function importFromExcel(file: File) {
           await setConfig('porcentaje_comision_bancaria', valor);
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 
   let importedVentas = 0;
@@ -282,6 +282,6 @@ export async function importarConfiguracionDesdeExcel(file: File) {
           await setConfig('porcentaje_comision_bancaria', valor);
         }
       }
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
   }
 }

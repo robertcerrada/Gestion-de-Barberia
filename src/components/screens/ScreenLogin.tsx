@@ -1,6 +1,7 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useReducer } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Lock, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
 import { getConfig } from '@/lib/db';
@@ -41,66 +42,103 @@ async function verifyGoogleIdToken(token: string): Promise<{ email?: string; nam
 
 export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', logoSrc, onLoginSuccess }: ScreenLoginProps) {
   const [googleActivo, setGoogleActivo] = useState(false);
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
-  const [mostrar, setMostrar] = useState(false);
-  const [cargando, setCargando] = useState(false);
+  const [showLogo, setShowLogo] = useState(true);
+
+  type FormState = { pin: string; error: string; mostrar: boolean; cargando: boolean };
+  type FormAction =
+    | { type: 'setPinChar'; char: string }
+    | { type: 'backspace' }
+    | { type: 'clearPin' }
+    | { type: 'toggleMostrar' }
+    | { type: 'setError'; error: string }
+    | { type: 'startCargando' }
+    | { type: 'stopCargando' }
+    | { type: 'resetForm' };
+
+  const [form, dispatch] = useReducer(
+    (state: FormState, action: FormAction): FormState => {
+      switch (action.type) {
+        case 'setPinChar':  return { ...state, pin: (state.pin + action.char).slice(0, 8), error: '' };
+        case 'backspace':   return { ...state, pin: state.pin.slice(0, -1), error: '' };
+        case 'clearPin':    return { ...state, pin: '', error: '' };
+        case 'toggleMostrar': return { ...state, mostrar: !state.mostrar };
+        case 'setError':    return { ...state, error: action.error };
+        case 'startCargando': return { ...state, cargando: true };
+        case 'stopCargando':  return { ...state, cargando: false };
+        case 'resetForm':   return { pin: '', error: '', mostrar: false, cargando: false };
+        default: return state;
+      }
+    },
+    { pin: '', error: '', mostrar: false, cargando: false }
+  );
+  const { pin, error, mostrar, cargando } = form;
 
   const logoReal = logoSrc || '/Logo.jpg';
   const googleConfigurado = !!(GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('PON_TU_CLIENT_ID'));
 
   useEffect(() => {
-    if (googleConfigurado) setGoogleActivo(true);
-  }, []);
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      if (!cancelled.current && googleConfigurado) {
+        requestAnimationFrame(() => {
+          if (!cancelled.current) setGoogleActivo(true);
+        });
+      }
+    }, 0);
+    return () => { 
+      cancelled.current = true; 
+      clearTimeout(t); 
+    };
+  }, [googleConfigurado]);
 
   async function handleGoogleSuccess(credentialResponse: { credential?: string }) {
     const token = credentialResponse.credential;
-    if (!token) { setError('No se recibió token de Google.'); return; }
-    setCargando(true);
+    if (!token) { dispatch({ type: 'setError', error: 'No se recibió token de Google.' }); return; }
+    dispatch({ type: 'startCargando' });
 
     const payload = await verifyGoogleIdToken(token);
     const email = payload?.email?.toLowerCase() || '';
 
     const emailsConfig = await getConfig('emails_autorizados');
     const emailsAutorizados = emailsConfig
-      ? emailsConfig.split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+      ? emailsConfig.split(',').flatMap(e => { const v = e.trim().toLowerCase(); return v ? [v] : []; })
       : [];
 
     if (!payload || !email) {
-      setCargando(false);
-      setError('Token de Google inválido o caducado. Intentá de nuevo.');
+      dispatch({ type: 'stopCargando' });
+      dispatch({ type: 'setError', error: 'Token de Google inválido o caducado. Intentá de nuevo.' });
       return;
     }
 
     if (emailsAutorizados.length > 0 && !emailsAutorizados.includes(email)) {
-      setCargando(false);
-      setError(`❌ El email ${email} no tiene acceso. Contactá al administrador.`);
+      dispatch({ type: 'stopCargando' });
+      dispatch({ type: 'setError', error: `❌ El email ${email} no tiene acceso. Contactá al administrador.` });
       return;
     }
 
     if (payload.name || payload.picture || payload.email) {
       setGoogleUser({
         email,
-        name: payload.name,
-        picture: payload.picture,
+        name: payload.name ?? '',
+        picture: payload.picture ?? '',
       });
     }
 
     setGoogleToken(token);
-    setCargando(false);
+    dispatch({ type: 'stopCargando' });
     onLoginSuccess(token, email);
   }
 
   async function verificarPin() {
-    setCargando(true);
+    dispatch({ type: 'startCargando' });
     const correcto = await verifyPin(pin);
-    setCargando(false);
+    dispatch({ type: 'stopCargando' });
 
     if (correcto) {
       onLoginSuccess('pin_auth_token');
     } else {
-      setError('PIN incorrecto. Intentá de nuevo.');
-      setPin('');
+      dispatch({ type: 'setError', error: 'PIN incorrecto. Intentá de nuevo.' });
+      dispatch({ type: 'clearPin' });
     }
   }
 
@@ -115,12 +153,16 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
         <div style={{
           width: 80, height: 80, borderRadius: '50%', overflow: 'hidden',
           boxShadow: '0 0 40px rgba(212,175,55,0.35)',
-          border: '2px solid rgba(212,175,55,0.4)',
+          border: '2px solid rgba(212,175,55,0.4)', position: 'relative'
         }}>
-          <img src={logoReal} alt="Logo"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
+          {showLogo && (
+            <img
+              src={logoReal}
+              alt="Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+              onError={() => setShowLogo(false)}
+            />
+          )}
         </div>
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: 'var(--gold)', fontWeight: 700 }}>
@@ -135,14 +177,14 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
         {/* Tabs Google / PIN — solo si Google está configurado */}
         {googleConfigurado && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 22 }}>
-            <button onClick={() => { setGoogleActivo(true); setError(''); }} style={{
+            <button onClick={() => { setGoogleActivo(true); dispatch({ type: 'setError', error: '' }); }} style={{
               padding: '9px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${googleActivo ? 'var(--gold)' : 'var(--black-border)'}`,
               background: googleActivo ? 'rgba(212,175,55,0.1)' : 'transparent',
               color: googleActivo ? 'var(--gold)' : 'var(--gray-muted)',
               fontFamily: 'var(--font-body)',
             }}>🔐 Google</button>
-            <button onClick={() => { setGoogleActivo(false); setError(''); }} style={{
+            <button onClick={() => { setGoogleActivo(false); dispatch({ type: 'setError', error: '' }); }} style={{
               padding: '9px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${!googleActivo ? 'rgba(255,255,255,0.2)' : 'var(--black-border)'}`,
               background: !googleActivo ? 'rgba(255,255,255,0.04)' : 'transparent',
@@ -171,7 +213,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
             ) : (
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
-                onError={() => setError('No se pudo conectar con Google. Verificá tu conexión.')}
+                onError={() => dispatch({ type: 'setError', error: 'No se pudo conectar con Google. Verificá tu conexión.' })}
                 theme="filled_black"
                 shape="pill"
                 text="signin_with"
@@ -215,13 +257,13 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
               <input className="input-dark"
                 type={mostrar ? 'text' : 'password'}
                 inputMode="numeric" maxLength={8} value={pin}
-                onChange={e => { setPin(e.target.value.replace(/\D/g, '')); setError(''); }}
+                onChange={e => { dispatch({ type: 'setPinChar', char: e.target.value.replace(/\D/g, '').slice(-1) }); }}
                 onKeyDown={e => { if (e.key === 'Enter') verificarPin(); }}
                 placeholder="••••"
                 style={{ textAlign: 'center', fontSize: 26, letterSpacing: 10, paddingRight: 44 }}
                 autoFocus
               />
-              <button onClick={() => setMostrar(!mostrar)} style={{
+              <button onClick={() => dispatch({ type: 'toggleMostrar' })} aria-label={mostrar ? 'Ocultar PIN' : 'Mostrar PIN'} style={{
                 position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', display: 'flex',
               }}>
@@ -232,8 +274,8 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, width: '100%' }}>
               {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((n, i) => (
                 <button key={i} onClick={() => {
-                  if (n === '⌫') { setPin(p => p.slice(0, -1)); setError(''); }
-                  else if (n !== '') { setPin(p => (p + String(n)).slice(0, 8)); setError(''); }
+                  if (n === '⌫') { dispatch({ type: 'backspace' }); }
+                  else if (n !== '') { dispatch({ type: 'setPinChar', char: String(n) }); }
                 }} style={{
                   padding: '13px 0', borderRadius: 12, fontSize: 20, fontWeight: 600,
                   background: n === '' ? 'transparent' : 'rgba(255,255,255,0.04)',

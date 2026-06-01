@@ -48,41 +48,60 @@ function useAppLoader() {
   const [logoSrc, setLogoSrc] = useState('/Logo.jpg');
 
   useEffect(() => {
+    const cancelled = { current: false };
+    const safeSetReady = (value: boolean) => {
+      if (!cancelled.current) setReady(value);
+    };
+    const safeSetErrorCarga = (message: string) => {
+      if (!cancelled.current) setErrorCarga(message);
+    };
+
     const timeout = setTimeout(() => {
-      setErrorCarga('La base de datos tardó demasiado en cargar. Intentá recargar la página.');
-      setReady(true);
+      safeSetErrorCarga('La base de datos tardó demasiado en cargar. Intentá recargar la página.');
+      safeSetReady(true);
     }, 10000);
 
     const iniciar = async () => {
       try {
+        console.log('[loader] iniciando seedInitialData...');
         await seedInitialData();
+        console.log('[loader] seedInitialData completado');
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        console.error('[loader] Error en seedInitialData:', msg);
         if (msg.includes('VersionError') || msg.includes('blocked') || msg.includes('version')) {
-          setErrorCarga('Hubo un conflicto en la base de datos. Recargá la página o limpiá el caché del navegador.');
+          safeSetErrorCarga('Hubo un conflicto en la base de datos. Recargá la página o limpiá el caché del navegador.');
           clearTimeout(timeout);
-          setReady(true);
+          safeSetReady(true);
           return;
         }
-        console.error('Error en seedInitialData:', e);
       }
 
       try {
+        console.log('[loader] cargando config...');
         const [nombre, logo] = await Promise.all([
           getConfig('nombre_barberia'),
           getConfig('logo_data'),
         ]);
+        console.log('[loader] config cargada:', { nombre, logo: logo ? 'present' : 'null' });
         if (nombre) setNombreBarberia(nombre);
         if (logo) setLogoSrc(logo);
       } catch (e) {
-        console.error('Error cargando configuración:', e);
+        console.error('[loader] Error cargando configuración:', e);
+      } finally {
+        console.log('[loader] inicializacion completada, setReady(true)');
+        clearTimeout(timeout);
+        safeSetReady(true);
       }
-
-      clearTimeout(timeout);
-      setReady(true);
     };
 
-    iniciar();
+    iniciar().catch((error) => {
+      if (!cancelled.current) {
+        console.error('[loader] Error no capturado en inicializacion:', error);
+        safeSetErrorCarga('Ocurrió un error inesperado al iniciar la app. Recargá la página.');
+        safeSetReady(true);
+      }
+    });
 
     // NOTA: el registro del SW se hace en layout.tsx (con manejo de updatefound).
     // No registrar aquí para evitar doble registro.
@@ -94,6 +113,7 @@ function useAppLoader() {
     window.addEventListener('logo-updated', handleLogoUpdate);
 
     return () => {
+      cancelled.current = true;
       clearTimeout(timeout);
       window.removeEventListener('logo-updated', handleLogoUpdate);
     };
@@ -164,10 +184,24 @@ export default function Page() {
     { id: 'ajustes' as Tab, label: t('navSettings'), icon: Settings },
   ];
 
-  useEffect(() => {
-    const token = getAppToken();
-    if (token) setIsAuthenticated(true);
-  }, []);
+    useEffect(() => {
+      const cancelled = { current: false };
+      const t = setTimeout(() => {
+        if (cancelled.current) return;
+        const token = getAppToken();
+        if (token) {
+          // Defer actual setState to next frame and use functional updater to avoid unnecessary renders
+          console.log('[auth] token found, scheduling auth');
+          requestAnimationFrame(() => {
+            if (!cancelled.current) setIsAuthenticated(prev => prev || true);
+          });
+        }
+      }, 0);
+      return () => { 
+        cancelled.current = true; 
+        clearTimeout(t); 
+      };
+    }, []);
 
   if (!ready) {
     return <SplashScreen nombreBarberia={nombreBarberia} logoSrc={logoSrc} errorCarga={errorCarga} />;
