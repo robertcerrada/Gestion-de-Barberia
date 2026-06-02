@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -19,19 +19,19 @@ const WEEK_DAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
 
 export function DatePicker({ value, onChange, className = '', compact = false, markedDates = DEFAULT_MARKED_DATES }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(() => value && isValid(parseISO(value)) ? parseISO(value) : new Date());
-  
-  useEffect(() => {
-    let cancelled = false;
-    const t = setTimeout(() => {
-      if (!cancelled && value && isValid(parseISO(value))) {
-        requestAnimationFrame(() => setCurrentMonth(parseISO(value)));
-      }
-    }, 0);
-    return () => { cancelled = true; clearTimeout(t); };
-  }, [value]);
+  // currentMonth solo controla la navegación del calendario.
+  // Se inicializa desde value y se actualiza al abrir el calendario.
+  const [currentMonth, setCurrentMonth] = useState<Date>(
+    () => value && isValid(parseISO(value)) ? parseISO(value) : new Date()
+  );
 
   const selectedDate = value && isValid(parseISO(value)) ? parseISO(value) : null;
+
+  // Al abrir el calendario, posicionarse en el mes del valor seleccionado
+  function handleOpen() {
+    if (value && isValid(parseISO(value))) setCurrentMonth(parseISO(value));
+    setIsOpen(true);
+  }
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);
@@ -48,10 +48,10 @@ export function DatePicker({ value, onChange, className = '', compact = false, m
         tabIndex={0}
         onClick={() => setIsOpen(false)}
         onKeyDown={e => {
-          if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-            setIsOpen(false);
-          }
+          if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') setIsOpen(false);
         }}
+        // touch: cerrar al tocar fuera del calendario en móvil
+        onTouchEnd={e => { if (e.target === e.currentTarget) setIsOpen(false); }}
         style={{ background: 'transparent', border: 'none', padding: 0, margin: 0 }}
       >
         <div
@@ -84,19 +84,25 @@ export function DatePicker({ value, onChange, className = '', compact = false, m
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isToday = isSameDay(day, new Date());
+              const dayStr = format(day, 'yyyy-MM-dd');
+              const isMarked = markedDates.includes(dayStr);
               return (
                 <button
-                  key={day.toISOString()}
+                  key={dayStr}
                   type="button"
                   className="datepicker-day-btn"
-                  onClick={() => {
-                    onChange(format(day, 'yyyy-MM-dd'));
+                  // onPointerDown para respuesta inmediata en táctil (sin esperar 300ms delay)
+                  onPointerDown={e => {
+                    e.preventDefault();
+                    onChange(dayStr);
                     setIsOpen(false);
                   }}
                   style={{
-                    background: isSelected ? 'linear-gradient(135deg, var(--gold-light), var(--gold))' : isToday ? 'rgba(255,255,255,0.08)' : (markedDates.includes(format(day, 'yyyy-MM-dd')) ? 'rgba(212,175,55,0.16)' : 'transparent'),
-                    color: isSelected ? '#0a0a0a' : markedDates.includes(format(day, 'yyyy-MM-dd')) ? 'var(--gold)' : isCurrentMonth ? 'var(--white-soft)' : 'var(--gray-muted)',
-                    fontWeight: isSelected ? 800 : markedDates.includes(format(day, 'yyyy-MM-dd')) ? 700 : isToday ? 700 : 500,
+                    background: isSelected ? 'linear-gradient(135deg, var(--gold-light), var(--gold))' : isToday ? 'rgba(255,255,255,0.08)' : (isMarked ? 'rgba(212,175,55,0.16)' : 'transparent'),
+                    color: isSelected ? '#0a0a0a' : isMarked ? 'var(--gold)' : isCurrentMonth ? 'var(--white-soft)' : 'var(--gray-muted)',
+                    fontWeight: isSelected ? 800 : isMarked ? 700 : isToday ? 700 : 500,
+                    // touch-action none evita scroll accidental al tocar un día
+                    touchAction: 'manipulation',
                     opacity: isCurrentMonth ? 1 : 0.4,
                     boxShadow: isSelected ? '0 4px 12px rgba(212,175,55,0.4)' : 'none'
                   }}
@@ -129,7 +135,7 @@ export function DatePicker({ value, onChange, className = '', compact = false, m
           minHeight: compact ? 34 : 48,
           color: selectedDate ? 'var(--white-soft)' : 'var(--gray-muted)',
         }}
-        onClick={() => setIsOpen(true)}
+        onClick={() => handleOpen()}
       >
         <CalendarIcon size={compact ? 14 : 18} color="var(--gold)" />
         <span className="datepicker-trigger-text" style={{ fontSize: compact ? '13px' : '15px' }}>

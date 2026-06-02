@@ -39,7 +39,10 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               `script-src ${scriptSrcParts.join(' ')}`,
-              "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+              // style-src-elem se define explícitamente para evitar que el fallback
+              // de style-src bloquee hojas externas (ej: accounts.google.com/gsi/style)
+              "style-src 'self' 'unsafe-inline' fonts.googleapis.com accounts.google.com",
+              "style-src-elem 'self' 'unsafe-inline' fonts.googleapis.com https://accounts.google.com",
               "font-src 'self' fonts.gstatic.com",
               "img-src 'self' data: blob: lh3.googleusercontent.com",
               "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://apis.google.com",
