@@ -48,6 +48,10 @@ export const ventasRepository = {
     return db.registros_diarios.get(id);
   },
 
+  async bulkSave(registros: Omit<RegistroDiario, 'id'>[]): Promise<void> {
+    await db.registros_diarios.bulkAdd(registros as RegistroDiario[]);
+  },
+
   async bulkAdd(registros: RegistroDiario[]): Promise<void> {
     await db.registros_diarios.bulkAdd(registros);
   },

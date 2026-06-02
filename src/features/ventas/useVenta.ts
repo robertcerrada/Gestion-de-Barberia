@@ -115,18 +115,27 @@ export function useVenta({ servicios, fechaInicial, registroEditar, onSuccess }:
           metodo_pago: metodo,
         });
       } else {
+        // Validar stock de todos los productos primero (fail-fast)
         for (const linea of lineasValidas) {
           const item = servicios.find(s => String(s.id) === linea.itemId);
-          if (!item?.id) continue;
-          if (item.tipo === 'producto') {
+          if (item?.tipo === 'producto' && item.id) {
             if ((item.stock_actual ?? 0) < linea.cantidad) {
               setError(`Sin stock suficiente de "${item.nombre}".`);
               return;
             }
-            await serviciosRepository.update(item.id, { stock_actual: (item.stock_actual || 0) - linea.cantidad });
+          }
+        }
+        // Construir todos los registros en memoria y hacer un solo bulkAdd
+        const registrosNuevos: Omit<import('@/domain/types').RegistroDiario, 'id'>[] = [];
+        const actualizacionesStock: { id: number; stock_actual: number }[] = [];
+        for (const linea of lineasValidas) {
+          const item = servicios.find(s => String(s.id) === linea.itemId);
+          if (!item?.id) continue;
+          if (item.tipo === 'producto') {
+            actualizacionesStock.push({ id: item.id, stock_actual: (item.stock_actual || 0) - linea.cantidad });
           }
           for (let i = 0; i < linea.cantidad; i++) {
-            await ventasRepository.save({
+            registrosNuevos.push({
               fecha: fechaDate,
               barbero_id: barberoId ? parseInt(barberoId) : 0,
               item_id: item.id,
@@ -135,6 +144,11 @@ export function useVenta({ servicios, fechaInicial, registroEditar, onSuccess }:
             });
           }
         }
+        // Una sola escritura a IndexedDB en lugar de N escrituras en loop
+        await Promise.all([
+          ventasRepository.bulkSave(registrosNuevos),
+          ...actualizacionesStock.map(u => serviciosRepository.update(u.id, { stock_actual: u.stock_actual })),
+        ]);
       }
 
       setSuccess(true);

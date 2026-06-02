@@ -808,40 +808,39 @@ export async function reabrirMes(mes: Date): Promise<void> {
 export async function getVentasPorBarberoMes(mes: Date = new Date()) {
   const inicio = startOfMonth(mes);
   const fin = endOfMonth(mes);
-  const registros = await db.registros_diarios
-    .where('fecha').between(inicio, fin, true, true)
-    .toArray();
 
-  const barberos = await db.barberos.toArray();
-  const servicios = await db.servicios_productos.toArray();
+  // Un solo batch en lugar de N queries individuales
+  const [registros, barberos, servicios, todosAdelantos] = await Promise.all([
+    db.registros_diarios.where('fecha').between(inicio, fin, true, true).toArray(),
+    db.barberos.toArray(),
+    db.servicios_productos.toArray(),
+    db.Adelantos.where('fecha').between(inicio, fin, true, true).toArray(),
+  ]);
 
-  const result: { barberoId: number; nombre: string; totalServicios: number; comision: number; porcentaje: number; pagado: number; saldoPendiente: number }[] = [];
+  const itemMap = new Map(servicios.map(s => [s.id!, s]));
 
-  for (const b of barberos) {
-    if (!b.id) continue;
-    const ventas = registros.filter(r => r.barbero_id === b.id);
-    const totalServicios = ventas
-      .filter(r => {
-        const item = servicios.find(s => s.id === r.item_id);
-        return item?.tipo === 'servicio';
-      })
-      .reduce((sum, r) => sum + r.monto_total, 0);
-
-    const comision = totalServicios * b.porcentaje_comision;
-    const pagado = await getAdelantosMes(b.id, mes);
-
-    result.push({
-      barberoId: b.id,
-      nombre: b.nombre,
-      totalServicios,
-      comision,
-      porcentaje: b.porcentaje_comision,
-      pagado,
-      saldoPendiente: comision - pagado,
+  return barberos
+    .filter(b => b.id)
+    .map(b => {
+      const ventas = registros.filter(r => r.barbero_id === b.id);
+      const totalServicios = ventas
+        .filter(r => itemMap.get(r.item_id)?.tipo === 'servicio')
+        .reduce((sum, r) => sum + r.monto_total, 0);
+      const comision = totalServicios * b.porcentaje_comision;
+      const pagado = todosAdelantos
+        .filter(a => a.barbero_id === b.id &&
+          (a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === ''))
+        .reduce((sum, a) => sum + a.monto, 0);
+      return {
+        barberoId: b.id!,
+        nombre: b.nombre,
+        totalServicios,
+        comision,
+        porcentaje: b.porcentaje_comision,
+        pagado,
+        saldoPendiente: comision - pagado,
+      };
     });
-  }
-
-  return result;
 }
 
 export async function getVentasProductosMes(mes: Date = new Date()): Promise<number> {
@@ -880,13 +879,14 @@ export async function getIngresosDiariosConGastosMes(mes: Date = new Date()) {
 
   const dias: { dia: string; ingresos: number; gastos: number }[] = [];
   for (let d = 1; d <= diasEnMes; d++) {
-    const inicioD = new Date(mes.getFullYear(), mes.getMonth(), d, 0, 0, 0);
-    const finD = new Date(mes.getFullYear(), mes.getMonth(), d, 23, 59, 59);
+    // Usar timestamps numéricos para comparación robusta (evita bugs de Date vs string)
+    const tInicio = new Date(mes.getFullYear(), mes.getMonth(), d, 0, 0, 0).getTime();
+    const tFin    = new Date(mes.getFullYear(), mes.getMonth(), d, 23, 59, 59).getTime();
     const ingresos = registros
-      .filter(r => r.fecha >= inicioD && r.fecha <= finD)
+      .filter(r => { const t = new Date(r.fecha).getTime(); return t >= tInicio && t <= tFin; })
       .reduce((s, r) => s + r.monto_total, 0);
     const gastosDia = gastos
-      .filter(g => g.fecha >= inicioD && g.fecha <= finD)
+      .filter(g => { const t = new Date(g.fecha).getTime(); return t >= tInicio && t <= tFin; })
       .reduce((s, g) => s + g.monto, 0);
     if (ingresos > 0 || gastosDia > 0) {
       dias.push({ dia: String(d), ingresos, gastos: gastosDia });
@@ -934,9 +934,17 @@ export async function getMesesPendientes(): Promise<MesPendiente[]> {
   const primerFecha = new Date(primerRegistro.fecha);
   const barberos = await db.barberos.filter(b => b.activo).toArray();
   const cierres = await db.historico_cierres.toArray();
+  // Un solo fetch de todos los registros y adelantos del rango completo
+  const rangoInicio = startOfMonth(primerFecha);
+  const rangoFin = endOfMonth(new Date(anioActual, mesActual - 1, 1));
+  const [todosRegistros, todosAdelantos, todosItems] = await Promise.all([
+    db.registros_diarios.where('fecha').between(rangoInicio, rangoFin, true, true).toArray(),
+    db.Adelantos.where('fecha').between(rangoInicio, rangoFin, true, true).toArray(),
+    db.servicios_productos.toArray(),
+  ]);
+  const itemMap = new Map(todosItems.map(i => [i.id!, i]));
 
   const pendientes: MesPendiente[] = [];
-
   let anio = primerFecha.getFullYear();
   let mes = primerFecha.getMonth();
 
@@ -944,34 +952,38 @@ export async function getMesesPendientes(): Promise<MesPendiente[]> {
     const fechaMes = new Date(anio, mes, 1);
     const mesAno = `${String(mes + 1).padStart(2, '0')}-${anio}`;
     const label = `${NOMBRES_MESES_PEND[mes]} ${anio}`;
-
     const inicio = startOfMonth(fechaMes);
     const fin = endOfMonth(fechaMes);
-    const registrosMes = await db.registros_diarios
-      .where('fecha').between(inicio, fin, true, true)
-      .count();
 
-    if (registrosMes > 0) {
+    const registrosMes = todosRegistros.filter(r => r.fecha >= inicio && r.fecha <= fin);
+    if (registrosMes.length > 0) {
       const cierre = cierres.find(c => c.mes_ano === mesAno);
       const noCerrado = !cierre || !cierre.bloqueado;
+      const adelantosMes = todosAdelantos.filter(a => a.fecha >= inicio && a.fecha <= fin);
 
       const barberosPendientes: { id: number; nombre: string; saldo: number }[] = [];
       for (const b of barberos) {
         if (!b.id) continue;
-        const saldo = await getSaldoDisponibleBarbero(b.id, fechaMes);
-        if (saldo > 0.01) {
-          barberosPendientes.push({ id: b.id, nombre: b.nombre, saldo });
-        }
+        // Calcular comisión del mes con datos ya en memoria
+        const comision = registrosMes
+          .filter(r => r.barbero_id === b.id)
+          .filter(r => itemMap.get(r.item_id)?.tipo === 'servicio')
+          .reduce((sum, r) => sum + r.monto_total * b.porcentaje_comision, 0);
+        // Adelantos del mes del barbero (excluye socios)
+        const pagado = adelantosMes
+          .filter(a => a.barbero_id === b.id &&
+            (a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === ''))
+          .reduce((sum, a) => sum + a.monto, 0);
+        const saldo = comision - pagado;
+        if (saldo > 0.01) barberosPendientes.push({ id: b.id, nombre: b.nombre, saldo });
       }
 
       if (noCerrado || barberosPendientes.length > 0) {
         pendientes.push({ mesAno, label, fechaMes, noCerrado, barberosPendientes });
       }
     }
-
     mes++;
     if (mes > 11) { mes = 0; anio++; }
   }
-
   return pendientes;
 }
