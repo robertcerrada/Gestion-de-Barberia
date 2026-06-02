@@ -296,7 +296,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
 
             {!googleConfigurado && (
               <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center' }}>
-                PIN por defecto: <strong style={{ color: 'var(--gold)' }}>1234</strong> — cambiálo desde Ajustes
+                Configurá tu PIN desde Ajustes antes de usar la app
               </p>
             )}
           </div>
