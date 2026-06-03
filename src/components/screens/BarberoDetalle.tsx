@@ -4,6 +4,7 @@ import { useMoneda } from '@/lib/useMoneda';
 import { db } from '@/lib/db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { getComisionBrutaMes, getAdelantosMes, getSaldoDisponibleBarbero } from '@/lib/business';
+
 export default function BarberoDetalle({ barberoId, mesFecha = new Date() }: { barberoId: number; porcentaje: number; mesFecha?: Date }) {
   const { simbolo } = useMoneda();
   const { t } = useAppConfig();
@@ -17,42 +18,49 @@ export default function BarberoDetalle({ barberoId, mesFecha = new Date() }: { b
 
   useEffect(() => {
     let cancelled = false;
+
     async function cargar() {
       const inicio = startOfMonth(mesFecha);
       const fin = endOfMonth(mesFecha);
 
-      const [c, a, s] = await Promise.all([
+      // Cargar comisión, adelantos, saldo e items en paralelo — un solo batch
+      const [c, a, s, registros, items, lista] = await Promise.all([
         getComisionBrutaMes(barberoId, mesFecha),
         getAdelantosMes(barberoId, mesFecha),
         getSaldoDisponibleBarbero(barberoId, mesFecha),
+        db.registros_diarios.where('barbero_id').equals(barberoId).toArray(),
+        db.servicios_productos.toArray(),
+        db.Adelantos
+          .where('barbero_id')
+          .equals(barberoId)
+          .and(adv => adv.fecha >= inicio && adv.fecha <= fin)
+          .toArray(),
       ]);
-      if (!cancelled) {
-        setComision(c);
-        setAdelantos(a);
-        setSaldo(s);
-      }
 
-      const registros = await db.registros_diarios.where('barbero_id').equals(barberoId).toArray();
-      let ing = 0;
-      for (const r of registros) {
-        if (new Date(r.fecha) >= inicio && new Date(r.fecha) <= fin) {
-          const item = await db.servicios_productos.get(r.item_id);
-          if (item?.tipo === 'servicio') ing += r.monto_total;
-        }
-      }
-      if (!cancelled) setIngresosBarbero(ing);
+      if (cancelled) return;
 
-      const list = await db.Adelantos
-        .where('barbero_id')
-        .equals(barberoId)
-        .and((adv) => adv.fecha >= inicio && adv.fecha <= fin)
-        .toArray();
-      list.sort((x, y) => new Date(y.fecha).getTime() - new Date(x.fecha).getTime());
-      if (!cancelled) setListaAdelantos(list);
+      setComision(c);
+      setAdelantos(a);
+      setSaldo(s);
+
+      // Calcular ingresos del barbero en el mes usando Map — sin N+1 queries
+      const itemMap = new Map(items.map(i => [i.id!, i]));
+      const ing = registros.reduce((sum, r) => {
+        const fecha = new Date(r.fecha);
+        if (fecha < inicio || fecha > fin) return sum;
+        return itemMap.get(r.item_id)?.tipo === 'servicio' ? sum + r.monto_total : sum;
+      }, 0);
+      setIngresosBarbero(ing);
+
+      // Ordenar adelantos más reciente primero
+      lista.sort((x, y) => new Date(y.fecha).getTime() - new Date(x.fecha).getTime());
+      setListaAdelantos(lista);
     }
+
     const t = setTimeout(() => {
       if (!cancelled) cargar();
     }, 0);
+
     return () => {
       cancelled = true;
       clearTimeout(t);

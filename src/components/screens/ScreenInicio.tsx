@@ -3,6 +3,7 @@
 import { useMoneda } from '@/lib/useMoneda';
 import { isMesBloqueado, getSaldoFondoCaja, getArqueoDia, getPorcentajeComisionBancaria, getIngresosEfectivoMes, getGastosTotalesMes, getSaldoDisponibleBarbero, getResumenMes, getEfectivoDisponibleCaja, getAdelantosMes, getPagosSocioMes, getVentasDia, guardarArqueo } from '@/lib/business';
 import { useAppConfig } from '@/lib/useAppConfig';
+import { useLanguage } from '@/shared/i18n/LanguageContext';
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, DollarSign, TrendingDown, Wallet, X, ChevronDown, AlertCircle, CheckCircle2, Calendar, Edit3, Trash2 } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -41,7 +42,7 @@ function esSocioAdelanto(a: Adelanto): boolean {
 
 export default function ScreenInicio() {
   const { simbolo } = useMoneda();
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   // fc es un alias local que aplica el símbolo configurado
   const fc = (n: number) => formatCurrency(n, simbolo);
 
@@ -295,7 +296,7 @@ export default function ScreenInicio() {
       </div>
 
       {/* Acciones rápidas */}
-      <p className="section-title" style={{ marginBottom: 12 }}>Registro Rápido</p>
+      <p className="section-title" style={{ marginBottom: 12 }}>{t('quickRegisterTitle') || 'Registro Rápido'}</p>
       {mesFiltroActivo && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.35)', fontSize: 12, color: 'var(--danger)' }}>
           🔒 El mes está <strong>cerrado</strong>. Reabrilo en el Panel para agregar registros.
@@ -304,21 +305,21 @@ export default function ScreenInicio() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
         <button id="btn-registrar-venta" className="btn-gold" style={{ width: '100%', fontSize: 15, padding: '10px', opacity: mesFiltroActivo ? 0.45 : 1 }}
           onClick={() => { if (mesFiltroActivo) { alert('El mes está cerrado.'); return; } setShowVentaModal(true); }}>
-          <Plus size={18} /> Registrar Venta
+          <Plus size={18} /> {t('registerSaleBtn') || 'Registrar Venta'}
         </button>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button id="btn-registrar-gasto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
             onClick={() => { if (mesFiltroActivo) { alert('El mes está cerrado.'); return; } setShowGastoModal(true); }}>
-            <TrendingDown size={16} /> Gastos
+            <TrendingDown size={16} /> {t('expensesLabel2') || 'Gastos'}
           </button>
           <button id="btn-registrar-Adelanto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
             onClick={() => { if (mesFiltroActivo) { alert('El mes está cerrado.'); return; } setShowAdelantoModal(true); }}>
-            <Wallet size={16} /> Adelanto / Pago
+            <Wallet size={16} /> {t('advancePayment') || 'Adelanto / Pago'}
           </button>
         </div>
         <button id="btn-cerrar-caja" className="btn-ghost" style={{ width: '100%', padding: '8px', fontSize: 13, borderColor: 'rgba(212,175,55,0.5)', color: 'var(--gold)' }}
           onClick={() => setShowArqueoModal(true)}>
-          📊 Arqueo / Cerrar Caja del Día
+          {t('cashAuditBtn') || '📊 Arqueo / Cerrar Caja del Día'}
         </button>
       </div>
 
@@ -648,6 +649,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
 
 // ─── MODAL EDITAR GASTO ───────────────────────────────────────────────────────
 function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void }) {
+  const { t } = useAppConfig();
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>(gasto.categoria);
   const [monto, setMonto] = useState(String(gasto.monto));
   const [descripcion, setDescripcion] = useState(gasto.descripcion);
@@ -671,7 +673,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">✏️ Editar Gasto</h2>
+          <h2 className="section-title">✏️ {t('modals.editExpense') || 'Editar Gasto'}</h2>
           <button aria-label="Cerrar" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
@@ -714,6 +716,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
 
 // ─── MODAL EDITAR ADELANTO ────────────────────────────────────────────────────
 function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto: any; barberos: any[]; socios: any[]; onClose: () => void }) {
+  const { t } = useAppConfig();
   const [monto, setMonto] = useState(String(adelanto.monto));
   const [motivo, setMotivo] = useState(adelanto.motivo);
   const [fecha, setFecha] = useState<string>(() => { const d = new Date(adelanto.fecha); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
@@ -741,7 +744,7 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">✏️ Editar Adelanto / Pago</h2>
+          <h2 className="section-title">✏️ {t('modals.editAdvance') || 'Editar Adelanto / Pago'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
@@ -769,6 +772,7 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
 
 // ─── MODAL EDITAR VENTA ───────────────────────────────────────────────────────
 function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro: any; barberos: Barbero[]; servicios: ServicioProducto[]; onClose: () => void }) {
+  const { t } = useAppConfig();
   const { simbolo } = useMoneda();
   const [barberoId, setBarberoId] = useState(String(registro.barbero_id || ''));
   const [itemId, setItemId] = useState(String(registro.item_id));
@@ -824,7 +828,7 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">✏️ Editar Registro</h2>
+          <h2 className="section-title">✏️ {t('common.edit') || 'Editar'} Registro</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
@@ -879,6 +883,7 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
 
 // ─── MODAL VENTA ──────────────────────────────────────────────────────────────
 function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onClose }: { barberos: Barbero[]; servicios: ServicioProducto[]; fechaInicial?: string; fechasConRegistro?: string[]; onClose: () => void }) {
+  const { t } = useAppConfig();
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [barberoId, setBarberoId] = useState('');
@@ -981,7 +986,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Registrar Venta</h2>
+          <h2 className="section-title">{t('modals.registerSale') || 'Registrar Venta'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
@@ -1154,6 +1159,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
 
 // ─── MODAL GASTO ──────────────────────────────────────────────────────────────
 function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
+  const { t } = useAppConfig();
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>('alquiler');
   const [monto, setMonto] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -1195,7 +1201,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Registrar Gasto</h2>
+          <h2 className="section-title">{t('modals.registerExpense') || 'Registrar Gasto'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
@@ -1227,6 +1233,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
 
 // ─── MODAL ADELANTO ───────────────────────────────────────────────────────────
 function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[]; fechaInicial?: string; onClose: () => void }) {
+  const { t } = useAppConfig();
   const [destinatarioTipo, setDestinatarioTipo] = useState<'barbero' | 'socio' | 'devolucion_socio'>('barbero');
   const [barberoId, setBarberoId] = useState('');
   const [monto, setMonto] = useState('');
@@ -1330,7 +1337,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Adelanto / Pago</h2>
+          <h2 className="section-title">{t('modals.advancePayment') || 'Adelanto / Pago'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
@@ -1549,6 +1556,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
 
 // ─── MODAL ARQUEO DE CAJA ─────────────────────────────────────────────────────
 function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
+  const { t } = useAppConfig();
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [fecha, setFecha] = useState<string>(fechaInicial ?? (() => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; })());
@@ -1592,7 +1600,7 @@ function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onC
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">📊 {tieneArqueo ? 'Actualizar Arqueo' : 'Arqueo de Caja'}</h2>
+          <h2 className="section-title">📊 {tieneArqueo ? 'Actualizar Arqueo' : t('modals.cashAudit') || 'Arqueo de Caja'}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {tieneArqueo && !success && (

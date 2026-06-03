@@ -86,7 +86,8 @@ export async function getAdelantosMes(
     .filter(a => {
       if (a.destinatario_tipo === 'socio' || a.destinatario_tipo === 'devolucion_socio' || a.socio_id) return false;
       if (socioMismoId && adelantoPerteneceASocio(a, socioMismoId, barberoMismoId)) return false;
-      return a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === '';
+      // Incluir adelantos a barberos: destinatario_tipo === 'barbero' o sin tipo (compatibilidad legacy)
+      return a.destinatario_tipo === 'barbero' || !a.destinatario_tipo;
     })
     .reduce((sum, a) => sum + a.monto, 0);
 }
@@ -152,13 +153,15 @@ export async function getVentasPorBarberoMes(mes: Date = new Date()) {
     serviciosRepository.getAll(),
   ]);
 
+  const itemMap = new Map(items.map(i => [i.id!, i]));
+
   return Promise.all(
     barberos
       .filter(b => b.id)
       .map(async b => {
         const ventas = registros.filter(r => r.barbero_id === b.id);
         const totalServicios = ventas
-          .filter(r => items.find(s => s.id === r.item_id)?.tipo === 'servicio')
+          .filter(r => itemMap.get(r.item_id)?.tipo === 'servicio')
           .reduce((sum, r) => sum + r.monto_total, 0);
         const comision = totalServicios * b.porcentaje_comision;
         const pagado = await getAdelantosMes(b.id!, mes);

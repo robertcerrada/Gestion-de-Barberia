@@ -3,6 +3,7 @@ import { DM_Sans, Playfair_Display } from 'next/font/google';
 import ClientProviders from '@/components/ClientProviders';
 import Script from 'next/script';
 import { AppConfigProvider } from '@/lib/useAppConfig';
+import { LanguageProvider } from '@/shared/i18n/LanguageContext';
 
 import './globals.css';
 
@@ -103,11 +104,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 `}
 </Script>
         <div className="ambient-glow" />
-          <AppConfigProvider>
-            <ClientProviders clientId={clientId} googleConfigured={googleConfigured}>
-              {children}
-            </ClientProviders>
-          </AppConfigProvider>
+          <LanguageProvider>
+            <AppConfigProvider>
+              <ClientProviders clientId={clientId} googleConfigured={googleConfigured}>
+                {children}
+              </ClientProviders>
+            </AppConfigProvider>
+          </LanguageProvider>
       </body>
     </html>
   );

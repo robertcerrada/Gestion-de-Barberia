@@ -27,7 +27,7 @@ import { format, setMonth, setYear, getYear, getMonth } from 'date-fns';
 import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet } from 'lucide-react';
 import { exportarAGoogleDrive } from '@/lib/drive';
 import { useMoneda } from '@/lib/useMoneda';
-import { useAppConfig } from '@/lib/useAppConfig';
+import { useLanguage } from '@/shared/i18n/LanguageContext';
 
 function useFmt() {
   const { simbolo } = useMoneda();
@@ -62,8 +62,8 @@ type Resumen = Awaited<ReturnType<typeof getResumenMes>>;
 
 export default function ScreenPanel() {
   const formatCurrency = useFmt();
-  const { t } = useAppConfig();
-  const MESES = Array.from({ length: 12 }, (_, i) => t(`month_${i}`));
+  const { t } = useLanguage();
+  const MESES = Array.from({ length: 12 }, (_, i) => t(`month_${i}` as any));
   const yearActual = getYear(new Date());
   const mesActual = getMonth(new Date());
 

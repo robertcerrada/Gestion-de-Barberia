@@ -829,7 +829,7 @@ export async function getVentasPorBarberoMes(mes: Date = new Date()) {
       const comision = totalServicios * b.porcentaje_comision;
       const pagado = todosAdelantos
         .filter(a => a.barbero_id === b.id &&
-          (a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === ''))
+          (a.destinatario_tipo === 'barbero' || !a.destinatario_tipo))
         .reduce((sum, a) => sum + a.monto, 0);
       return {
         barberoId: b.id!,
@@ -972,7 +972,7 @@ export async function getMesesPendientes(): Promise<MesPendiente[]> {
         // Adelantos del mes del barbero (excluye socios)
         const pagado = adelantosMes
           .filter(a => a.barbero_id === b.id &&
-            (a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === ''))
+            (a.destinatario_tipo === 'barbero' || !a.destinatario_tipo))
           .reduce((sum, a) => sum + a.monto, 0);
         const saldo = comision - pagado;
         if (saldo > 0.01) barberosPendientes.push({ id: b.id, nombre: b.nombre, saldo });

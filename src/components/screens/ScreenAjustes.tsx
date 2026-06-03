@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { useGoogleLogin } from '@react-oauth/google';
 import { exportarAGoogleDrive, restaurarDesdeGoogleDrive, setAccessToken, clearAccessToken, DRIVE_SCOPE, getLastBackupInfo, isDriveConnected } from '@/lib/drive';
 import { exportarTodosLosDatos, getSaldoFondoCaja } from '@/lib/business';
-import { getGoogleUser, verifyPin, savePin, logoutAll, isPinConfigured } from '@/lib/auth';
-import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, RefreshCw, Sun, Moon, Globe } from 'lucide-react';
+import { getGoogleUser, verifyPin, savePin, isPinConfigured } from '@/lib/auth';
+import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, Sun, Moon, Globe } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getConfig, setConfig, type Socio, type Adelanto } from '@/lib/db';
 import { DatePicker } from '@/components/ui/DatePicker';
@@ -39,7 +39,6 @@ export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (no
   return <AjustesContenido onNombreChange={onNombreChange} />;
 }
 
-// Lista de idiomas disponibles con banderas y etiquetas
 const IDIOMAS: { code: Lang; label: string; flag: string }[] = [
   { code: 'es', label: 'ES', flag: '🇪🇸' },
   { code: 'en', label: 'EN', flag: '🇺🇸' },
@@ -60,20 +59,17 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
   const [showApariencia, setShowApariencia] = useState(false);
   const [showFinanzas, setShowFinanzas] = useState(false);
 
-  // Info del usuario logueado
   const googleUser = typeof window !== 'undefined' ? getGoogleUser() : null;
   const userName = googleUser?.name ?? null;
   const userEmail = googleUser?.email ?? null;
-  // SEGURIDAD: solo mostrar avatares de lh3.googleusercontent.com
   const rawPicture = googleUser?.picture ?? null;
-  const userPicture = rawPicture?.startsWith('https://lh3.googleusercontent.com/') ? rawPicture : null;
+  const userPicture = rawPicture?.startsWith('https://lh3.googleusercontent.com') ? rawPicture : null;
   const [showUserPicture, setShowUserPicture] = useState(true);
 
   return (
     <div style={{ padding: 16, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
       <p className="section-title" style={{ marginBottom: 20 }}>{t('settings')}</p>
 
-      {/* Usuario activo */}
       {(userName || userEmail) && (
         <div className="card" style={{ marginBottom: 20, padding: '12px 16px', borderColor: 'rgba(212,175,55,0.2)', background: 'rgba(212,175,55,0.04)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -93,7 +89,6 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
         </div>
       )}
 
-      {/* Configuración de la Barbería */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Store size={18} color="var(--gold)" />
@@ -120,7 +115,6 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
 
       <div className="divider-barber" />
 
-      {/* Administración */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Scissors size={18} color="var(--gold)" />
@@ -144,40 +138,8 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
       <AjustesGenerales />
 
       {/* Modales */}
-      {showBarberos && (
-        <div className="modal-overlay" onClick={() => setShowBarberos(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <div style={{ padding: 16 }}>
-              <p className="section-title" style={{ marginBottom: 10 }}>Gestión de Barberos</p>
-              <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
-                Modal “Gestionar barberos” no disponible en esta versión (componentes faltantes / sin exportar).
-              </p>
-              <button className="btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowBarberos(false)}>
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showServicios && (
-        <div className="modal-overlay" onClick={() => setShowServicios(false)}>
-          <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-            <div className="modal-handle" />
-            <div style={{ padding: 16 }}>
-              <p className="section-title" style={{ marginBottom: 10 }}>Gestión de Servicios</p>
-              <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
-                Modal de servicios no disponible en esta versión (componentes faltan/exportados no existen).
-              </p>
-              <button className="btn-ghost" style={{ marginTop: 12, width: '100%' }} onClick={() => setShowServicios(false)}>
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {showBarberos && <ModalGestionBarberos onClose={() => setShowBarberos(false)} />}
+      {showServicios && <ModalGestionServicios onClose={() => setShowServicios(false)} />}
       {showFondo && <ModalFondoCaja onClose={() => setShowFondo(false)} />}
       {showSocios && <ModalGestionSocios onClose={() => setShowSocios(false)} />}
       {showConfigBarberia && <ModalConfigBarberia onClose={() => setShowConfigBarberia(false)} onNombreChange={onNombreChange} />}
@@ -188,434 +150,689 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
   );
 }
 
-function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
-  const { t, theme, lang, setTheme, setLang } = useAppConfig();
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 className="section-title">{t('appearance')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-
-        <div style={{ display: 'grid', gap: 20 }}>
-          <div>
-            <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('theme')}</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {(['dark', 'light'] as const).map(opt => (
-                <button
-                  key={opt}
-                  onClick={() => setTheme(opt)}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    padding: '14px', borderRadius: 14, cursor: 'pointer',
-                    border: `2px solid ${theme === opt ? 'var(--gold)' : 'var(--black-border)'}`,
-                    background: theme === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)',
-                    color: theme === opt ? 'var(--gold)' : 'var(--gray-muted)',
-                    fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {opt === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
-                  {opt === 'dark' ? t('darkMode') : t('lightMode')}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Globe size={14} /> {t('language')}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: 10 }}>
-              {IDIOMAS.map(({ code, label, flag }) => (
-                <button
-                  key={code}
-                  onClick={() => setLang(code)}
-                  style={{
-                    padding: '12px 10px', borderRadius: 14, cursor: 'pointer',
-                    border: `2px solid ${lang === code ? 'var(--gold)' : 'var(--black-border)'}`,
-                    background: lang === code ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)',
-                    color: lang === code ? 'var(--gold)' : 'var(--gray-muted)',
-                    fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13,
-                    transition: 'all 0.2s',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  }}
-                >
-                  <span style={{ fontSize: 20 }}>{flag}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-            {lang === 'ar' && (
-              <p style={{ fontSize: 12, color: 'var(--gold)', marginTop: 10, textAlign: 'right' }}>
-                ✓ تم تفعيل اللغة العربية — الواجهة ستتحول إلى الاتجاه من اليمين لليسار
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Modal Seguridad y Acceso ─────────────────────────────────────────────────
-function ModalSeguridad({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<'emails' | 'pin' | 'drive'>('emails');
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 className="section-title">Seguridad y Acceso</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 20 }}>
-          {([['emails', '📧 Emails'], ['pin', '🔢 PIN'], ['drive', '☁️ Drive']] as const).map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              padding: '9px 4px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              border: `2px solid ${tab === id ? 'var(--gold)' : 'var(--black-border)'}`,
-              background: tab === id ? 'rgba(212,175,55,0.1)' : 'transparent',
-              color: tab === id ? 'var(--gold)' : 'var(--gray-muted)',
-              fontFamily: 'var(--font-body)',
-            }}>{label}</button>
-          ))}
-        </div>
-
-        {tab === 'emails' && <TabEmails />}
-        {tab === 'pin' && <TabPin />}
-        {tab === 'drive' && <TabDrive />}
-      </div>
-    </div>
-  );
-}
-
-function TabEmails() {
-  const [emails, setEmails] = useState('');
-  const [nuevo, setNuevo] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    const cancelled = { current: false };
-    const t = setTimeout(() => {
-      if (cancelled.current) return;
-      getConfig('emails_autorizados').then(v => { 
-        if (!cancelled.current && v) {
-          requestAnimationFrame(() => {
-            if (!cancelled.current) setEmails(v);
-          });
-        }
-      });
-    }, 0);
-    return () => { 
-      cancelled.current = true; 
-      clearTimeout(t); 
-    };
-  }, []);
-
-  const lista = emails.split(',').flatMap(e => { const v = e.trim(); return v ? [v] : []; });
-
-  async function agregar() {
-    const email = nuevo.trim().toLowerCase();
-    if (!email || !email.includes('@')) { setMsg('Ingresá un email válido.'); return; }
-    if (lista.includes(email)) { setMsg('Ese email ya está en la lista.'); return; }
-    const nueva = [...lista, email].join(', ');
-    setSaving(true);
-    await setConfig('emails_autorizados', nueva);
-    setEmails(nueva);
-    setNuevo('');
-    setSaving(false);
-    setMsg('✓ Email agregado.');
-    setTimeout(() => setMsg(''), 3000);
-  }
-
-  async function eliminar(email: string) {
-    const nueva = lista.filter(e => e !== email).join(', ');
-    await setConfig('emails_autorizados', nueva);
-    setEmails(nueva);
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
-        <p>🔐 <strong style={{ color: 'var(--gold)' }}>Lista blanca de emails</strong></p>
-        <p style={{ marginTop: 4 }}>Solo las cuentas de Google que estén aquí podrán iniciar sesión.</p>
-        {lista.length === 0 && (
-          <p style={{ marginTop: 6, color: 'var(--danger)', fontWeight: 600 }}>
-            ⚠️ Lista vacía — el acceso con Google está BLOQUEADO. Agregá al menos un email.
-          </p>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input className="input-dark" type="email" placeholder="email@gmail.com"
-          value={nuevo} onChange={e => { setNuevo(e.target.value); setMsg(''); }}
-          onKeyDown={e => { if (e.key === 'Enter') agregar(); }}
-          style={{ flex: 1 }} />
-        <button className="btn-gold" style={{ padding: '0 16px', minHeight: 44, minWidth: 80 }}
-          disabled={saving} onClick={agregar}>
-          <Plus size={16} /> Agregar
-        </button>
-      </div>
-
-      {msg && <p style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--success)' : 'var(--danger)' }}>{msg}</p>}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {lista.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--gray-muted)', fontSize: 13 }}>
-            <Mail size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-            <p>Lista vacía — cualquier Google puede entrar</p>
-          </div>
-        ) : lista.map(email => (
-          <div key={email} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Mail size={14} color="var(--gold)" />
-              <span style={{ fontSize: 13 }}>{email}</span>
-            </div>
-            <button onClick={() => eliminar(email)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px' }}>
-              <X size={16} />
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TabPin() {
-  const [hasPin, setHasPin] = useState(() => isPinConfigured());
-  const [pinActual, setPinActual] = useState('');
-  const [pinNuevo, setPinNuevo] = useState('');
-  const [pinConfirm, setPinConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-
-  // Removed redundant effect – hasPin is initialized via useState
-
-  async function cambiarPin() {
-    if (hasPin) {
-      try {
-        const correcto = await verifyPin(pinActual);
-        if (!correcto) {
-          setError('El PIN actual es incorrecto.');
-          return;
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'PIN bloqueado temporalmente.');
-        return;
-      }
-    }
-
-    if (pinNuevo.length < 4) {
-      setError('El nuevo PIN debe tener al menos 4 dígitos.');
-      return;
-    }
-    if (pinNuevo !== pinConfirm) {
-      setError('Los PINs nuevos no coinciden.');
-      return;
-    }
-
-    await savePin(pinNuevo);
-    setSuccess(true);
-    setHasPin(true);
-    setPinActual(''); setPinNuevo(''); setPinConfirm(''); setError('');
-    setTimeout(() => setSuccess(false), 3000);
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
-        🔢 El PIN es el método de acceso alternativo cuando no hay conexión a internet. Mínimo 4 dígitos.
-      </div>
-
-      {success && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.3)', color: 'var(--success)', fontSize: 13 }}>
-          <CheckCircle2 size={16} /> PIN actualizado correctamente
-        </div>
-      )}
-
-      {[
-        hasPin ? { label: 'PIN Actual', val: pinActual, setter: setPinActual } : null,
-        { label: 'PIN Nuevo', val: pinNuevo, setter: setPinNuevo },
-        { label: 'Confirmar PIN', val: pinConfirm, setter: setPinConfirm }
-      ].map((item) => {
-        if (!item) return null;
-        const { label, val, setter } = item;
-        return (
-          <div key={label}>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{label}</label>
-            <input className="input-dark" type="password" inputMode="numeric" maxLength={8}
-              value={val} onChange={e => { setter(e.target.value.replace(/\D/g, '')); setError(''); }}
-              placeholder="••••"
-              style={{ textAlign: 'center', letterSpacing: 8, fontSize: 20 }} />
-          </div>
-        );
-      })}
-
-      {error && <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>}
-
-      <button className="btn-gold" onClick={cambiarPin}
-        disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}>
-        <KeyRound size={16} /> {hasPin ? 'Cambiar PIN' : 'Configurar PIN'}
-      </button>
-    </div>
-  );
-}
-
-function TabDrive() {
-  const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
-  const googleConfigurado = !!(GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('PON_TU_CLIENT_ID'));
-
-  if (!googleConfigurado) {
-    return (
-      <div style={{ padding: '16px 0' }}>
-        <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.25)', fontSize: 13, color: 'var(--danger)', lineHeight: 1.6 }}>
-          <p style={{ fontWeight: 600, marginBottom: 6 }}>⚠ Google no está configurado</p>
-          <p>Para activar Google Drive y el login con Google, necesitás configurar tu <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> en el archivo <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>.env.local</code>.</p>
-          <p style={{ marginTop: 8, color: 'var(--gray-muted)' }}>Ve a <strong style={{ color: 'var(--gold)' }}>console.cloud.google.com</strong>, crea un proyecto, habilita la API de Google Drive y obtén tu Client ID.</p>
-        </div>
-      </div>
-    );
-  }
-
-  return <TabDriveEnabled />;
-}
-
-function TabDriveEnabled() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [loading, setLoading] = useState('');
+// ─── MODAL GESTIÓN DE BARBEROS ────────────────────────────────────────────────
+export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
+  const [showAdd, setShowAdd] = useState(false);
+  const [editando, setEditando] = useState<any | null>(null);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [lastBackup, setLastBackup] = useState<{ date: string; size: number } | null>(null);
 
-  const cargarInfoBackup = useCallback(async () => {
-    const info = await getLastBackupInfo();
-    setLastBackup(info);
-  }, []);
-
-  useEffect(() => {
-    const cancelled = { current: false };
-    const t = setTimeout(() => {
-      try {
-        // compute value then update in next frame using functional updater to avoid sync setState
-        const connected = isDriveConnected();
-        requestAnimationFrame(() => { 
-          if (!cancelled.current) setLoggedIn(prev => (prev === connected ? prev : connected)); 
-        });
-      } catch (err) {
-        console.warn('[TabDrive] isDriveConnected failed:', err);
-      }
-    }, 0);
-    return () => { 
-      cancelled.current = true; 
-      clearTimeout(t); 
-    };
-  }, []);
-
-  useEffect(() => {
-    const cancelled = { current: false };
-    const t = setTimeout(() => {
-      // Defer the async work to the next animation frame to avoid synchronous setState in effect
-      requestAnimationFrame(() => { 
-        void (async () => {
-          try {
-            if (!cancelled.current) await cargarInfoBackup();
-          } catch (err) {
-            console.warn('[TabDrive] cargarInfoBackup failed:', err);
-          }
-        })(); 
-      });
-    }, 0);
-    return () => { 
-      cancelled.current = true; 
-      clearTimeout(t); 
-    };
-  }, [cargarInfoBackup]);
-
-  const login = useGoogleLogin({
-    scope: DRIVE_SCOPE,
-    onSuccess: res => { setAccessToken(res.access_token); setLoggedIn(true); mostrarMsg('✓ Conectado a Google Drive', 'success'); cargarInfoBackup(); },
-    onError: () => mostrarMsg('Error al conectar con Google', 'error'),
-  });
+  const barberos = useLiveQuery(() => db.barberos.orderBy('nombre').toArray(), []);
 
   function mostrarMsg(text: string, type: 'success' | 'error') {
     setMsg({ text, type });
-    setTimeout(() => setMsg(null), 4000);
+    setTimeout(() => setMsg(null), 3500);
   }
 
-  async function exportar() {
-    setLoading('exportar');
-    const res = await exportarAGoogleDrive();
-    mostrarMsg(res.message, res.success ? 'success' : 'error');
-    setLoading('');
-    if (res.success) cargarInfoBackup();
+  async function toggleActivo(b: any) {
+    if (!b.id) return;
+    await db.barberos.update(b.id, { activo: !b.activo });
+    mostrarMsg(`${b.nombre} ${!b.activo ? 'activado' : 'pausado'}.`, 'success');
   }
 
-  async function restaurar() {
-    if (!confirm('¿Estás seguro? Esto reemplazará TODOS los datos locales con la copia de Drive.')) return;
-    setLoading('restaurar');
-    const res = await restaurarDesdeGoogleDrive();
-    mostrarMsg(res.message, res.success ? 'success' : 'error');
-    setLoading('');
+  async function eliminar(b: any) {
+    if (!b.id) return;
+    const registros = await db.registros_diarios.where('barbero_id').equals(b.id).count();
+    if (registros > 0) {
+      if (b.activo) {
+        await db.barberos.update(b.id, { activo: false });
+        mostrarMsg(`${b.nombre} tiene registros. Se marcó como inactivo.`, 'success');
+      } else {
+        mostrarMsg(`${b.nombre} tiene registros y no se puede eliminar.`, 'error');
+      }
+      return;
+    }
+    if (!confirm(`¿Eliminar a ${b.nombre} definitivamente?`)) return;
+    await db.barberos.delete(b.id);
+    mostrarMsg(`${b.nombre} eliminado.`, 'success');
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {msg && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, fontSize: 13,
-          background: msg.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)',
-          border: `1px solid ${msg.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`,
-          color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)',
-        }}>
-          {msg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-          {msg.text}
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 className="section-title">{t('manageBarbersBtn')}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
-      )}
 
-      {!loggedIn ? (
-        <>
-          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
-            ☁️ Conectá tu cuenta de Google para hacer copias de seguridad automáticas al cerrar cada mes.
+        {msg && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, background: msg.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${msg.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
+            {msg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+            {msg.text}
           </div>
-          <button className="btn-gold" style={{ width: '100%' }} onClick={() => login()}>
-            <LogIn size={18} /> Conectar Google Drive
-          </button>
-        </>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.08)', border: '1px solid rgba(76,175,130,0.2)' }}>
-            <CheckCircle2 size={16} color="var(--success)" />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Conectado a Google Drive</p>
-              {lastBackup && (
-                <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>
-                  Último backup: {lastBackup.date} ({lastBackup.size} KB)
-                </p>
-              )}
+        )}
+
+        <button className="btn-gold" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAdd(true)}>
+          <Plus size={18} /> {t('newBarber')}
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {barberos?.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--gray-muted)' }}>
+              <Users size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+              <p style={{ fontSize: 14 }}>No hay barberos registrados</p>
             </div>
-          </div>
-          <button className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}>
-            <Cloud size={18} /> {loading === 'exportar' ? 'Subiendo...' : 'Hacer copia ahora'}
-          </button>
-          <button className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}>
-            <CloudDownload size={18} /> {loading === 'restaurar' ? 'Restaurando...' : 'Restaurar desde Drive'}
-          </button>
-          <button className="btn-danger" style={{ width: '100%' }} onClick={() => { clearAccessToken(); setLoggedIn(false); }}>
-            <LogOut size={16} /> Desconectar Drive
-          </button>
-        </>
-      )}
+          )}
+          {barberos?.map(b => (
+            <div key={b.id} className="card" style={{ padding: '12px 14px', opacity: b.activo ? 1 : 0.6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <p style={{ fontWeight: 600, fontSize: 14 }}>{b.nombre}</p>
+                    <span className={`badge ${b.activo ? 'badge-green' : 'badge-red'}`}>{b.activo ? t('active') : t('inactive')}</span>
+                  </div>
+                  <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(b.porcentaje_comision * 100).toFixed(0)}%</span>
+                </div>
+                <div style={{ display: 'flex', gap: 5, marginLeft: 8 }}>
+                  <button onClick={() => setEditando(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
+                  <button onClick={() => toggleActivo(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: b.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: b.activo ? 'var(--danger)' : 'var(--success)' }}>{b.activo ? t('pause') : t('activate')}</button>
+                  <button onClick={() => eliminar(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {showAdd && <ModalAddBarbero onClose={() => setShowAdd(false)} />}
+        {editando && <ModalEditarBarbero barbero={editando} onClose={() => setEditando(null)} />}
+      </div>
     </div>
   );
 }
 
-// ─── Modal Configuración Barbería ──────────────────────────────────────────────
+function ModalAddBarbero({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
+  const [nombre, setNombre] = useState('');
+  const [comision, setComision] = useState('50');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim()) return;
+    const existe = await db.barberos.filter(b => b.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
+    if (existe) { alert(`Ya existe un barbero llamado "${nombre.trim()}".`); return; }
+    setLoading(true);
+    await db.barberos.add({ nombre: nombre.trim(), porcentaje_comision: Number(comision) / 100, activo: true });
+    setLoading(false);
+    setSuccess(true);
+    setTimeout(onClose, 900);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 className="section-title">{t('newBarber')}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+        {success ? (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('barberAdded')}</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} placeholder="Ej: Juan Pérez" /></div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{comision}%</strong></label>
+              <input type="range" min="5" max="100" step="5" value={comision} onChange={e => setComision(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
+            </div>
+            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : t('addBarber')}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () => void }) {
+  const { t } = useAppConfig();
+  const [nombre, setNombre] = useState(barbero.nombre);
+  const [comision, setComision] = useState(String(Math.round(barbero.porcentaje_comision * 100)));
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim() || !barbero.id) return;
+    const existe = await db.barberos.filter(b => b.id !== barbero.id && b.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
+    if (existe) { alert(`Ya existe un barbero llamado "${nombre.trim()}".`); return; }
+    setLoading(true);
+    await db.barberos.update(barbero.id, { nombre: nombre.trim(), porcentaje_comision: Number(comision) / 100 });
+    setLoading(false);
+    setSuccess(true);
+    setTimeout(onClose, 800);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 className="section-title">Editar Barbero</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+        {success ? (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Barbero actualizado!</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{comision}%</strong></label>
+              <input type="range" min="5" max="100" step="5" value={comision} onChange={e => setComision(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
+            </div>
+            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : t('saveChanges')}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MODAL GESTIÓN DE SERVICIOS Y PRODUCTOS ───────────────────────────────────
+export function ModalGestionServicios({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
+  const { simbolo } = useMoneda();
+  const [tab, setTab] = useState<'servicios' | 'productos'>('servicios');
+  const [showAdd, setShowAdd] = useState(false);
+  const [editando, setEditando] = useState<any | null>(null);
+  const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const items = useLiveQuery(() => db.servicios_productos.orderBy('nombre').toArray(), []);
+  const servicios = items?.filter(i => i.tipo === 'servicio');
+  const productos = items?.filter(i => i.tipo === 'producto');
+  const lista = tab === 'servicios' ? servicios : productos;
+
+  async function eliminar(item: any) {
+    if (!item.id) return;
+    const usos = await db.registros_diarios.where('item_id').equals(item.id).count();
+    if (usos > 0) { setMsg({ text: `"${item.nombre}" tiene ${usos} registros y no se puede eliminar.`, type: 'error' }); setTimeout(() => setMsg(null), 4000); return; }
+    if (!confirm(`¿Eliminar "${item.nombre}"?`)) return;
+    await db.servicios_productos.delete(item.id);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 className="section-title">{t('servicesProducts')}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          {(['servicios', 'productos'] as const).map(opt => (
+            <button key={opt} onClick={() => setTab(opt)} style={{ padding: '10px', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', border: `2px solid ${tab === opt ? 'var(--gold)' : 'var(--black-border)'}`, background: tab === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: tab === opt ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}>
+              {opt === 'servicios' ? `✂️ ${t('services')}` : `📦 ${t('productos')}`}
+            </button>
+          ))}
+        </div>
+
+        {msg && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, background: msg.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${msg.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
+            {msg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+            {msg.text}
+          </div>
+        )}
+
+        <button className="btn-gold" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAdd(true)}>
+          <Plus size={18} /> {tab === 'servicios' ? t('addService') : t('addProduct')}
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {lista?.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--gray-muted)' }}>
+              <Package size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+              <p style={{ fontSize: 14 }}>{tab === 'servicios' ? t('noServicesYet') : t('noProductsYet')}</p>
+            </div>
+          )}
+          {lista?.map(item => (
+            <div key={item.id} className="card" style={{ padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, fontSize: 14 }}>{item.nombre}</p>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 3, alignItems: 'center' }}>
+                    <span className="badge badge-gold">{simbolo}{item.precio.toFixed(2)}</span>
+                    {item.tipo === 'producto' && item.stock_actual !== undefined && (
+                      <span className={`badge ${(item.stock_actual ?? 0) <= (item.stock_minimo ?? 0) ? 'badge-red' : 'badge-green'}`}>
+                        Stock: {item.stock_actual}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, marginLeft: 8 }}>
+                  <button onClick={() => setEditando(item)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
+                  <button onClick={() => eliminar(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {showAdd && <ModalAddItem tipo={tab === 'servicios' ? 'servicio' : 'producto'} onClose={() => setShowAdd(false)} />}
+        {editando && <ModalEditarItem item={editando} onClose={() => setEditando(null)} />}
+      </div>
+    </div>
+  );
+}
+
+function ModalAddItem({ tipo, onClose }: { tipo: 'servicio' | 'producto'; onClose: () => void }) {
+  const { t } = useAppConfig();
+  const [nombre, setNombre] = useState('');
+  const [precio, setPrecio] = useState('');
+  const [stock, setStock] = useState('0');
+  const [stockMin, setStockMin] = useState('0');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim() || !precio) return;
+    setLoading(true);
+    const datos: any = { nombre: nombre.trim(), tipo, precio: Number(precio) };
+    if (tipo === 'producto') { datos.stock_actual = Number(stock); datos.stock_minimo = Number(stockMin); }
+    await db.servicios_productos.add(datos);
+    setLoading(false);
+    setSuccess(true);
+    setTimeout(onClose, 900);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 className="section-title">{tipo === 'servicio' ? t('addService') : t('addProduct')}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+        {success ? (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('added')}</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{tipo === 'servicio' ? t('serviceName') : t('productName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Precio</label><input className="input-dark" type="number" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></div>
+            {tipo === 'producto' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('currentStock')}</label><input className="input-dark" type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} /></div>
+                <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('minStock')}</label><input className="input-dark" type="number" min="0" value={stockMin} onChange={e => setStockMin(e.target.value)} /></div>
+              </div>
+            )}
+            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? 'Guardando...' : t('add')}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalEditarItem({ item, onClose }: { item: any; onClose: () => void }) {
+  const { t } = useAppConfig();
+  const [nombre, setNombre] = useState(item.nombre);
+  const [precio, setPrecio] = useState(String(item.precio));
+  const [stock, setStock] = useState(String(item.stock_actual ?? 0));
+  const [stockMin, setStockMin] = useState(String(item.stock_minimo ?? 0));
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim() || !precio || !item.id) return;
+    setLoading(true);
+    const cambios: any = { nombre: nombre.trim(), precio: Number(precio) };
+    if (item.tipo === 'producto') { cambios.stock_actual = Number(stock); cambios.stock_minimo = Number(stockMin); }
+    await db.servicios_productos.update(item.id, cambios);
+    setLoading(false);
+    setSuccess(true);
+    setTimeout(onClose, 800);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 className="section-title">{t('edit')} {item.tipo === 'servicio' ? 'Servicio' : 'Producto'}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+        {success ? (
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Actualizado!</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre</label><input className="input-dark" type="text" value={nombre} maxLength={100} onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Precio</label><input className="input-dark" type="number" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></div>
+            {item.tipo === 'producto' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('currentStock')}</label><input className="input-dark" type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} /></div>
+                <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('minStock')}</label><input className="input-dark" type="number" min="0" value={stockMin} onChange={e => setStockMin(e.target.value)} /></div>
+              </div>
+            )}
+            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? 'Guardando...' : t('saveChanges')}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalFondoCaja({ onClose }: { onClose: () => void }) {
+  const [tipo, setTipo] = useState<'ingreso' | 'egreso'>('ingreso');
+  const [monto, setMonto] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const saldo = useLiveQuery(() => getSaldoFondoCaja(), []);
+  const movimientos = useLiveQuery(() => db.fondo_caja.orderBy('fecha').reverse().limit(30).toArray(), []);
+
+  async function guardar() {
+    if (!monto || !motivo || !fecha) return;
+    setLoading(true);
+    const num = Number(monto);
+    await db.fondo_caja.add({
+      tipo,
+      monto: num,
+      motivo: motivo.trim(),
+      fecha: new Date(fecha + 'T12:00:00')
+    });
+    setLoading(false);
+    setSuccess(true);
+    setMonto('');
+    setMotivo('');
+    setTimeout(() => setSuccess(false), 2000);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
+          <h2 className="section-title">📦 Fondo de Caja Chica</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+
+        <div className="card" style={{ padding: '14px 16px', marginBottom: 16, textAlign: 'center', borderColor: 'rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.03)', flexShrink: 0 }}>
+          <p style={{ fontSize: 11, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saldo Disponible Actual</p>
+          <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--gold)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
+            ${(saldo ?? 0).toFixed(2)}
+          </p>
+        </div>
+
+        <div className="card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button onClick={() => setTipo('ingreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'transparent', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-muted)' }}>➕ Aportar Fondo</button>
+            <button onClick={() => setTipo('egreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'transparent', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-muted)' }}>➖ Retirar / Gasto</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Monto ($)</label>
+              <input className="input-dark" type="number" placeholder="0.00" value={monto} onChange={e => setMonto(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Fecha</label>
+              <DatePicker value={fecha} onChange={setFecha} />
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Motivo / Concepto</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input className="input-dark" type="text" placeholder="Ej: Cambio inicial del día" value={motivo} onChange={e => setMotivo(e.target.value)} style={{ flex: 1 }} />
+              <button className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>
+                {success ? '✓ Registrado' : tipo === 'ingreso' ? 'Agregar Fondo' : 'Descontar del Fondo'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 12, color: 'var(--gray-muted)', marginBottom: 8, fontWeight: 600, flexShrink: 0 }}>Últimos Movimientos</p>
+        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(!movimientos || movimientos.length === 0) && <p style={{ fontSize: 12, color: 'var(--gray-muted)', textAlign: 'center', padding: '12px 0' }}>Sin movimientos registrados</p>}
+            {movimientos?.map(m => (
+              <div key={m.id} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 500 }}>{m.motivo}</p>
+                  <p style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 700, color: m.tipo === 'ingreso' ? 'var(--success)' : 'var(--danger)' }}>
+                  {m.tipo === 'ingreso' ? '+' : '-'}${m.monto.toFixed(2)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalGestionSocios({ onClose }: { onClose: () => void }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [editando, setEditando] = useState<Socio | null>(null);
+  const [mensaje, setMensaje] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [mostrarInactivos, setMostrarInactivos] = useState(false);
+
+  const todosSocios = useLiveQuery(() => db.socios.orderBy('nombre').toArray(), []);
+  const socios = todosSocios?.filter(s => mostrarInactivos || s.activo);
+
+  const totalInactivos = todosSocios?.filter(s => !s.activo).length ?? 0;
+
+  function mostrarMensaje(text: string, type: 'success' | 'error') {
+    setMensaje({ text, type });
+    setTimeout(() => setMensaje(null), 4000);
+  }
+
+  async function toggleActivo(socio: Socio) {
+    if (!socio.id) return;
+    await db.socios.update(socio.id, { activo: !socio.activo });
+    mostrarMensaje(`${socio.nombre} ${!socio.activo ? 'activado' : 'pausado'}.`, 'success');
+  }
+
+  async function eliminar(socio: Socio) {
+    if (!socio.id) return;
+    const [adelantos, barberoMismoId] = await Promise.all([
+      db.Adelantos.where('barbero_id').equals(socio.id).toArray(),
+      db.barberos.get(socio.id),
+    ]);
+    const nombreSocio = socio.nombre.toLowerCase();
+    const tienePagos = adelantos.some((a: Adelanto) =>
+      a.destinatario_tipo === 'socio' ||
+      a.socio_id === socio.id ||
+      (!barberoMismoId && a.barbero_id === socio.id) ||
+      a.motivo.toLowerCase().includes(nombreSocio)
+    );
+
+    if (tienePagos) {
+      if (socio.activo) {
+        await db.socios.update(socio.id, { activo: false });
+        mostrarMensaje(`${socio.nombre} tiene pagos/adelantos registrados. Se marcó como inactivo.`, 'success');
+      } else {
+        mostrarMensaje(`${socio.nombre} tiene pagos/adelantos registrados y no se puede eliminar.`, 'error');
+      }
+      return;
+    }
+    if (!confirm(`¿Eliminar a ${socio.nombre} definitivamente?`)) return;
+    await db.socios.delete(socio.id);
+    mostrarMensaje(`${socio.nombre} eliminado.`, 'success');
+  }
+
+  const totalPorcentaje = todosSocios?.filter(s => s.activo).reduce((sum, s) => sum + s.porcentaje_utilidad, 0) ?? 0;
+  const excede = totalPorcentaje > 1.001;
+  const exacto = Math.abs(totalPorcentaje - 1) < 0.001;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
+          <h2 className="section-title">Gestión de Socios</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+
+        <div className="card" style={{
+          marginBottom: 16, padding: '12px 14px',
+          borderColor: excede ? 'rgba(224,82,82,0.4)' : exacto ? 'rgba(76,175,130,0.4)' : 'rgba(212,175,55,0.3)',
+          background: excede ? 'rgba(224,82,82,0.06)' : exacto ? 'rgba(76,175,130,0.06)' : 'rgba(212,175,55,0.04)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <p style={{ fontSize: 12, color: 'var(--gray-muted)', fontWeight: 600 }}>DISTRIBUCIÓN ACTIVA</p>
+            <p style={{ fontSize: 20, fontWeight: 800, color: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'var(--gold)', fontFamily: 'var(--font-display)' }}>
+              {(totalPorcentaje * 100).toFixed(0)}%
+            </p>
+          </div>
+          <div style={{ height: 8, borderRadius: 4, background: 'var(--black-border)', overflow: 'hidden', marginBottom: 6 }}>
+            <div style={{ height: '100%', borderRadius: 4, transition: 'width 0.3s ease', width: `${Math.min(totalPorcentaje * 100, 100)}%`, background: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'linear-gradient(90deg, var(--gold-light), var(--gold))' }} />
+          </div>
+          <p style={{ fontSize: 11, fontWeight: 600, color: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'var(--warning)' }}>
+            {exacto ? '✓ Distribución perfecta al 100%' : excede ? `⚠ Excede por ${((totalPorcentaje - 1) * 100).toFixed(0)}%` : `Falta asignar ${((1 - totalPorcentaje) * 100).toFixed(0)}% de la utilidad`}
+          </p>
+        </div>
+
+        {mensaje && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, background: mensaje.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${mensaje.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: mensaje.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
+            {mensaje.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+            <span style={{ flex: 1 }}>{mensaje.text}</span>
+          </div>
+        )}
+
+        <button className="btn-gold" style={{ width: '100%', marginBottom: 10, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
+          <Plus size={18} /> Agregar Nuevo Socio
+        </button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+          {socios?.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--gray-muted)' }}>
+              <UserCog size={36} style={{ margin: '0 auto 8px', opacity: 0.25 }} />
+              <p style={{ fontSize: 13 }}>No hay socios registrados</p>
+            </div>
+          )}
+          {socios?.map(s => (
+            <div key={s.id} className="card" style={{ padding: '12px 14px', opacity: s.activo ? 1 : 0.55 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                    <p style={{ fontWeight: 600, fontSize: 14 }}>{s.nombre}</p>
+                    {!s.activo && <span className="badge badge-red">Inactivo</span>}
+                  </div>
+                  <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(s.porcentaje_utilidad * 100).toFixed(0)}% de ganancias</span>
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: 'var(--gold)' }} onClick={() => setEditando(s)}>Editar</button>
+                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: s.activo ? 'var(--danger)' : 'var(--success)' }} onClick={() => toggleActivo(s)}>{s.activo ? 'Pausar' : 'Activar'}</button>
+                  <button style={{ background: 'none', border: 'none', color: 'var(--danger)', padding: '0 4px', cursor: 'pointer' }} onClick={() => eliminar(s)}><X size={16} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {totalInactivos > 0 && (
+          <div style={{ marginTop: 12, textAlign: 'center', flexShrink: 0 }}>
+            <button className="btn-ghost" style={{ border: 'none', fontSize: 11, minHeight: 24, padding: '4px 12px' }} onClick={() => setMostrarInactivos(!mostrarInactivos)}>
+              {mostrarInactivos ? 'Ocultar socios inactivos' : `Ver ${totalInactivos} socios inactivos`}
+            </button>
+          </div>
+        )}
+
+        {showAdd && <ModalAddSocio onClose={() => setShowAdd(false)} mostrarMensaje={mostrarMensaje} />}
+        {editando && <ModalEditarSocio socio={editando} onClose={() => setEditando(null)} mostrarMensaje={mostrarMensaje} />}
+      </div>
+    </div>
+  );
+}
+
+function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostrarMensaje: (t: string, ty: 'success' | 'error') => void }) {
+  const [nombre, setNombre] = useState('');
+  const [porcentaje, setPorcentaje] = useState('25');
+  const [loading, setLoading] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim()) return;
+    setLoading(true);
+    const existe = await db.socios.filter(s => s.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
+    if (existe) {
+      alert(`Ya existe un socio llamado "${nombre.trim()}".`);
+      setLoading(false);
+      return;
+    }
+    await db.socios.add({
+      nombre: nombre.trim(),
+      porcentaje_utilidad: Number(porcentaje) / 100,
+      activo: true,
+      rol: 'socio'
+    } as any);
+    mostrarMensaje('Socio agregado con éxito.', 'success');
+    onClose();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <h2 className="section-title">Nuevo Socio</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label>
+            <input className="input-dark" type="text" placeholder="Ej: Carlos Silva" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={80} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje de Utilidad: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
+            <input type="range" min="1" max="100" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }} />
+          </div>
+          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>Agregar Socio</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; onClose: () => void; mostrarMensaje: (t: string, ty: 'success' | 'error') => void }) {
+  const [nombre, setNombre] = useState(socio.nombre);
+  const [porcentaje, setPorcentaje] = useState(() => String(Math.round(socio.porcentaje_utilidad * 100)));
+  const [loading, setLoading] = useState(false);
+
+  async function guardar() {
+    if (!nombre.trim() || !socio.id) return;
+    setLoading(true);
+    const existe = await db.socios.filter(s => s.id !== socio.id && s.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
+    if (existe) {
+      alert(`Ya existe otro socio llamado "${nombre.trim()}".`);
+      setLoading(false);
+      return;
+    }
+    await db.socios.update(socio.id, {
+      nombre: nombre.trim(),
+      porcentaje_utilidad: Number(porcentaje) / 100
+    });
+    mostrarMensaje('Socio actualizado.', 'success');
+    onClose();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+          <h2 className="section-title">Editar Socio</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label>
+            <input className="input-dark" type="text" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={80} />
+          </div>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje de Utilidad: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
+            <input type="range" min="1" max="100" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }} />
+          </div>
+          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void; onNombreChange?: (n: string) => void }) {
   const [nombre, setNombre] = useState('');
   const [saving, setSaving] = useState(false);
@@ -698,20 +915,8 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
               <span style={{ color: 'white', fontSize: 11, fontWeight: 600, textAlign: 'center' }}>✏️<br />Cambiar</span>
             </div>
           </div>
-          <input
-            id="logo-file-input"
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleLogoChange}
-          />
-          <button
-            className="btn-ghost"
-            style={{ fontSize: 12, padding: '6px 16px', minHeight: 32 }}
-            onClick={() => document.getElementById('logo-file-input')?.click()}
-          >
-            📷 Seleccionar Logo desde el Dispositivo
-          </button>
+          <input id="logo-file-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 16px', minHeight: 32 }} onClick={() => document.getElementById('logo-file-input')?.click()}>📷 Seleccionar Logo desde el Dispositivo</button>
           {logoMsg && (
             <p style={{ fontSize: 12, color: logoMsg.startsWith('✓') ? 'var(--success)' : 'var(--danger)', textAlign: 'center' }}>{logoMsg}</p>
           )}
@@ -720,13 +925,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre de la Barbería</label>
-            <input
-              className="input-dark"
-              type="text"
-              value={nombre}
-              onChange={e => setNombre(e.target.value)}
-              placeholder="Ej: Royal Cuts Barber Shop"
-            />
+            <input className="input-dark" type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Royal Cuts Barber Shop" />
           </div>
           <button className="btn-gold" disabled={!nombre.trim() || saving} onClick={guardar}>
             {success ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar Cambios'}
@@ -737,596 +936,445 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
   );
 }
 
-// ─── Modal Gestión de Socios ────────────────────────────────────────────────────
-function ModalGestionSocios({ onClose }: { onClose: () => void }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [editando, setEditando] = useState<Socio | null>(null);
-  const [mensaje, setMensaje] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [mostrarInactivos, setMostrarInactivos] = useState(false);
+function ModalSeguridad({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<'emails' | 'pin' | 'drive'>('emails');
 
-  const todosSocios = useLiveQuery(() => db.socios.orderBy('nombre').toArray(), []);
-  const socios = todosSocios?.filter(s => mostrarInactivos || s.activo);
-  const totalActivos = todosSocios?.filter(s => s.activo).length ?? 0;
-  const totalInactivos = todosSocios?.filter(s => !s.activo).length ?? 0;
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 className="section-title">Seguridad y Acceso</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
 
-  function mostrarMensaje(text: string, type: 'success' | 'error') {
-    setMensaje({ text, type });
-    setTimeout(() => setMensaje(null), 4000);
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 20 }}>
+          {([['emails', '📧 Emails'], ['pin', '🔢 PIN'], ['drive', '☁️ Drive']] as const).map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              padding: '9px 4px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `2px solid ${tab === id ? 'var(--gold)' : 'var(--black-border)'}`,
+              background: tab === id ? 'rgba(212,175,55,0.1)' : 'transparent',
+              color: tab === id ? 'var(--gold)' : 'var(--gray-muted)',
+              fontFamily: 'var(--font-body)',
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {tab === 'emails' && <TabEmails />}
+        {tab === 'pin' && <TabPin />}
+        {tab === 'drive' && <TabDrive />}
+      </div>
+    </div>
+  );
+}
+
+function TabEmails() {
+  const [emails, setEmails] = useState('');
+  const [nuevo, setNuevo] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      if (cancelled.current) return;
+      getConfig('emails_autorizados').then(v => { 
+        if (!cancelled.current && v) {
+          requestAnimationFrame(() => {
+            if (!cancelled.current) setEmails(v);
+          });
+        }
+      });
+    }, 0);
+    return () => { cancelled.current = true; clearTimeout(t); };
+  }, []);
+
+  const lista = emails.split(',').flatMap(e => { const v = e.trim(); return v ? [v] : []; });
+
+  async function agregar() {
+    const email = nuevo.trim().toLowerCase();
+    if (!email || !email.includes('@')) { setMsg('Ingresá un email válido.'); return; }
+    if (lista.includes(email)) { setMsg('Ese email ya está en la lista.'); return; }
+    const nueva = [...lista, email].join(', ');
+    setSaving(true);
+    await setConfig('emails_autorizados', nueva);
+    setEmails(nueva);
+    setNuevo('');
+    setSaving(false);
+    setMsg('✓ Email agregado.');
+    setTimeout(() => setMsg(''), 3000);
   }
 
-  async function toggleActivo(socio: Socio) {
-    if (!socio.id) return;
-    await db.socios.update(socio.id, { activo: !socio.activo });
-    mostrarMensaje(`${socio.nombre} ${!socio.activo ? 'activado' : 'pausado'}.`, 'success');
+  async function eliminar(email: string) {
+    const nueva = lista.filter(e => e !== email).join(', ');
+    await setConfig('emails_autorizados', nueva);
+    setEmails(nueva);
   }
 
-  async function eliminar(socio: Socio) {
-    if (!socio.id) return;
-    const [adelantos, barberoMismoId] = await Promise.all([
-      db.Adelantos.where('barbero_id').equals(socio.id).toArray(),
-      db.barberos.get(socio.id),
-    ]);
-    const nombreSocio = socio.nombre.toLowerCase();
-    const tienePagos = adelantos.some((a: Adelanto) =>
-      a.destinatario_tipo === 'socio' ||
-      a.socio_id === socio.id ||
-      (!barberoMismoId && a.barbero_id === socio.id) ||
-      a.motivo.toLowerCase().includes(nombreSocio)
-    );
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
+        <p>🔐 <strong style={{ color: 'var(--gold)' }}>Lista blanca de emails</strong></p>
+        <p style={{ marginTop: 4 }}>Solo las cuentas de Google que estén aquí podrán iniciar sesión.</p>
+        {lista.length === 0 && (
+          <p style={{ marginTop: 6, color: 'var(--danger)', fontWeight: 600 }}>⚠️ Lista vacía — el acceso con Google está BLOQUEADO. Agregá al menos un email.</p>
+        )}
+      </div>
 
-    if (tienePagos) {
-      if (socio.activo) {
-        await db.socios.update(socio.id, { activo: false });
-        mostrarMensaje(`${socio.nombre} tiene pagos/adelantos registrados. Se marcó como inactivo.`, 'success');
-      } else {
-        mostrarMensaje(`${socio.nombre} tiene pagos/adelantos registrados y no se puede eliminar.`, 'error');
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input className="input-dark" type="email" placeholder="email@gmail.com" value={nuevo} onChange={e => { setNuevo(e.target.value); setMsg(''); }} onKeyDown={e => { if (e.key === 'Enter') agregar(); }} style={{ flex: 1 }} />
+        <button className="btn-gold" style={{ padding: '0 16px', minHeight: 44, minWidth: 80 }} disabled={saving} onClick={agregar}><Plus size={16} /> Agregar</button>
+      </div>
+
+      {msg && <p style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--success)' : 'var(--danger)' }}>{msg}</p>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {lista.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--gray-muted)', fontSize: 13 }}>
+            <Mail size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+            <p>Lista vacía — cualquier Google puede entrar</p>
+          </div>
+        ) : lista.map(email => (
+          <div key={email} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Mail size={14} color="var(--gold)" />
+              <span style={{ fontSize: 13 }}>{email}</span>
+            </div>
+            <button onClick={() => eliminar(email)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px' }}><X size={16} /></button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TabPin() {
+  const [hasPin, setHasPin] = useState(() => isPinConfigured());
+  const [pinActual, setPinActual] = useState('');
+  const [pinNuevo, setPinNuevo] = useState('');
+  const [pinConfirm, setPinConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  async function cambiarPin() {
+    if (hasPin) {
+      try {
+        const correcto = await verifyPin(pinActual);
+        if (!correcto) { setError('El PIN actual es incorrecto.'); return; }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'PIN bloqueado temporalmente.');
+        return;
       }
-      return;
     }
 
-    if (!confirm(`¿Eliminar a ${socio.nombre} definitivamente?`)) return;
-    await db.socios.delete(socio.id);
-    mostrarMensaje(`${socio.nombre} eliminado.`, 'success');
-  }
+    if (pinNuevo.length < 4) { setError('El nuevo PIN debe tener al menos 4 dígitos.'); return; }
+    if (pinNuevo !== pinConfirm) { setError('Los PINs nuevos no coinciden.'); return; }
 
-  const totalPorcentaje = todosSocios?.filter(s => s.activo).reduce((sum, s) => sum + s.porcentaje_utilidad, 0) ?? 0;
-  const excede = totalPorcentaje > 1.001;
-  const exacto = Math.abs(totalPorcentaje - 1) < 0.001;
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Gestión de Socios</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-
-        <div className="card" style={{
-          marginBottom: 16, padding: '12px 14px',
-          borderColor: excede ? 'rgba(224,82,82,0.4)' : exacto ? 'rgba(76,175,130,0.4)' : 'rgba(212,175,55,0.3)',
-          background: excede ? 'rgba(224,82,82,0.06)' : exacto ? 'rgba(76,175,130,0.06)' : 'rgba(212,175,55,0.04)',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <p style={{ fontSize: 12, color: 'var(--gray-muted)', fontWeight: 600 }}>DISTRIBUCIÓN ACTIVA</p>
-            <p style={{ fontSize: 20, fontWeight: 800, color: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'var(--gold)', fontFamily: 'var(--font-display)' }}>
-              {(totalPorcentaje * 100).toFixed(0)}%
-            </p>
-          </div>
-          <div style={{ height: 8, borderRadius: 4, background: 'var(--black-border)', overflow: 'hidden', marginBottom: 6 }}>
-            <div style={{
-              height: '100%', borderRadius: 4, transition: 'width 0.3s ease',
-              width: `${Math.min(totalPorcentaje * 100, 100)}%`,
-              background: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'linear-gradient(90deg, var(--gold-light), var(--gold))'
-            }} />
-          </div>
-          <p style={{ fontSize: 11, fontWeight: 600, color: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'var(--warning)' }}>
-            {exacto ? '✓ Distribución perfecta al 100%'
-              : excede ? `⚠ Excede por ${((totalPorcentaje - 1) * 100).toFixed(0)}%`
-              : `Falta asignar ${((1 - totalPorcentaje) * 100).toFixed(0)}% de la utilidad`}
-          </p>
-        </div>
-
-        {mensaje && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13,
-            background: mensaje.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)',
-            border: `1px solid ${mensaje.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`,
-            color: mensaje.type === 'success' ? 'var(--success)' : 'var(--danger)',
-          }}>
-            {mensaje.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-            <span style={{ flex: 1 }}>{mensaje.text}</span>
-          </div>
-        )}
-
-        <button className="btn-gold" style={{ width: '100%', marginBottom: 10, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
-          <Plus size={18} /> Agregar Nuevo Socio
-        </button>
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center', flexShrink: 0 }}>
-          <button onClick={() => setMostrarInactivos(false)} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `2px solid ${!mostrarInactivos ? 'var(--success)' : 'var(--black-border)'}`, background: !mostrarInactivos ? 'rgba(76,175,130,0.1)' : 'var(--black-surface)', color: !mostrarInactivos ? 'var(--success)' : 'var(--gray-muted)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, transition: 'all 0.2s' }}>● Activos ({totalActivos})</button>
-          <button onClick={() => setMostrarInactivos(true)} style={{ flex: 1, padding: '8px', borderRadius: 10, border: `2px solid ${mostrarInactivos ? 'var(--gold)' : 'var(--black-border)'}`, background: mostrarInactivos ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: mostrarInactivos ? 'var(--gold)' : 'var(--gray-muted)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 12, transition: 'all 0.2s' }}>Todos ({(todosSocios?.length ?? 0)}) · Inactivos ({totalInactivos})</button>
-        </div>
-
-        <div className="modal-body">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {socios?.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--gray-muted)' }}>
-              <UserCog size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-              <p style={{ fontSize: 14 }}>{mostrarInactivos ? 'No hay socios registrados' : 'No hay socios activos'}</p>
-            </div>
-          )}
-          {socios?.map(s => (
-            <div key={s.id} className="card" style={{ padding: '12px 14px', opacity: s.activo ? 1 : 0.55, borderColor: s.activo && excede ? 'rgba(224,82,82,0.3)' : 'var(--black-border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                    <p style={{ fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.nombre}</p>
-                    <span className={`badge ${s.activo ? 'badge-green' : 'badge-red'}`} style={{ flexShrink: 0 }}>{s.activo ? '● Activo' : '● Pausado'}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(s.porcentaje_utilidad * 100).toFixed(0)}%</span>
-                    <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{s.rol}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginLeft: 8 }}>
-                  <button onClick={() => setEditando(s)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> Editar</button>
-                  <button onClick={() => toggleActivo(s)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: s.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: s.activo ? 'var(--danger)' : 'var(--success)' }}>{s.activo ? 'Pausar' : 'Activar'}</button>
-                  <button onClick={() => eliminar(s)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
-                </div>
-              </div>
-            </div>
-          ))}
-          </div>
-        </div>
-        {showAdd && <ModalAddSocio onClose={() => setShowAdd(false)} />}
-        {editando && <ModalEditarSocio socio={editando} onClose={() => { setEditando(null); mostrarMensaje('Socio actualizado correctamente.', 'success'); }} />}
-      </div>
-    </div>
-  );
-}
-
-function ModalEditarSocio({ socio, onClose }: { socio: Socio; onClose: () => void }) {
-  const [nombre, setNombre] = useState(socio.nombre);
-  const [porcentaje, setPorcentaje] = useState(String(Math.round(socio.porcentaje_utilidad * 100)));
-  const [rol, setRol] = useState(socio.rol);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const otrosSocios = useLiveQuery(() => db.socios.filter(s => s.id !== socio.id && s.activo).toArray(), [socio.id]);
-  const totalOtros = otrosSocios?.reduce((sum, s) => sum + s.porcentaje_utilidad, 0) ?? 0;
-  const porcentajeNum = Number(porcentaje);
-  const nuevoTotal = totalOtros + porcentajeNum / 100;
-  const excede = nuevoTotal > 1.001;
-
-  async function guardar() {
-    if (!nombre.trim() || !socio.id) return;
-    const existe = await db.socios.filter(s => s.id !== socio.id && s.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
-    if (existe) { alert(`Ya existe un socio llamado "${nombre.trim()}".`); return; }
-    setLoading(true);
-    await db.socios.update(socio.id, { nombre: nombre.trim(), porcentaje_utilidad: porcentajeNum / 100, rol: rol.trim() || 'Socio' });
-    setLoading(false);
+    await savePin(pinNuevo);
     setSuccess(true);
-    setTimeout(onClose, 800);
+    setHasPin(true);
+    setPinActual(''); setPinNuevo(''); setPinConfirm(''); setError('');
+    setTimeout(() => setSuccess(false), 3000);
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Editar Socio</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-        {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Socio actualizado!</p></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} placeholder="Nombre del socio" /></div>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Rol / Cargo</label><select className="input-dark" value={rol} onChange={e => setRol(e.target.value)}><option value="Dueño">Dueño</option><option value="Socio">Socio</option><option value="Inversor">Inversor</option><option value="Administrador">Administrador</option><option value="Otro">Otro</option></select></div>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje: <strong style={{ color: excede ? 'var(--danger)' : 'var(--gold)' }}>{porcentaje}%</strong></label>
-              <input type="range" min="5" max="100" step="5" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: excede ? '#E05252' : 'var(--gold)', height: 6, cursor: 'pointer' }} />
-            </div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Guardar Cambios'}</button>
-          </div>
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
+        🔢 El PIN es el método de acceso alternativo cuando no hay conexión a internet. Mínimo 4 dígitos.
       </div>
+
+      {success && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.3)', color: 'var(--success)', fontSize: 13 }}>
+          <CheckCircle2 size={16} /> PIN actualizado correctamente
+        </div>
+      )}
+
+      {[
+        hasPin ? { label: 'PIN Actual', val: pinActual, setter: setPinActual } : null,
+        { label: 'PIN Nuevo', val: pinNuevo, setter: setPinNuevo },
+        { label: 'Confirmar PIN', val: pinConfirm, setter: setPinConfirm }
+      ].map((item) => {
+        if (!item) return null;
+        const { label, val, setter } = item;
+        return (
+          <div key={label}>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{label}</label>
+            <input className="input-dark" type="password" inputMode="numeric" maxLength={8} value={val} onChange={e => { setter(e.target.value.replace(/\D/g, '')); setError(''); }} placeholder="••••" style={{ textAlign: 'center', letterSpacing: 8, fontSize: 20 }} />
+          </div>
+        );
+      })}
+
+      {error && <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>}
+      <button className="btn-gold" onClick={cambiarPin} disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}><KeyRound size={16} /> {hasPin ? 'Cambiar PIN' : 'Configurar PIN'}</button>
     </div>
   );
 }
 
-function ModalAddSocio({ onClose }: { onClose: () => void }) {
-  const [nombre, setNombre] = useState('');
-  const [porcentaje, setPorcentaje] = useState('50');
-  const [rol, setRol] = useState('Dueño');
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  async function guardar() {
-    if (!nombre.trim()) return;
-    const existe = await db.socios.filter(s => s.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
-    if (existe) { alert(`Ya existe un socio llamado "${nombre.trim()}".`); return; }
-    setLoading(true);
-    await db.socios.add({ nombre: nombre.trim(), porcentaje_utilidad: Number(porcentaje) / 100, activo: true, rol: rol.trim() || 'Socio' });
-    setLoading(false);
-    setSuccess(true);
-    setTimeout(onClose, 900);
-  }
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
-        <div className="modal-handle" />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Nuevo Socio</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-        {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Socio agregado!</p></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} placeholder="Ej: María García" /></div>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Rol / Cargo</label><select className="input-dark" value={rol} onChange={e => setRol(e.target.value)}><option value="Dueño">Dueño</option><option value="Socio">Socio</option><option value="Inversor">Inversor</option><option value="Administrador">Administrador</option><option value="Otro">Otro</option></select></div>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label><input type="range" min="5" max="100" step="5" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} /></div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Agregar Socio'}</button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DriveSection() {
+function TabDrive() {
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const googleConfigurado = !!(GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('PON_TU_CLIENT_ID'));
+
   if (!googleConfigurado) {
     return (
       <div style={{ padding: '16px 0' }}>
         <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.25)', fontSize: 13, color: 'var(--danger)', lineHeight: 1.6 }}>
           <p style={{ fontWeight: 600, marginBottom: 6 }}>⚠ Google no está configurado</p>
-          <p>Para habilitar Google Drive, agregá tu <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> en <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>.env.local</code>.</p>
+          <p>Para activar Google Drive y el login con Google, necesitás configurar tu <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> en el archivo <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>.env.local</code>.</p>
         </div>
       </div>
     );
   }
-  return <DriveSectionEnabled />;
+  return <TabDriveEnabled />;
 }
 
-function DriveSectionEnabled() {
+function TabDriveEnabled() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState('');
-  const [mensaje, setMensaje] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [lastBackup, setLastBackup] = useState<{ date: string; size: number } | null>(null);
+
+  const cargarInfoBackup = useCallback(async () => {
+    const info = await getLastBackupInfo();
+    setLastBackup(info);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    const cancelled = { current: false };
     const t = setTimeout(() => {
-      if (cancelled) return;
-      setLoggedIn(isDriveConnected());
+      try {
+        const connected = isDriveConnected();
+        requestAnimationFrame(() => { if (!cancelled.current) setLoggedIn(connected); });
+      } catch (err) { console.warn(err); }
     }, 0);
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled.current = true; clearTimeout(t); };
   }, []);
+
+  useEffect(() => {
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      requestAnimationFrame(() => { 
+        void (async () => { try { if (!cancelled.current) await cargarInfoBackup(); } catch (err) { console.warn(err); } })(); 
+      });
+    }, 0);
+    return () => { cancelled.current = true; clearTimeout(t); };
+  }, [cargarInfoBackup]);
 
   const login = useGoogleLogin({
     scope: DRIVE_SCOPE,
-    onSuccess: (res) => { setAccessToken(res.access_token); setLoggedIn(true); mostrarMensaje('✓ Conectado a Google Drive', 'success'); },
-    onError: () => mostrarMensaje('Error al conectar con Google', 'error'),
+    onSuccess: res => { setAccessToken(res.access_token); setLoggedIn(true); mostrarMsg('✓ Conectado a Google Drive', 'success'); cargarInfoBackup(); },
+    onError: () => mostrarMsg('Error al conectar con Google', 'error'),
   });
 
-  function logout() { clearAccessToken(); setLoggedIn(false); mostrarMensaje('Sesión de Google cerrada', 'success'); }
-
-  function mostrarMensaje(text: string, type: 'success' | 'error') {
-    setMensaje({ text, type });
-    setTimeout(() => setMensaje(null), 4000);
+  function mostrarMsg(text: string, type: 'success' | 'error') {
+    setMsg({ text, type });
+    setTimeout(() => setMsg(null), 4000);
   }
 
   async function exportar() {
     setLoading('exportar');
     const res = await exportarAGoogleDrive();
-    mostrarMensaje(res.message, res.success ? 'success' : 'error');
+    mostrarMsg(res.message, res.success ? 'success' : 'error');
     setLoading('');
+    if (res.success) cargarInfoBackup();
   }
 
   async function restaurar() {
     if (!confirm('¿Estás seguro? Esto reemplazará TODOS los datos locales con la copia de Drive.')) return;
     setLoading('restaurar');
     const res = await restaurarDesdeGoogleDrive();
-    mostrarMensaje(res.message, res.success ? 'success' : 'error');
+    mostrarMsg(res.message, res.success ? 'success' : 'error');
     setLoading('');
   }
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Cloud size={18} color="var(--gold)" />
-        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>Google Drive Backup</p>
-      </div>
-      {mensaje && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, background: mensaje.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${mensaje.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: mensaje.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
-          {mensaje.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
-          {mensaje.text}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {msg && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, fontSize: 13, background: msg.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${msg.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
+          {msg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+          {msg.text}
         </div>
       )}
+
       {!loggedIn ? (
-        <button id="btn-login-google" className="btn-gold" style={{ width: '100%' }} onClick={() => login()}><LogIn size={18} /> Iniciar sesión con Google</button>
+        <>
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>☁️ Conectá tu cuenta de Google para hacer copias de seguridad automáticas al cerrar cada mes.</div>
+          <button className="btn-gold" style={{ width: '100%' }} onClick={() => login()}><LogIn size={18} /> Conectar Google Drive</button>
+        </>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.08)', border: '1px solid rgba(76,175,130,0.2)' }}>
             <CheckCircle2 size={16} color="var(--success)" />
-            <p style={{ fontSize: 13, color: 'var(--success)' }}>Conectado a Google Drive</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Conectado a Google Drive</p>
+              {lastBackup && <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>Último backup: {lastBackup.date} ({lastBackup.size} KB)</p>}
+            </div>
           </div>
-          <button id="btn-exportar-drive" className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}><Cloud size={18} /> {loading === 'exportar' ? 'Subiendo...' : 'Exportar a Google Drive'}</button>
-          <button id="btn-restaurar-drive" className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}><CloudDownload size={18} /> {loading === 'restaurar' ? 'Restaurando...' : 'Restaurar Copia desde Drive'}</button>
-          <button id="btn-logout-google" className="btn-danger" style={{ width: '100%' }} onClick={logout}><LogOut size={16} /> Cerrar sesión de Google</button>
-        </div>
+          <button className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}><Cloud size={18} /> {loading === 'exportar' ? 'Subiendo...' : 'Hacer copia ahora'}</button>
+          <button className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}><CloudDownload size={18} /> {loading === 'restaurar' ? 'Restaurando...' : 'Restaurar desde Drive'}</button>
+          <button className="btn-danger" style={{ width: '100%' }} onClick={() => { clearAccessToken(); setLoggedIn(false); }}><LogOut size={16} /> Desconectar Drive</button>
+        </>
       )}
     </div>
   );
 }
 
-function AjustesGenerales() {
-  const { t } = useAppConfig();
-  const [exportStatus, setExportStatus] = useState('');
-  const [excelExportStatus, setExcelExportStatus] = useState('');
-  const [excelImporting, setExcelImporting] = useState(false);
-  const [logoSrc, setLogoSrc] = useState('/Logo.jpg');
-
-  useEffect(() => {
-    getConfig('logo_data').then(v => { if (v) setLogoSrc(v); });
-    const handler = (e: Event) => { const detail = (e as CustomEvent).detail; if (detail?.src) setLogoSrc(detail.src); };
-    window.addEventListener('logo-updated', handler);
-    return () => window.removeEventListener('logo-updated', handler);
-  }, []);
-
-  async function exportarLocal() {
-    const json = await exportarTodosLosDatos();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `barberia_backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setExportStatus('✓ Archivo descargado');
-    setTimeout(() => setExportStatus(''), 3000);
-  }
-
-  async function importarLocal(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!confirm('¿Restaurar datos? Esto borrará todos los datos actuales.')) return;
-    const text = await file.text();
-    const { restaurarDesdeDatos } = await import('@/lib/business');
-    await restaurarDesdeDatos(text);
-    alert('✓ Datos restaurados correctamente');
-  }
-
-  async function exportarExcel() {
-    setExcelExportStatus('Generando...');
-    try {
-      const { exportToExcel } = await import('@/lib/excel');
-      await exportToExcel();
-      setExcelExportStatus('✓ Archivo Excel descargado');
-      setTimeout(() => setExcelExportStatus(''), 3000);
-    } catch (err) {
-      console.error(err);
-      setExcelExportStatus('Error al exportar');
-      setTimeout(() => setExcelExportStatus(''), 3000);
-    }
-  }
-
-  async function importarExcel(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!confirm('¿Importar datos desde Excel?')) return;
-    setExcelImporting(true);
-    try {
-      const { importFromExcel } = await import('@/lib/excel');
-      const res = await importFromExcel(file);
-      alert(`✓ Datos importados:\n- ${res.importedVentas} Ventas\n- ${res.importedPagos} Pagos/Adelantos\n- ${res.importedGastos} Gastos`);
-    } catch (err) {
-      console.error(err);
-      alert('Error al importar Excel. Revisa el formato del archivo.');
-    }
-    setExcelImporting(false);
-    e.target.value = '';
-  }
+function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
+  const { t, theme, lang, setTheme, setLang } = useAppConfig();
 
   return (
-    <div>
-      <div className="divider-barber" />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Database size={18} color="var(--gold)" />
-        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>Copia Local (JSON)</p>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-        <button id="btn-exportar-local" className="btn-ghost" style={{ width: '100%' }} onClick={exportarLocal}><Download size={18} /> {exportStatus || 'Descargar Backup JSON'}</button>
-        <label id="btn-importar-local" className="btn-ghost" style={{ width: '100%', cursor: 'pointer' }}><CloudDownload size={18} /> Importar Backup JSON<input type="file" accept=".json" style={{ display: 'none' }} onChange={importarLocal} /></label>
-      </div>
-      <div className="divider-barber" />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Database size={18} color="var(--gold)" />
-        <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>Histórico (Excel)</p>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-        <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(76,175,130,0.3)', color: 'var(--success)' }} onClick={exportarExcel}><Download size={18} /> {excelExportStatus || 'Exportar Plantilla Excel'}</button>
-        <label className="btn-ghost" style={{ width: '100%', cursor: excelImporting ? 'default' : 'pointer', borderColor: 'rgba(76,175,130,0.3)', color: 'var(--success)' }}><CloudDownload size={18} /> {excelImporting ? 'Importando...' : 'Importar Datos Excel'}<input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} onChange={importarExcel} disabled={excelImporting} /></label>
-      </div>
-      <div className="divider-barber" />
-      <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--gray-muted)' }}>
-        <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', margin: '0 auto 12px', position: 'relative' }}>
-          <Image src={logoSrc} alt="Logo" fill style={{ objectFit: 'cover' }} onError={() => setLogoSrc('/Logo.jpg')} />
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 className="section-title">{t('appearance')}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
-        <p style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--gold)', marginBottom: 4 }}>Gestión de Barberia</p>
-        <p style={{ fontSize: 12 }}>{t('version')} 1.0.0 — Sistema de Gestión</p>
-        <p style={{ fontSize: 11, marginTop: 4, marginBottom: 20 }}>{t('localSystem')}</p>
-        <button className="btn-danger" style={{ width: '100%', marginBottom: 10 }} onClick={async () => {
-          if (!confirm('Esto borra el caché del navegador pero NO tus datos. ¿Continuar?')) return;
-          try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert('✓ Caché limpiado.'); window.location.reload(); }
-          catch { alert('No se pudo limpiar el caché automáticamente.'); }
-        }}><RefreshCw size={18} /> Limpiar Caché del Navegador</button>
-        <button className="btn-danger" style={{ width: '100%' }} onClick={() => { logoutAll(); window.location.reload(); }}><LogOut size={18} /> Cerrar Sesión de la App</button>
+
+        <div style={{ display: 'grid', gap: 20 }}>
+          <div>
+            <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('theme')}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {(['dark', 'light'] as const).map(opt => (
+                <button key={opt} onClick={() => setTheme(opt)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 14, cursor: 'pointer', border: `2px solid ${theme === opt ? 'var(--gold)' : 'var(--black-border)'}`, background: theme === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: theme === opt ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, transition: 'all 0.2s' }}>
+                  {opt === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
+                  {opt === 'dark' ? t('darkMode') : t('lightMode')}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 6 }}><Globe size={14} /> {t('language')}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: 10 }}>
+              {IDIOMAS.map(({ code, label, flag }) => (
+                <button key={code} onClick={() => setLang(code)} style={{ padding: '12px 10px', borderRadius: 14, cursor: 'pointer', border: `2px solid ${lang === code ? 'var(--gold)' : 'var(--black-border)'}`, background: lang === code ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: lang === code ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 20 }}>{flag}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-const MONEDAS = [
-  { symbol: '€', label: 'Euro (€)' }, { symbol: '$', label: 'Dólar ($)' }, { symbol: '£', label: 'Libra (£)' },
-  { symbol: 'ARS', label: 'Peso Argentino' }, { symbol: 'R$', label: 'Real Brasileño' }, { symbol: 'CLP', label: 'Peso Chileno' },
-  { symbol: 'MXN', label: 'Peso Mexicano' }, { symbol: 'COP', label: 'Peso Colombiano' }, { symbol: 'UYU', label: 'Peso Uruguayo' },
-];
-
-// ─── Modal Finanzas ───────────────────────────────────────────────────────────
 function ModalFinanzas({ onClose }: { onClose: () => void }) {
-  const [comision, setComision] = useState('0');
-  const [moneda, setMoneda] = useState('€');
+  const [moneda, setMoneda] = useState('USD');
+  const [comisionDefecto, setComisionDefecto] = useState('50');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    Promise.all([getConfig('porcentaje_comision_bancaria'), getConfig('moneda')]).then(([c, m]) => {
-      if (c) setComision(c);
-      if (m) setMoneda(m);
-    });
+    getConfig('moneda_codigo').then(v => { if (v) setMoneda(v); });
+    getConfig('comision_defecto_barbero').then(v => { if (v) setComisionDefecto(String(Math.round(Number(v) * 100))); });
   }, []);
 
   async function guardar() {
-    const valor = Number(comision);
-    if (Number.isNaN(valor) || valor < 0 || valor > 100) { setError('Ingresá un porcentaje válido entre 0 y 100.'); return; }
     setSaving(true);
-    await Promise.all([setConfig('porcentaje_comision_bancaria', String(valor)), setConfig('moneda', moneda)]);
+    await setConfig('moneda_codigo', moneda);
+    await setConfig('comision_defecto_barbero', String(Number(comisionDefecto) / 100));
     emitirCambioMoneda(moneda);
     setSaving(false);
     setSuccess(true);
     setTimeout(() => { setSuccess(false); onClose(); }, 1200);
   }
 
-  const ejemploComision = Number(comision) > 0 ? Number(comision) : 0;
-
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Moneda y Finanzas</h2>
+          <h2 className="section-title">Finanzas y Comisiones</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
-        {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Configuración guardada!</p></div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Símbolo de Moneda</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {MONEDAS.map(m => (
-                  <button key={m.symbol} type="button" onClick={() => setMoneda(m.symbol)} style={{ padding: '8px 16px', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', border: '1.5px solid', borderColor: moneda === m.symbol ? 'var(--gold)' : 'var(--black-border)', background: moneda === m.symbol ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.03)', color: moneda === m.symbol ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.15s', minWidth: 52 }}>{m.symbol}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Comisión Bancaria (%)</label>
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                <input className="input-dark" type="number" min="0" max="100" step="0.001" value={comision} onKeyDown={e => { if (['-','e','E','+'].includes(e.key)) e.preventDefault(); }} onChange={e => { setComision(e.target.value); setError(''); }} style={{ flex: 1 }} />
-                <span style={{ fontSize: 18, color: 'var(--white-soft)', fontWeight: 700, width: 20 }}>%</span>
-              </div>
-              <div style={{ marginTop: 12, padding: '14px', borderRadius: 10, background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
-                <p style={{ fontWeight: 600, color: 'var(--gold)', marginBottom: 8 }}>💳 ¿Cómo funciona?</p>
-                <p>Esta comisión se aplica solo a los ingresos por banco/transferencia.</p>
-                <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 8, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, textAlign: 'center' }}>
-                    <div><p style={{ fontSize: 10, color: 'var(--gray-muted)' }}>Bruto banco</p><p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white-soft)' }}>{moneda}100</p></div>
-                    <div><p style={{ fontSize: 10, color: 'var(--gray-muted)' }}>Comisión</p><p style={{ fontSize: 15, fontWeight: 700, color: 'var(--danger)' }}>-{moneda}{ejemploComision.toFixed(3)}</p></div>
-                    <div><p style={{ fontSize: 10, color: 'var(--gray-muted)' }}>Ganancia neta</p><p style={{ fontSize: 15, fontWeight: 700, color: 'var(--success)' }}>{moneda}{(100 - ejemploComision).toFixed(2)}</p></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {error && <p style={{ fontSize: 12, color: 'var(--danger)' }}>{error}</p>}
-            <button className="btn-gold" disabled={saving} onClick={guardar}>{saving ? 'Guardando...' : 'Guardar Configuración'}</button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Divisa de Trabajo</label>
+            <select className="input-dark" value={moneda} onChange={e => setMoneda(e.target.value)} style={{ width: '100%', cursor: 'pointer' }}>
+              <option value="USD">Dólar Estadounidense ($)</option>
+              <option value="ARS">Peso Argentino ($)</option>
+              <option value="EUR">Euro (€)</option>
+              <option value="BRL">Real Brasileño (R$)</option>
+              <option value="COP">Peso Colombiano ($)</option>
+              <option value="MXN">Peso Mexicano ($)</option>
+              <option value="CLP">Peso Chileno ($)</option>
+              <option value="UYU">Peso Uruguayo ($)</option>
+              <option value="PEN">Sol Peruano (S/.)</option>
+            </select>
           </div>
-        )}
+
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Comisión por Defecto para Nuevos Barberos: <strong style={{ color: 'var(--gold)' }}>{comisionDefecto}%</strong></label>
+            <input type="range" min="5" max="100" step="5" value={comisionDefecto} onChange={e => setComisionDefecto(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
+          </div>
+
+          <button className="btn-gold" disabled={saving} onClick={guardar}>
+            {success ? '✓ Cambios Guardados' : saving ? 'Guardando...' : 'Actualizar Configuración'}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
+function DriveSection() {
+  const [backupInfo, setBackupInfo] = useState<{ date: string; size: number } | null>(null);
+  useEffect(() => { getLastBackupInfo().then(setBackupInfo).catch(() => {}); }, []);
 
+  return (
+    <div className="card" style={{ padding: '16px', marginBottom: 24, borderColor: 'rgba(212,175,55,0.15)' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+        <Database size={20} color="var(--gold)" style={{ flexShrink: 0, marginTop: 2 }} />
+        <div style={{ flex: 1 }}>
+          <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', marginBottom: 4 }}>Almacenamiento Local (IndexedDB)</p>
+          <p style={{ fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
+            Tus datos se guardan de forma 100% segura y privada en este dispositivo.
+          </p>
+          {backupInfo && (
+            <p style={{ fontSize: 11, color: 'var(--success)', marginTop: 6, fontWeight: 500 }}>
+              ☁️ Última sincronización con Drive: {backupInfo.date}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-function ModalFondoCaja({ onClose }: { onClose: () => void }) {
-  const { simbolo } = useMoneda();
-  const [monto, setMonto] = useState('');
-  const [motivo, setMotivo] = useState('');
-  const [tipo, setTipo] = useState<'ingreso' | 'egreso'>('ingreso');
+function AjustesGenerales() {
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [fecha, setFecha] = useState<string>(() => {
-    const hoy = new Date();
-    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-  });
 
-  const saldo = useLiveQuery(() => getSaldoFondoCaja(), []);
-  const movimientos = useLiveQuery(() => db.fondo_caja.orderBy('fecha').reverse().limit(15).toArray(), []);
-
-  async function guardar() {
-    if (!monto || !motivo || !fecha) return;
-    const valMonto = Number(monto);
-    if (valMonto <= 0) return;
-    if (tipo === 'egreso' && saldo !== undefined && valMonto > saldo) { alert(`No hay fondos suficientes. Saldo: ${simbolo}${saldo.toFixed(2)}`); return; }
+  async function handleExportJSON() {
     setLoading(true);
-    const [y, m, d] = fecha.split('-').map(Number);
-    await db.fondo_caja.add({ fecha: new Date(y, m - 1, d, 12, 0, 0), monto: valMonto, tipo, motivo });
-    setMonto(''); setMotivo('');
-    setLoading(false);
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 1500);
+    try {
+      const dataStr = await exportarTodosLosDatos();
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup_barberia_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Error al exportar los datos locales.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
-        <div className="modal-handle" style={{ flexShrink: 0 }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexShrink: 0 }}>
-          <h2 className="section-title">Fondo de Caja</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
-        </div>
-        <div className="card-gold pulse-gold" style={{ marginBottom: 12, textAlign: 'center', flexShrink: 0 }}>
-          <p className="stat-label" style={{ marginBottom: 6 }}>💰 Saldo del Fondo de Caja</p>
-          <p className="stat-value gold" style={{ fontSize: 32 }}>{simbolo}{(saldo ?? 0).toFixed(2)}</p>
-        </div>
-        <div className="card" style={{ marginBottom: 12, padding: 14, flexShrink: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)', marginBottom: 12 }}>+ Nuevo Movimiento</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button onClick={() => setTipo('ingreso')} style={{ padding: '10px', borderRadius: 10, border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'var(--black-surface)', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-text)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, fontSize: 12, transition: 'all 0.2s' }}>📥 Agregar Cambio</button>
-              <button onClick={() => setTipo('egreso')} style={{ padding: '10px', borderRadius: 10, border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'var(--black-surface)', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-text)', cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500, fontSize: 12, transition: 'all 0.2s' }}>📤 Retirar / Robo</button>
-            </div>
-            <div><label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Fecha</label><DatePicker value={fecha} onChange={setFecha} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 8 }}>
-              <div><label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Monto</label><input type="number" inputMode="decimal" className="input-dark" placeholder="0.00" min="0.01" max="99999" step="0.01" value={monto} onKeyDown={e => { if (['-','e','E','+'].includes(e.key)) e.preventDefault(); }} onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) setMonto(v); }} /></div>
-              <div><label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Motivo</label><input type="text" className="input-dark" placeholder="Ej: Cambio mañana" maxLength={200} autoComplete="off" value={motivo} onChange={e => setMotivo(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
-            </div>
-            <button className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>{success ? '✓ Registrado' : tipo === 'ingreso' ? 'Agregar Fondo' : 'Descontar del Fondo'}</button>
-          </div>
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--gray-muted)', marginBottom: 8, fontWeight: 600, flexShrink: 0 }}>Últimos Movimientos</p>
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(!movimientos || movimientos.length === 0) && <p style={{ fontSize: 12, color: 'var(--gray-muted)', textAlign: 'center', padding: '12px 0' }}>Sin movimientos registrados</p>}
-            {movimientos?.map(m => (
-              <div key={m.id} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 500 }}>{m.motivo}</p>
-                  <p style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
-                </div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: m.tipo === 'ingreso' ? 'var(--success)' : 'var(--danger)' }}>{m.tipo === 'ingreso' ? '+' : '-'}{simbolo}{m.monto.toFixed(2)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+    <div style={{ marginBottom: 16 }}>
+      <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)' }} onClick={handleExportJSON} disabled={loading}>
+        <Download size={16} /> {loading ? 'Exportando...' : 'Exportar Copia JSON Manual'}
+      </button>
+      <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center', marginTop: 10, lineHeight: 1.4 }}>
+        Versión del Sistema v2.4.0 — Desarrollado para Control Operativo Avanzado de Barberías.
+      </p>
     </div>
   );
 }

@@ -9,8 +9,8 @@ import React, {
   ReactNode,
 } from 'react';
 
-import es from '@/locales/es.json';
-import en from '@/locales/en.json';
+import es from './dictionaries/es.json';
+import en from './dictionaries/en.json';
 import { Locale, isValidLocale } from './types';
 import { LanguageStorageManager } from './LanguageStorage';
 

@@ -3,12 +3,12 @@
  * features/gastos/useGasto.ts
  *
  * Lógica de estado del formulario de registro de gastos.
- * Extraído de ModalGasto en ScreenInicio.tsx.
+ * REGLA: No importa `db` directamente — usa repositorios y casos de uso.
  */
 
 import { useState } from 'react';
-import { db } from '@/lib/db';
-import { isMesBloqueado } from '@/lib/business';
+import { gastosRepository } from '@/infrastructure/repositories/gastos.repository';
+import { isMesBloqueado } from '@/application/meses/mesesService';
 import type { CategoriaGasto } from '@/domain/types';
 
 function fechaHoy(): string {
@@ -23,10 +23,13 @@ interface UseGastoOptions {
 }
 
 export function useGasto({ fechaInicial, gastoEditar, onSuccess }: UseGastoOptions) {
-  const [fecha, setFecha]         = useState(gastoEditar ? (() => {
-    const d = new Date(gastoEditar.fecha);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })() : (fechaInicial ?? fechaHoy()));
+  const [fecha, setFecha] = useState<string>(() => {
+    if (gastoEditar) {
+      const d = new Date(gastoEditar.fecha);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    return fechaInicial ?? fechaHoy();
+  });
   const [categoria, setCategoria] = useState<CategoriaGasto>(gastoEditar?.categoria ?? 'otro');
   const [monto, setMonto]         = useState(gastoEditar ? String(gastoEditar.monto) : '');
   const [descripcion, setDescripcion] = useState(gastoEditar?.descripcion ?? '');
@@ -41,21 +44,21 @@ export function useGasto({ fechaInicial, gastoEditar, onSuccess }: UseGastoOptio
 
     const [y, m, d] = fecha.split('-').map(Number);
     const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
-    const locked = await isMesBloqueado(fechaDate);
-    if (locked) { setError('Este mes está cerrado.'); return; }
+
+    if (await isMesBloqueado(fechaDate)) { setError('Este mes está cerrado.'); return; }
 
     setLoading(true);
     setError('');
     try {
       if (gastoEditar?.id) {
-        await db.gastos_fijos.update(gastoEditar.id, {
+        await gastosRepository.update(gastoEditar.id, {
           fecha: fechaDate,
           categoria,
           monto: valMonto,
           descripcion: descripcion.trim(),
         });
       } else {
-        await db.gastos_fijos.add({
+        await gastosRepository.save({
           fecha: fechaDate,
           categoria,
           monto: valMonto,
@@ -73,10 +76,9 @@ export function useGasto({ fechaInicial, gastoEditar, onSuccess }: UseGastoOptio
   }
 
   async function eliminar(id: number, fechaReg: Date) {
-    const locked = await isMesBloqueado(fechaReg);
-    if (locked) { alert('Mes cerrado.'); return; }
+    if (await isMesBloqueado(fechaReg)) { alert('Mes cerrado.'); return; }
     if (!confirm('¿Eliminar gasto?')) return;
-    await db.gastos_fijos.delete(id);
+    await gastosRepository.delete(id);
     onSuccess();
   }
 
