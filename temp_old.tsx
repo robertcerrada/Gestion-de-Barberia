@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { useGoogleLogin } from '@react-oauth/google';
 import { exportarAGoogleDrive, restaurarDesdeGoogleDrive, setAccessToken, clearAccessToken, DRIVE_SCOPE, getLastBackupInfo, isDriveConnected } from '@/lib/drive';
 import { exportarTodosLosDatos, getSaldoFondoCaja } from '@/lib/business';
-import { getGoogleUser, verifyPin, savePin, isPinConfigured, logoutAll } from '@/lib/auth';
-import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, Sun, Moon, Globe, RefreshCw } from 'lucide-react';
+import { getGoogleUser, verifyPin, savePin, isPinConfigured } from '@/lib/auth';
+import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, Sun, Moon, Globe } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getConfig, setConfig, type Socio, type Adelanto } from '@/lib/db';
 import { DatePicker } from '@/components/ui/DatePicker';
@@ -1321,18 +1321,25 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
 }
 
 function DriveSection() {
+  const [backupInfo, setBackupInfo] = useState<{ date: string; size: number } | null>(null);
+  useEffect(() => { getLastBackupInfo().then(setBackupInfo).catch(() => {}); }, []);
+
   return (
     <div className="card" style={{ padding: '16px', marginBottom: 24, borderColor: 'rgba(212,175,55,0.15)' }}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <Database size={20} color="var(--gold)" style={{ flexShrink: 0, marginTop: 2 }} />
         <div style={{ flex: 1 }}>
-          <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', marginBottom: 4 }}>Google Drive Backup</p>
+          <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', marginBottom: 4 }}>Almacenamiento Local (IndexedDB)</p>
           <p style={{ fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
-            Tus datos se guardan de forma 100% segura. Conectá tu cuenta para habilitar respaldos en la nube.
+            Tus datos se guardan de forma 100% segura y privada en este dispositivo.
           </p>
+          {backupInfo && (
+            <p style={{ fontSize: 11, color: 'var(--success)', marginTop: 6, fontWeight: 500 }}>
+              ☁️ Última sincronización con Drive: {backupInfo.date}
+            </p>
+          )}
         </div>
       </div>
-      <TabDrive />
     </div>
   );
 }
@@ -1362,25 +1369,9 @@ function AjustesGenerales() {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={handleExportJSON} disabled={loading}>
+      <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)' }} onClick={handleExportJSON} disabled={loading}>
         <Download size={16} /> {loading ? 'Exportando...' : 'Exportar Copia JSON Manual'}
       </button>
-      
-      <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={async () => {
-        if (!confirm('¿Estás seguro de limpiar el caché local?')) return;
-        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert('✅ Caché limpiado.'); window.location.reload(); } catch (err) { alert('Error al limpiar caché'); }
-      }}>
-        <RefreshCw size={16} /> Limpiar Caché
-      </button>
-
-      <button className="btn-danger" style={{ width: '100%' }} onClick={() => {
-        if (!confirm('¿Cerrar sesión en este dispositivo?')) return;
-        logoutAll();
-        window.location.reload();
-      }}>
-        <LogOut size={16} /> Cerrar Sesión
-      </button>
-
       <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center', marginTop: 10, lineHeight: 1.4 }}>
         Versión del Sistema v2.4.0 — Desarrollado para Control Operativo Avanzado de Barberías.
       </p>
