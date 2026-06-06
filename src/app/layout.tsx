@@ -94,7 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   var TEMAS = ['dark', 'light'];
   var LANGS = ['es', 'en', 'pt', 'de', 'fr', 'ar'];
   var t = localStorage.getItem('barberia_theme');
-  var l = localStorage.getItem('barberia_lang');
+  var l = localStorage.getItem('barberia_locale') || localStorage.getItem('barberia_lang');
   if (!TEMAS.includes(t)) t = 'dark';
   if (!LANGS.includes(l)) l = 'es';
   document.documentElement.setAttribute('data-theme', t);

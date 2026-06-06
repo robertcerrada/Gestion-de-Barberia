@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { ChevronRight, Percent, ChevronLeft, ChevronDown } from 'lucide-react';
@@ -13,35 +14,24 @@ function mesAnioAFecha(mes: number, anio: number): Date {
   return new Date(anio, mes, 1);
 }
 
-function ClipperIcon({ size = 20, color = '#0a0a0a' }: { size?: number; color?: string }) {
+function ClipperIcon({ size = 20, active = true }: { size?: number; active?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M5 18.5 C3.8 17.2 3.5 15 4.2 13.2 L9.5 4.8 C10.2 3.5 11.8 3.2 13 4 L15.5 5.8 C16.7 6.6 17 8.2 16.2 9.5 L11 18 C10.2 19.3 8.5 19.8 7.2 19.2 L5.8 18.5 Z"
-        fill={color} fillOpacity="0.24"
+    <div style={{ 
+      width: size, 
+      height: size, 
+      position: 'relative', 
+      opacity: active ? 1 : 0.4,
+      filter: active ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' : 'grayscale(100%) drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+      transition: 'all 0.3s'
+    }}>
+      <Image 
+        src="/clipper-3d.png" 
+        alt="Máquina de cortar pelo" 
+        fill 
+        sizes={`${size}px`}
+        style={{ objectFit: 'contain', borderRadius: '50%' }} 
       />
-      <path
-        d="M5 18.5 C3.8 17.2 3.5 15 4.2 13.2 L9.5 4.8 C10.2 3.5 11.8 3.2 13 4 L15.5 5.8 C16.7 6.6 17 8.2 16.2 9.5 L11 18 C10.2 19.3 8.5 19.8 7.2 19.2 L5.8 18.5 Z"
-        stroke={color} strokeWidth="1.8" strokeLinejoin="round"
-      />
-      <rect x="8.5" y="2" width="7" height="3" rx="0.8" transform="rotate(32 8.5 2)" fill={color} fillOpacity="0.45" />
-      <rect x="8.5" y="2" width="7" height="3" rx="0.8" transform="rotate(32 8.5 2)" stroke={color} strokeWidth="1.5" />
-      <line x1="8.2"  y1="1.5" x2="7.2"  y2="3.2" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="10"   y1="1.0" x2="9.0"  y2="2.7" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="11.8" y1="0.8" x2="10.8" y2="2.5" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="13.5" y1="1.0" x2="12.5" y2="2.7" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="15.2" y1="1.6" x2="14.2" y2="3.3" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-      <path
-        d="M9.8 5.5 C10.3 4.6 11.5 4.4 12.3 5 L14.5 6.5 C15.3 7.1 15.4 8.3 14.8 9.2 L12.5 13 C11.9 13.9 10.6 14 9.8 13.3 L8 11.8 C7.2 11.1 7.2 9.9 7.8 9 Z"
-        fill={color} fillOpacity="0.4"
-      />
-      <ellipse
-        cx="10.2" cy="13.5" rx="1.8" ry="1.1"
-        transform="rotate(-58 10.2 13.5)"
-        fill={color} fillOpacity="0.8" stroke={color} strokeWidth="1.2"
-      />
-      <circle cx="6.5" cy="19.5" r="1.0" fill={color} fillOpacity="0.8" />
-    </svg>
+    </div>
   );
 }
 
@@ -150,16 +140,18 @@ export default function ScreenBarberos() {
 
       <div className={styles.barberosList}>
         {barberos?.map(b => (
-          <button
+          <div
             key={b.id}
-            type="button"
             className={`${styles.card} ${selectedBarbero === b.id ? styles.selectedCard : ''} ${(!esMesActual && !b.activo) ? styles.inactiveCard : ''}`}
-            onClick={() => setSelectedBarbero(selectedBarbero === b.id ? null : b.id!)}
           >
-            <div className={styles.cardContent}>
+            <button
+              type="button"
+              className={styles.cardHeaderButton}
+              onClick={() => setSelectedBarbero(selectedBarbero === b.id ? null : b.id!)}
+            >
               <div className={styles.barberoInfo}>
                 <div className={`${styles.avatar} ${b.activo ? styles.avatarActive : styles.avatarInactive}`}>
-                  <ClipperIcon size={40} color={b.activo ? "#0a0a0a" : "var(--gray-muted)"} />
+                  <ClipperIcon size={44} active={b.activo} />
                 </div>
                 <div>
                   <p className={styles.barberoName}>{b.nombre}</p>
@@ -174,17 +166,17 @@ export default function ScreenBarberos() {
                 </div>
               </div>
               <ChevronRight size={18} className={selectedBarbero === b.id ? styles.chevronRotated : styles.chevronBase} />
-            </div>
+            </button>
             {selectedBarbero === b.id && (
               <BarberoDetalle barberoId={b.id!} porcentaje={b.porcentaje_comision} mesFecha={fechaMes} />
             )}
-          </button>
+          </div>
         ))}
 
         {(!barberos || barberos.length === 0) && (
           <div className={styles.emptyState}>
             <div style={{ margin: '0 auto 12px', opacity: 0.3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ClipperIcon size={44} color="var(--gray-muted)" />
+              <ClipperIcon size={48} active={false} />
             </div>
             <p>{esMesActual ? t('noActiveBarbers') : `${t('noActivityMonth')} ${MESES[mesNav]} ${anioNav}`}</p>
           </div>

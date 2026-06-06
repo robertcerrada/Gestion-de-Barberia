@@ -819,13 +819,25 @@ export async function getVentasPorBarberoMes(mes: Date = new Date()) {
 
   const itemMap = new Map(servicios.map(s => [s.id!, s]));
 
+  const totalBarberiaServicios = registros
+    .filter(r => itemMap.get(r.item_id)?.tipo === 'servicio')
+    .reduce((sum, r) => sum + r.monto_total, 0);
+
   return barberos
     .filter(b => b.id)
     .map(b => {
       const ventas = registros.filter(r => r.barbero_id === b.id);
-      const totalServicios = ventas
-        .filter(r => itemMap.get(r.item_id)?.tipo === 'servicio')
-        .reduce((sum, r) => sum + r.monto_total, 0);
+      const detalleServicios: Record<string, number> = {};
+      let totalServicios = 0;
+
+      ventas.forEach(r => {
+        const item = itemMap.get(r.item_id);
+        if (item?.tipo === 'servicio') {
+          totalServicios += r.monto_total;
+          detalleServicios[item.nombre] = (detalleServicios[item.nombre] || 0) + 1;
+        }
+      });
+
       const comision = totalServicios * b.porcentaje_comision;
       const pagado = todosAdelantos
         .filter(a => a.barbero_id === b.id &&
@@ -835,6 +847,8 @@ export async function getVentasPorBarberoMes(mes: Date = new Date()) {
         barberoId: b.id!,
         nombre: b.nombre,
         totalServicios,
+        porcentajeDelTotal: totalBarberiaServicios > 0 ? totalServicios / totalBarberiaServicios : 0,
+        detalleServicios,
         comision,
         porcentaje: b.porcentaje_comision,
         pagado,

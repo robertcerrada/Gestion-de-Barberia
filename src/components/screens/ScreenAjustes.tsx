@@ -25,9 +25,9 @@ export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (no
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
             <Shield size={20} color="var(--gold)" style={{ flexShrink: 0, marginTop: 2 }} />
             <div>
-              <p style={{ fontWeight: 600, marginBottom: 6 }}>Falta Configurar Google</p>
+              <p style={{ fontWeight: 600, marginBottom: 6 }}>{t('googleConfigErrorTitle')}</p>
               <p style={{ fontSize: 13, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
-                Asegúrate de poner tu verdadero <code style={{ background: 'var(--black-surface)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> en <code style={{ background: 'var(--black-surface)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>.env.local</code>.
+                {t('googleConfigErrorDesc1')} <code style={{ background: 'var(--black-surface)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> {t('googleConfigErrorDesc2')} <code style={{ background: 'var(--black-surface)', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>.env.local</code>.
               </p>
             </div>
           </div>
@@ -81,10 +81,10 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
               </div>
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName || 'Usuario'}</p>
-              <p style={{ fontSize: 11, color: 'var(--gray-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail || 'Acceso por PIN'}</p>
+              <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName || t('userLabel')}</p>
+              <p style={{ fontSize: 11, color: 'var(--gray-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail || t('pinAccessLabel')}</p>
             </div>
-            <span className="badge badge-green" style={{ fontSize: 10, flexShrink: 0 }}>● Activo</span>
+            <span className="badge badge-green" style={{ fontSize: 10, flexShrink: 0 }}>● {t('active')}</span>
           </div>
         </div>
       )}
@@ -167,7 +167,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
   async function toggleActivo(b: any) {
     if (!b.id) return;
     await db.barberos.update(b.id, { activo: !b.activo });
-    mostrarMsg(`${b.nombre} ${!b.activo ? 'activado' : 'pausado'}.`, 'success');
+    mostrarMsg(t(!b.activo ? 'barberActivated' : 'barberPaused').replace('{name}', b.nombre), 'success');
   }
 
   async function eliminar(b: any) {
@@ -176,15 +176,15 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
     if (registros > 0) {
       if (b.activo) {
         await db.barberos.update(b.id, { activo: false });
-        mostrarMsg(`${b.nombre} tiene registros. Se marcó como inactivo.`, 'success');
+        mostrarMsg(t('barberHasRecordsInactive').replace('{name}', b.nombre), 'success');
       } else {
-        mostrarMsg(`${b.nombre} tiene registros y no se puede eliminar.`, 'error');
+        mostrarMsg(t('barberHasRecordsCannotDelete').replace('{name}', b.nombre), 'error');
       }
       return;
     }
-    if (!confirm(`¿Eliminar a ${b.nombre} definitivamente?`)) return;
+    if (!confirm(t('barberDeleteConfirm').replace('{name}', b.nombre))) return;
     await db.barberos.delete(b.id);
-    mostrarMsg(`${b.nombre} eliminado.`, 'success');
+    mostrarMsg(t('barberDeleted').replace('{name}', b.nombre), 'success');
   }
 
   return (
@@ -211,7 +211,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
           {barberos?.length === 0 && (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--gray-muted)' }}>
               <Users size={40} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
-              <p style={{ fontSize: 14 }}>No hay barberos registrados</p>
+              <p style={{ fontSize: 14 }}>{t('barbers.noBarbers')}</p>
             </div>
           )}
           {barberos?.map(b => (
@@ -251,7 +251,7 @@ function ModalAddBarbero({ onClose }: { onClose: () => void }) {
   async function guardar() {
     if (!nombre.trim()) return;
     const existe = await db.barberos.filter(b => b.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
-    if (existe) { alert(`Ya existe un barbero llamado "${nombre.trim()}".`); return; }
+    if (existe) { alert(t('barberAlreadyExists').replace('{name}', nombre.trim())); return; }
     setLoading(true);
     await db.barberos.add({ nombre: nombre.trim(), porcentaje_comision: Number(comision) / 100, activo: true });
     setLoading(false);
@@ -276,7 +276,7 @@ function ModalAddBarbero({ onClose }: { onClose: () => void }) {
               <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{comision}%</strong></label>
               <input type="range" min="5" max="100" step="5" value={comision} onChange={e => setComision(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
             </div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : t('addBarber')}</button>
+            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('addBarber')}</button>
           </div>
         )}
       </div>
@@ -294,7 +294,7 @@ function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () =>
   async function guardar() {
     if (!nombre.trim() || !barbero.id) return;
     const existe = await db.barberos.filter(b => b.id !== barbero.id && b.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
-    if (existe) { alert(`Ya existe un barbero llamado "${nombre.trim()}".`); return; }
+    if (existe) { alert(t('barberAlreadyExists').replace('{name}', nombre.trim())); return; }
     setLoading(true);
     await db.barberos.update(barbero.id, { nombre: nombre.trim(), porcentaje_comision: Number(comision) / 100 });
     setLoading(false);
@@ -307,11 +307,11 @@ function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () =>
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Editar Barbero</h2>
+          <h2 className="section-title">{t('editBarberTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Barbero actualizado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('barberUpdated')}</p></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
@@ -319,7 +319,7 @@ function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () =>
               <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{comision}%</strong></label>
               <input type="range" min="5" max="100" step="5" value={comision} onChange={e => setComision(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
             </div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? 'Guardando...' : t('saveChanges')}</button>
+            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
           </div>
         )}
       </div>
@@ -344,8 +344,8 @@ export function ModalGestionServicios({ onClose }: { onClose: () => void }) {
   async function eliminar(item: any) {
     if (!item.id) return;
     const usos = await db.registros_diarios.where('item_id').equals(item.id).count();
-    if (usos > 0) { setMsg({ text: `"${item.nombre}" tiene ${usos} registros y no se puede eliminar.`, type: 'error' }); setTimeout(() => setMsg(null), 4000); return; }
-    if (!confirm(`¿Eliminar "${item.nombre}"?`)) return;
+    if (usos > 0) { setMsg({ text: t('itemHasRecordsCannotDelete').replace('{name}', item.nombre).replace('{usos}', String(usos)), type: 'error' }); setTimeout(() => setMsg(null), 4000); return; }
+    if (!confirm(t('itemDeleteConfirm').replace('{name}', item.nombre))) return;
     await db.servicios_productos.delete(item.id);
   }
 
@@ -447,14 +447,14 @@ function ModalAddItem({ tipo, onClose }: { tipo: 'servicio' | 'producto'; onClos
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{tipo === 'servicio' ? t('serviceName') : t('productName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Precio</label><input className="input-dark" type="number" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('price')}</label><input className="input-dark" type="number" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></div>
             {tipo === 'producto' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('currentStock')}</label><input className="input-dark" type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} /></div>
                 <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('minStock')}</label><input className="input-dark" type="number" min="0" value={stockMin} onChange={e => setStockMin(e.target.value)} /></div>
               </div>
             )}
-            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? 'Guardando...' : t('add')}</button>
+            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? t('saving') : t('add')}</button>
           </div>
         )}
       </div>
@@ -487,22 +487,22 @@ function ModalEditarItem({ item, onClose }: { item: any; onClose: () => void }) 
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">{t('edit')} {item.tipo === 'servicio' ? 'Servicio' : 'Producto'}</h2>
+          <h2 className="section-title">{t('edit')} {item.tipo === 'servicio' ? t('servicio') : t('producto')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Actualizado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('updated')}</p></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre</label><input className="input-dark" type="text" value={nombre} maxLength={100} onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Precio</label><input className="input-dark" type="number" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('name')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('price')}</label><input className="input-dark" type="number" min="0" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} /></div>
             {item.tipo === 'producto' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('currentStock')}</label><input className="input-dark" type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} /></div>
                 <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('minStock')}</label><input className="input-dark" type="number" min="0" value={stockMin} onChange={e => setStockMin(e.target.value)} /></div>
               </div>
             )}
-            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? 'Guardando...' : t('saveChanges')}</button>
+            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
           </div>
         )}
       </div>
@@ -511,6 +511,7 @@ function ModalEditarItem({ item, onClose }: { item: any; onClose: () => void }) 
 }
 
 function ModalFondoCaja({ onClose }: { onClose: () => void }) {
+  const { t, lang } = useAppConfig();
   const [tipo, setTipo] = useState<'ingreso' | 'egreso'>('ingreso');
   const [monto, setMonto] = useState('');
   const [motivo, setMotivo] = useState('');
@@ -543,12 +544,12 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
       <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">📦 Fondo de Caja Chica</h2>
+          <h2 className="section-title">{t('cashFundChicaTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div className="card" style={{ padding: '14px 16px', marginBottom: 16, textAlign: 'center', borderColor: 'rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.03)', flexShrink: 0 }}>
-          <p style={{ fontSize: 11, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Saldo Disponible Actual</p>
+          <p style={{ fontSize: 11, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('currentFundBalanceLabel')}</p>
           <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--gold)', marginTop: 4, fontFamily: 'var(--font-display)' }}>
             ${(saldo ?? 0).toFixed(2)}
           </p>
@@ -556,41 +557,41 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
 
         <div className="card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button onClick={() => setTipo('ingreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'transparent', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-muted)' }}>➕ Aportar Fondo</button>
-            <button onClick={() => setTipo('egreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'transparent', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-muted)' }}>➖ Retirar / Gasto</button>
+            <button onClick={() => setTipo('ingreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'transparent', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-muted)' }}>{t('addFundBtn')}</button>
+            <button onClick={() => setTipo('egreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'transparent', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-muted)' }}>{t('withdrawFundBtn')}</button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Monto ($)</label>
+              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('amountLabelSymbol')}</label>
               <input className="input-dark" type="number" placeholder="0.00" value={monto} onChange={e => setMonto(e.target.value)} />
             </div>
             <div>
-              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Fecha</label>
+              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('dateLabel')}</label>
               <DatePicker value={fecha} onChange={setFecha} />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Motivo / Concepto</label>
+            <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('reasonConceptLabel')}</label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <input className="input-dark" type="text" placeholder="Ej: Cambio inicial del día" value={motivo} onChange={e => setMotivo(e.target.value)} style={{ flex: 1 }} />
+              <input className="input-dark" type="text" placeholder={t('reasonPlaceholderDefault')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ flex: 1 }} />
               <button className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>
-                {success ? '✓ Registrado' : tipo === 'ingreso' ? 'Agregar Fondo' : 'Descontar del Fondo'}
+                {success ? t('registeredBadge') : tipo === 'ingreso' ? t('addFondoBtnText') : t('withdrawFondoBtnText')}
               </button>
             </div>
           </div>
         </div>
 
-        <p style={{ fontSize: 12, color: 'var(--gray-muted)', marginBottom: 8, fontWeight: 600, flexShrink: 0 }}>Últimos Movimientos</p>
+        <p style={{ fontSize: 12, color: 'var(--gray-muted)', marginBottom: 8, fontWeight: 600, flexShrink: 0 }}>{t('lastMovementsLabel')}</p>
         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(!movimientos || movimientos.length === 0) && <p style={{ fontSize: 12, color: 'var(--gray-muted)', textAlign: 'center', padding: '12px 0' }}>Sin movimientos registrados</p>}
+            {(!movimientos || movimientos.length === 0) && <p style={{ fontSize: 12, color: 'var(--gray-muted)', textAlign: 'center', padding: '12px 0' }}>{t('noMovementsRegistered')}</p>}
             {movimientos?.map(m => (
               <div key={m.id} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 500 }}>{m.motivo}</p>
-                  <p style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{new Date(m.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                  <p style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{new Date(m.fecha).toLocaleDateString(lang, { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                 </div>
                 <p style={{ fontSize: 14, fontWeight: 700, color: m.tipo === 'ingreso' ? 'var(--success)' : 'var(--danger)' }}>
                   {m.tipo === 'ingreso' ? '+' : '-'}${m.monto.toFixed(2)}
@@ -605,6 +606,7 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
 }
 
 function ModalGestionSocios({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
   const [showAdd, setShowAdd] = useState(false);
   const [editando, setEditando] = useState<Socio | null>(null);
   const [mensaje, setMensaje] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -623,7 +625,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
   async function toggleActivo(socio: Socio) {
     if (!socio.id) return;
     await db.socios.update(socio.id, { activo: !socio.activo });
-    mostrarMensaje(`${socio.nombre} ${!socio.activo ? 'activado' : 'pausado'}.`, 'success');
+    mostrarMensaje(t(!socio.activo ? 'partnerActivated' : 'partnerPaused').replace('{name}', socio.nombre), 'success');
   }
 
   async function eliminar(socio: Socio) {
@@ -643,15 +645,15 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
     if (tienePagos) {
       if (socio.activo) {
         await db.socios.update(socio.id, { activo: false });
-        mostrarMensaje(`${socio.nombre} tiene pagos/adelantos registrados. Se marcó como inactivo.`, 'success');
+        mostrarMensaje(t('partnerHasPaymentsInactive').replace('{name}', socio.nombre), 'success');
       } else {
-        mostrarMensaje(`${socio.nombre} tiene pagos/adelantos registrados y no se puede eliminar.`, 'error');
+        mostrarMensaje(t('partnerHasPaymentsCannotDelete').replace('{name}', socio.nombre), 'error');
       }
       return;
     }
-    if (!confirm(`¿Eliminar a ${socio.nombre} definitivamente?`)) return;
+    if (!confirm(t('partnerDeleteConfirm').replace('{name}', socio.nombre))) return;
     await db.socios.delete(socio.id);
-    mostrarMensaje(`${socio.nombre} eliminado.`, 'success');
+    mostrarMensaje(t('partnerDeleted').replace('{name}', socio.nombre), 'success');
   }
 
   const totalPorcentaje = todosSocios?.filter(s => s.activo).reduce((sum, s) => sum + s.porcentaje_utilidad, 0) ?? 0;
@@ -663,7 +665,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
       <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">Gestión de Socios</h2>
+          <h2 className="section-title">{t('manageSociosTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
@@ -673,7 +675,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
           background: excede ? 'rgba(224,82,82,0.06)' : exacto ? 'rgba(76,175,130,0.06)' : 'rgba(212,175,55,0.04)',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <p style={{ fontSize: 12, color: 'var(--gray-muted)', fontWeight: 600 }}>DISTRIBUCIÓN ACTIVA</p>
+            <p style={{ fontSize: 12, color: 'var(--gray-muted)', fontWeight: 600 }}>{t('activeDistributionLabel')}</p>
             <p style={{ fontSize: 20, fontWeight: 800, color: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'var(--gold)', fontFamily: 'var(--font-display)' }}>
               {(totalPorcentaje * 100).toFixed(0)}%
             </p>
@@ -682,7 +684,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
             <div style={{ height: '100%', borderRadius: 4, transition: 'width 0.3s ease', width: `${Math.min(totalPorcentaje * 100, 100)}%`, background: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'linear-gradient(90deg, var(--gold-light), var(--gold))' }} />
           </div>
           <p style={{ fontSize: 11, fontWeight: 600, color: excede ? 'var(--danger)' : exacto ? 'var(--success)' : 'var(--warning)' }}>
-            {exacto ? '✓ Distribución perfecta al 100%' : excede ? `⚠ Excede por ${((totalPorcentaje - 1) * 100).toFixed(0)}%` : `Falta asignar ${((1 - totalPorcentaje) * 100).toFixed(0)}% de la utilidad`}
+            {exacto ? t('distributionPerfect') : excede ? t('distributionExceeds').replace('{pct}', ((totalPorcentaje - 1) * 100).toFixed(0)) : t('distributionMissing').replace('{pct}', ((1 - totalPorcentaje) * 100).toFixed(0))}
           </p>
         </div>
 
@@ -694,14 +696,14 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
         )}
 
         <button className="btn-gold" style={{ width: '100%', marginBottom: 10, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
-          <Plus size={18} /> Agregar Nuevo Socio
+          <Plus size={18} /> {t('addNewPartnerBtn')}
         </button>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
           {socios?.length === 0 && (
             <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--gray-muted)' }}>
               <UserCog size={36} style={{ margin: '0 auto 8px', opacity: 0.25 }} />
-              <p style={{ fontSize: 13 }}>No hay socios registrados</p>
+              <p style={{ fontSize: 13 }}>{t('noPartnersRegistered')}</p>
             </div>
           )}
           {socios?.map(s => (
@@ -710,13 +712,13 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                     <p style={{ fontWeight: 600, fontSize: 14 }}>{s.nombre}</p>
-                    {!s.activo && <span className="badge badge-red">Inactivo</span>}
+                    {!s.activo && <span className="badge badge-red">{t('inactive')}</span>}
                   </div>
-                  <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(s.porcentaje_utilidad * 100).toFixed(0)}% de ganancias</span>
+                  <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(s.porcentaje_utilidad * 100).toFixed(0)}% {t('ofEarningsLabel')}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: 'var(--gold)' }} onClick={() => setEditando(s)}>Editar</button>
-                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: s.activo ? 'var(--danger)' : 'var(--success)' }} onClick={() => toggleActivo(s)}>{s.activo ? 'Pausar' : 'Activar'}</button>
+                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: 'var(--gold)' }} onClick={() => setEditando(s)}>{t('edit')}</button>
+                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: s.activo ? 'var(--danger)' : 'var(--success)' }} onClick={() => toggleActivo(s)}>{s.activo ? t('pause') : t('activate')}</button>
                   <button style={{ background: 'none', border: 'none', color: 'var(--danger)', padding: '0 4px', cursor: 'pointer' }} onClick={() => eliminar(s)}><X size={16} /></button>
                 </div>
               </div>
@@ -727,7 +729,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
         {totalInactivos > 0 && (
           <div style={{ marginTop: 12, textAlign: 'center', flexShrink: 0 }}>
             <button className="btn-ghost" style={{ border: 'none', fontSize: 11, minHeight: 24, padding: '4px 12px' }} onClick={() => setMostrarInactivos(!mostrarInactivos)}>
-              {mostrarInactivos ? 'Ocultar socios inactivos' : `Ver ${totalInactivos} socios inactivos`}
+              {mostrarInactivos ? t('hideInactivePartners') : t('showInactivePartners').replace('{count}', String(totalInactivos))}
             </button>
           </div>
         )}
@@ -740,6 +742,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
 }
 
 function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostrarMensaje: (t: string, ty: 'success' | 'error') => void }) {
+  const { t } = useAppConfig();
   const [nombre, setNombre] = useState('');
   const [porcentaje, setPorcentaje] = useState('25');
   const [loading, setLoading] = useState(false);
@@ -749,7 +752,7 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
     setLoading(true);
     const existe = await db.socios.filter(s => s.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
     if (existe) {
-      alert(`Ya existe un socio llamado "${nombre.trim()}".`);
+      alert(t('partnerAlreadyExists').replace('{name}', nombre.trim()));
       setLoading(false);
       return;
     }
@@ -759,7 +762,7 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
       activo: true,
       rol: 'socio'
     } as any);
-    mostrarMensaje('Socio agregado con éxito.', 'success');
+    mostrarMensaje(t('partnerAddedSuccess'), 'success');
     onClose();
   }
 
@@ -768,19 +771,19 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h2 className="section-title">Nuevo Socio</h2>
+          <h2 className="section-title">{t('newPartnerTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullNameLabel')}</label>
             <input className="input-dark" type="text" placeholder="Ej: Carlos Silva" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={80} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje de Utilidad: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('profitPercentageLabel')}: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
             <input type="range" min="1" max="100" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }} />
           </div>
-          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>Agregar Socio</button>
+          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('addPartnerBtnText')}</button>
         </div>
       </div>
     </div>
@@ -788,6 +791,7 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
 }
 
 function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; onClose: () => void; mostrarMensaje: (t: string, ty: 'success' | 'error') => void }) {
+  const { t } = useAppConfig();
   const [nombre, setNombre] = useState(socio.nombre);
   const [porcentaje, setPorcentaje] = useState(() => String(Math.round(socio.porcentaje_utilidad * 100)));
   const [loading, setLoading] = useState(false);
@@ -797,7 +801,7 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
     setLoading(true);
     const existe = await db.socios.filter(s => s.id !== socio.id && s.nombre.toLowerCase() === nombre.trim().toLowerCase()).first();
     if (existe) {
-      alert(`Ya existe otro socio llamado "${nombre.trim()}".`);
+      alert(t('partnerAnotherAlreadyExists').replace('{name}', nombre.trim()));
       setLoading(false);
       return;
     }
@@ -805,7 +809,7 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
       nombre: nombre.trim(),
       porcentaje_utilidad: Number(porcentaje) / 100
     });
-    mostrarMensaje('Socio actualizado.', 'success');
+    mostrarMensaje(t('partnerUpdatedSuccess'), 'success');
     onClose();
   }
 
@@ -814,19 +818,19 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h2 className="section-title">Editar Socio</h2>
+          <h2 className="section-title">{t('editPartnerTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre Completo</label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullNameLabel')}</label>
             <input className="input-dark" type="text" value={nombre} onChange={e => setNombre(e.target.value)} maxLength={80} />
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Porcentaje de Utilidad: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('profitPercentageLabel')}: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
             <input type="range" min="1" max="100" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }} />
           </div>
-          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>Guardar Cambios</button>
+          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('saveChangesBtn')}</button>
         </div>
       </div>
     </div>
@@ -834,6 +838,7 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
 }
 
 function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void; onNombreChange?: (n: string) => void }) {
+  const { t } = useAppConfig();
   const [nombre, setNombre] = useState('');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -849,11 +854,11 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      setLogoMsg('Solo se admiten archivos de imagen.');
+      setLogoMsg(t('logoImageOnlyError'));
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      setLogoMsg('El archivo es demasiado grande (máx. 2 MB).');
+      setLogoMsg(t('logoSizeError'));
       return;
     }
 
@@ -861,7 +866,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
     reader.onload = async (ev) => {
       const dataUrl = ev.target?.result as string;
       if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/')) {
-        setLogoMsg('Formato de logo no válido.');
+        setLogoMsg(t('logoFormatError'));
         return;
       }
 
@@ -869,13 +874,13 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
       const base64Length = dataUrl.length - commaIndex - 1;
       const approxSize = Math.ceil(base64Length * 3 / 4);
       if (approxSize > 2 * 1024 * 1024) {
-        setLogoMsg('El logo es demasiado grande para guardar. Usa una imagen menor a 2 MB.');
+        setLogoMsg(t('logoSaveError'));
         return;
       }
 
       setLogoSrc(dataUrl);
       await setConfig('logo_data', dataUrl);
-      setLogoMsg('✓ Logo actualizado correctamente');
+      setLogoMsg(t('savedBadge') + ' ' + t('logoUpdatedMsg'));
       setTimeout(() => setLogoMsg(''), 3000);
       window.dispatchEvent(new CustomEvent('logo-updated', { detail: { src: dataUrl } }));
     };
@@ -897,7 +902,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Configurar Barbería</h2>
+          <h2 className="section-title">{t('configureBarbershopTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
@@ -912,23 +917,23 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
             }}
               onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '0')}>
-              <span style={{ color: 'white', fontSize: 11, fontWeight: 600, textAlign: 'center' }}>✏️<br />Cambiar</span>
+              <span style={{ color: 'white', fontSize: 11, fontWeight: 600, textAlign: 'center' }}>✏️<br />{t('changeLabel')}</span>
             </div>
           </div>
           <input id="logo-file-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
-          <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 16px', minHeight: 32 }} onClick={() => document.getElementById('logo-file-input')?.click()}>📷 Seleccionar Logo desde el Dispositivo</button>
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 16px', minHeight: 32 }} onClick={() => document.getElementById('logo-file-input')?.click()}>{t('selectLogoDevice')}</button>
           {logoMsg && (
-            <p style={{ fontSize: 12, color: logoMsg.startsWith('✓') ? 'var(--success)' : 'var(--danger)', textAlign: 'center' }}>{logoMsg}</p>
+            <p style={{ fontSize: 12, color: logoMsg.startsWith('✓') || logoMsg.startsWith('Saved') || logoMsg.includes('correctamente') ? 'var(--success)' : 'var(--danger)', textAlign: 'center' }}>{logoMsg}</p>
           )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Nombre de la Barbería</label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('barbershopNameLabel')}</label>
             <input className="input-dark" type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Royal Cuts Barber Shop" />
           </div>
           <button className="btn-gold" disabled={!nombre.trim() || saving} onClick={guardar}>
-            {success ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar Cambios'}
+            {success ? t('savedBadge') : saving ? t('saving') : t('saveChangesBtn')}
           </button>
         </div>
       </div>
@@ -937,6 +942,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
 }
 
 function ModalSeguridad({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
   const [tab, setTab] = useState<'emails' | 'pin' | 'drive'>('emails');
 
   return (
@@ -944,12 +950,12 @@ function ModalSeguridad({ onClose }: { onClose: () => void }) {
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 className="section-title">Seguridad y Acceso</h2>
+          <h2 className="section-title">{t('securityAccessTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 20 }}>
-          {([['emails', '📧 Emails'], ['pin', '🔢 PIN'], ['drive', '☁️ Drive']] as const).map(([id, label]) => (
+          {([['emails', t('emailsTab')], ['pin', t('pinTab')], ['drive', t('driveTab')]] as const).map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} style={{
               padding: '9px 4px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${tab === id ? 'var(--gold)' : 'var(--black-border)'}`,
@@ -969,6 +975,7 @@ function ModalSeguridad({ onClose }: { onClose: () => void }) {
 }
 
 function TabEmails() {
+  const { t } = useAppConfig();
   const [emails, setEmails] = useState('');
   const [nuevo, setNuevo] = useState('');
   const [saving, setSaving] = useState(false);
@@ -993,15 +1000,15 @@ function TabEmails() {
 
   async function agregar() {
     const email = nuevo.trim().toLowerCase();
-    if (!email || !email.includes('@')) { setMsg('Ingresá un email válido.'); return; }
-    if (lista.includes(email)) { setMsg('Ese email ya está en la lista.'); return; }
+    if (!email || !email.includes('@')) { setMsg(t('enterValidEmailError')); return; }
+    if (lista.includes(email)) { setMsg(t('emailAlreadyInListError')); return; }
     const nueva = [...lista, email].join(', ');
     setSaving(true);
     await setConfig('emails_autorizados', nueva);
     setEmails(nueva);
     setNuevo('');
     setSaving(false);
-    setMsg('✓ Email agregado.');
+    setMsg(t('emailAddedSuccess'));
     setTimeout(() => setMsg(''), 3000);
   }
 
@@ -1014,25 +1021,25 @@ function TabEmails() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
-        <p>🔐 <strong style={{ color: 'var(--gold)' }}>Lista blanca de emails</strong></p>
-        <p style={{ marginTop: 4 }}>Solo las cuentas de Google que estén aquí podrán iniciar sesión.</p>
+        <p>🔐 <strong style={{ color: 'var(--gold)' }}>{t('whiteListEmailsLabel')}</strong></p>
+        <p style={{ marginTop: 4 }}>{t('whiteListEmailsDesc')}</p>
         {lista.length === 0 && (
-          <p style={{ marginTop: 6, color: 'var(--danger)', fontWeight: 600 }}>⚠️ Lista vacía — el acceso con Google está BLOQUEADO. Agregá al menos un email.</p>
+          <p style={{ marginTop: 6, color: 'var(--danger)', fontWeight: 600 }}>{t('whiteListEmptyBlocked')}</p>
         )}
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
         <input className="input-dark" type="email" placeholder="email@gmail.com" value={nuevo} onChange={e => { setNuevo(e.target.value); setMsg(''); }} onKeyDown={e => { if (e.key === 'Enter') agregar(); }} style={{ flex: 1 }} />
-        <button className="btn-gold" style={{ padding: '0 16px', minHeight: 44, minWidth: 80 }} disabled={saving} onClick={agregar}><Plus size={16} /> Agregar</button>
+        <button className="btn-gold" style={{ padding: '0 16px', minHeight: 44, minWidth: 80 }} disabled={saving} onClick={agregar}><Plus size={16} /> {t('add')}</button>
       </div>
 
-      {msg && <p style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--success)' : 'var(--danger)' }}>{msg}</p>}
+      {msg && <p style={{ fontSize: 12, color: msg.startsWith('✓') || msg.startsWith('Email') || msg.startsWith('Added') ? 'var(--success)' : 'var(--danger)' }}>{msg}</p>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {lista.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--gray-muted)', fontSize: 13 }}>
             <Mail size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-            <p>Lista vacía — cualquier Google puede entrar</p>
+            <p>{t('whiteListEmptyAllowAll')}</p>
           </div>
         ) : lista.map(email => (
           <div key={email} className="card" style={{ padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1049,6 +1056,7 @@ function TabEmails() {
 }
 
 function TabPin() {
+  const { t } = useAppConfig();
   const [hasPin, setHasPin] = useState(() => isPinConfigured());
   const [pinActual, setPinActual] = useState('');
   const [pinNuevo, setPinNuevo] = useState('');
@@ -1060,15 +1068,15 @@ function TabPin() {
     if (hasPin) {
       try {
         const correcto = await verifyPin(pinActual);
-        if (!correcto) { setError('El PIN actual es incorrecto.'); return; }
+        if (!correcto) { setError(t('pinIncorrectError')); return; }
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'PIN bloqueado temporalmente.');
+        setError(e instanceof Error ? e.message : t('pinBlockedError'));
         return;
       }
     }
 
-    if (pinNuevo.length < 4) { setError('El nuevo PIN debe tener al menos 4 dígitos.'); return; }
-    if (pinNuevo !== pinConfirm) { setError('Los PINs nuevos no coinciden.'); return; }
+    if (pinNuevo.length < 4) { setError(t('pinMinDigitsError')); return; }
+    if (pinNuevo !== pinConfirm) { setError(t('pinsDoNotMatchError')); return; }
 
     await savePin(pinNuevo);
     setSuccess(true);
@@ -1080,19 +1088,19 @@ function TabPin() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>
-        🔢 El PIN es el método de acceso alternativo cuando no hay conexión a internet. Mínimo 4 dígitos.
+        {t('pinHelpText')}
       </div>
 
       {success && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.3)', color: 'var(--success)', fontSize: 13 }}>
-          <CheckCircle2 size={16} /> PIN actualizado correctamente
+          <CheckCircle2 size={16} /> {t('pinUpdatedSuccess')}
         </div>
       )}
 
       {[
-        hasPin ? { label: 'PIN Actual', val: pinActual, setter: setPinActual } : null,
-        { label: 'PIN Nuevo', val: pinNuevo, setter: setPinNuevo },
-        { label: 'Confirmar PIN', val: pinConfirm, setter: setPinConfirm }
+        hasPin ? { label: t('pinActualLabel'), val: pinActual, setter: setPinActual } : null,
+        { label: t('pinNuevoLabel'), val: pinNuevo, setter: setPinNuevo },
+        { label: t('pinConfirmLabel'), val: pinConfirm, setter: setPinConfirm }
       ].map((item) => {
         if (!item) return null;
         const { label, val, setter } = item;
@@ -1105,12 +1113,13 @@ function TabPin() {
       })}
 
       {error && <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>}
-      <button className="btn-gold" onClick={cambiarPin} disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}><KeyRound size={16} /> {hasPin ? 'Cambiar PIN' : 'Configurar PIN'}</button>
+      <button className="btn-gold" onClick={cambiarPin} disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}><KeyRound size={16} /> {hasPin ? t('changePinBtnText') : t('configurePinBtnText')}</button>
     </div>
   );
 }
 
 function TabDrive() {
+  const { t } = useAppConfig();
   const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
   const googleConfigurado = !!(GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes('PON_TU_CLIENT_ID'));
 
@@ -1118,8 +1127,8 @@ function TabDrive() {
     return (
       <div style={{ padding: '16px 0' }}>
         <div style={{ padding: '14px', borderRadius: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.25)', fontSize: 13, color: 'var(--danger)', lineHeight: 1.6 }}>
-          <p style={{ fontWeight: 600, marginBottom: 6 }}>⚠ Google no está configurado</p>
-          <p>Para activar Google Drive y el login con Google, necesitás configurar tu <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> en el archivo <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>.env.local</code>.</p>
+          <p style={{ fontWeight: 600, marginBottom: 6 }}>{t('googleNotConfiguredTitle')}</p>
+          <p>{t('googleNotConfiguredDesc1')} <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> {t('googleNotConfiguredDesc2')} <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 5px', borderRadius: 4 }}>.env.local</code>.</p>
         </div>
       </div>
     );
@@ -1128,6 +1137,7 @@ function TabDrive() {
 }
 
 function TabDriveEnabled() {
+  const { t } = useAppConfig();
   const [loggedIn, setLoggedIn] = useState(false);
   const [loading, setLoading] = useState('');
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -1161,8 +1171,8 @@ function TabDriveEnabled() {
 
   const login = useGoogleLogin({
     scope: DRIVE_SCOPE,
-    onSuccess: res => { setAccessToken(res.access_token); setLoggedIn(true); mostrarMsg('✓ Conectado a Google Drive', 'success'); cargarInfoBackup(); },
-    onError: () => mostrarMsg('Error al conectar con Google', 'error'),
+    onSuccess: res => { setAccessToken(res.access_token); setLoggedIn(true); mostrarMsg(t('savedBadge') + ' ' + t('googleDriveConnectedTitle'), 'success'); cargarInfoBackup(); },
+    onError: () => mostrarMsg(t('googleConnectError'), 'error'),
   });
 
   function mostrarMsg(text: string, type: 'success' | 'error') {
@@ -1173,16 +1183,16 @@ function TabDriveEnabled() {
   async function exportar() {
     setLoading('exportar');
     const res = await exportarAGoogleDrive();
-    mostrarMsg(res.message, res.success ? 'success' : 'error');
+    mostrarMsg(res.success ? t('backupSuccess') : res.message, res.success ? 'success' : 'error');
     setLoading('');
     if (res.success) cargarInfoBackup();
   }
 
   async function restaurar() {
-    if (!confirm('¿Estás seguro? Esto reemplazará TODOS los datos locales con la copia de Drive.')) return;
+    if (!confirm(t('restoreConfirm'))) return;
     setLoading('restaurar');
     const res = await restaurarDesdeGoogleDrive();
-    mostrarMsg(res.message, res.success ? 'success' : 'error');
+    mostrarMsg(res.success ? t('restoreSuccess') : res.message, res.success ? 'success' : 'error');
     setLoading('');
   }
 
@@ -1197,21 +1207,21 @@ function TabDriveEnabled() {
 
       {!loggedIn ? (
         <>
-          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>☁️ Conectá tu cuenta de Google para hacer copias de seguridad automáticas al cerrar cada mes.</div>
-          <button className="btn-gold" style={{ width: '100%' }} onClick={() => login()}><LogIn size={18} /> Conectar Google Drive</button>
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>{t('driveHelpText')}</div>
+          <button className="btn-gold" style={{ width: '100%' }} onClick={() => login()}><LogIn size={18} /> {t('connectGoogleDriveBtn')}</button>
         </>
       ) : (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.08)', border: '1px solid rgba(76,175,130,0.2)' }}>
             <CheckCircle2 size={16} color="var(--success)" />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Conectado a Google Drive</p>
-              {lastBackup && <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>Último backup: {lastBackup.date} ({lastBackup.size} KB)</p>}
+              <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>{t('googleDriveConnectedTitle')}</p>
+              {lastBackup && <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>{t('lastBackupLabel').replace('{date}', lastBackup.date).replace('{size}', String(lastBackup.size))}</p>}
             </div>
           </div>
-          <button className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}><Cloud size={18} /> {loading === 'exportar' ? 'Subiendo...' : 'Hacer copia ahora'}</button>
-          <button className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}><CloudDownload size={18} /> {loading === 'restaurar' ? 'Restaurando...' : 'Restaurar desde Drive'}</button>
-          <button className="btn-danger" style={{ width: '100%' }} onClick={() => { clearAccessToken(); setLoggedIn(false); }}><LogOut size={16} /> Desconectar Drive</button>
+          <button className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}><Cloud size={18} /> {loading === 'exportar' ? t('saving') : t('backupNowBtnText')}</button>
+          <button className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}><CloudDownload size={18} /> {loading === 'restaurar' ? t('saving') : t('restoreFromDriveBtnText')}</button>
+          <button className="btn-danger" style={{ width: '100%' }} onClick={() => { clearAccessToken(); setLoggedIn(false); }}><LogOut size={16} /> {t('disconnectDriveBtnText')}</button>
         </>
       )}
     </div>
@@ -1261,6 +1271,7 @@ function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
 }
 
 function ModalFinanzas({ onClose }: { onClose: () => void }) {
+  const { t } = useAppConfig();
   const [moneda, setMoneda] = useState('USD');
   const [comisionDefecto, setComisionDefecto] = useState('50');
   const [saving, setSaving] = useState(false);
@@ -1286,33 +1297,33 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Finanzas y Comisiones</h2>
+          <h2 className="section-title">{t('financesCommissionsTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Divisa de Trabajo</label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('mainCurrencyLabel')}</label>
             <select className="input-dark" value={moneda} onChange={e => setMoneda(e.target.value)} style={{ width: '100%', cursor: 'pointer' }}>
-              <option value="USD">Dólar Estadounidense ($)</option>
-              <option value="ARS">Peso Argentino ($)</option>
-              <option value="EUR">Euro (€)</option>
-              <option value="BRL">Real Brasileño (R$)</option>
-              <option value="COP">Peso Colombiano ($)</option>
-              <option value="MXN">Peso Mexicano ($)</option>
-              <option value="CLP">Peso Chileno ($)</option>
-              <option value="UYU">Peso Uruguayo ($)</option>
-              <option value="PEN">Sol Peruano (S/.)</option>
+              <option value="USD">{t('currencyUSD')} ($)</option>
+              <option value="ARS">{t('currencyARS')} ($)</option>
+              <option value="EUR">{t('currencyEUR')} (€)</option>
+              <option value="BRL">{t('currencyBRL')} (R$)</option>
+              <option value="COP">{t('currencyCOP')} ($)</option>
+              <option value="MXN">{t('currencyMXN')} ($)</option>
+              <option value="CLP">{t('currencyCLP')} ($)</option>
+              <option value="UYU">{t('currencyUYU')} ($)</option>
+              <option value="PEN">{t('currencyPEN')} (S/.)</option>
             </select>
           </div>
 
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Comisión por Defecto para Nuevos Barberos: <strong style={{ color: 'var(--gold)' }}>{comisionDefecto}%</strong></label>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')} ({t('newBarber')}): <strong style={{ color: 'var(--gold)' }}>{comisionDefecto}%</strong></label>
             <input type="range" min="5" max="100" step="5" value={comisionDefecto} onChange={e => setComisionDefecto(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
           </div>
 
           <button className="btn-gold" disabled={saving} onClick={guardar}>
-            {success ? '✓ Cambios Guardados' : saving ? 'Guardando...' : 'Actualizar Configuración'}
+            {success ? t('savedCorrectly') : saving ? t('saving') : t('updateConfigBtnText')}
           </button>
         </div>
       </div>
@@ -1321,14 +1332,15 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
 }
 
 function DriveSection() {
+  const { t } = useAppConfig();
   return (
     <div className="card" style={{ padding: '16px', marginBottom: 24, borderColor: 'rgba(212,175,55,0.15)' }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 16 }}>
         <Database size={20} color="var(--gold)" style={{ flexShrink: 0, marginTop: 2 }} />
         <div style={{ flex: 1 }}>
-          <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', marginBottom: 4 }}>Google Drive Backup</p>
+          <p style={{ fontWeight: 600, fontSize: 14, color: 'var(--white-soft)', marginBottom: 4 }}>{t('googleDriveBackupLabel')}</p>
           <p style={{ fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.5 }}>
-            Tus datos se guardan de forma 100% segura. Conectá tu cuenta para habilitar respaldos en la nube.
+            {t('googleDriveBackupDesc')}
           </p>
         </div>
       </div>
@@ -1338,6 +1350,7 @@ function DriveSection() {
 }
 
 function AjustesGenerales() {
+  const { t } = useAppConfig();
   const [loading, setLoading] = useState(false);
 
   async function handleExportJSON() {
@@ -1354,7 +1367,7 @@ function AjustesGenerales() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      alert('Error al exportar los datos locales.');
+      alert(t('exportLocalError'));
     } finally {
       setLoading(false);
     }
@@ -1363,26 +1376,26 @@ function AjustesGenerales() {
   return (
     <div style={{ marginBottom: 16 }}>
       <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={handleExportJSON} disabled={loading}>
-        <Download size={16} /> {loading ? 'Exportando...' : 'Exportar Copia JSON Manual'}
+        <Download size={16} /> {loading ? t('exporting') : t('exportManualBackupBtnText')}
       </button>
       
       <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={async () => {
-        if (!confirm('¿Estás seguro de limpiar el caché local?')) return;
-        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert('✅ Caché limpiado.'); window.location.reload(); } catch (err) { alert('Error al limpiar caché'); }
+        if (!confirm(t('clearCacheConfirm'))) return;
+        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert(t('cacheClearedSuccess')); window.location.reload(); } catch (err) { alert(t('cacheClearError')); }
       }}>
-        <RefreshCw size={16} /> Limpiar Caché
+        <RefreshCw size={16} /> {t('clearCacheBtnText')}
       </button>
 
       <button className="btn-danger" style={{ width: '100%' }} onClick={() => {
-        if (!confirm('¿Cerrar sesión en este dispositivo?')) return;
+        if (!confirm(t('logoutDeviceConfirm'))) return;
         logoutAll();
         window.location.reload();
       }}>
-        <LogOut size={16} /> Cerrar Sesión
+        <LogOut size={16} /> {t('logoutDeviceBtnText')}
       </button>
 
       <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center', marginTop: 10, lineHeight: 1.4 }}>
-        Versión del Sistema v2.4.0 — Desarrollado para Control Operativo Avanzado de Barberías.
+        {t('systemVersionLabel').replace('{version}', '2.4.0')}
       </p>
     </div>
   );

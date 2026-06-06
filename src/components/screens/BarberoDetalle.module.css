@@ -1,0 +1,117 @@
+.container {
+  padding: 0 16px 14px 16px;
+  border-top: 1px dashed var(--black-border);
+  margin-top: 2px;
+  animation: slideDown 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.statCard {
+  background: var(--black-card);
+  border: 1px solid var(--black-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: transform 0.2s;
+}
+
+.statCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212,175,55,0.15);
+}
+
+.balanceCard {
+  grid-column: span 2;
+  background: linear-gradient(135deg, rgba(212,175,55,0.05), transparent);
+}
+
+.statLabel {
+  font-size: 10px;
+  color: var(--gray-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--white-soft);
+  line-height: 1.1;
+}
+
+.balanceSubtext {
+  font-size: 12px;
+  margin-top: 6px;
+  color: var(--gray-muted);
+}
+
+.advancesSection {
+  margin-top: 24px;
+}
+
+.sectionTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--white-soft);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.advancesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.advanceItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--black-card);
+  border-radius: 10px;
+  border: 1px solid var(--black-border);
+}
+
+.advanceMotive {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--white-soft);
+}
+
+.advanceDate {
+  font-size: 12px;
+  color: var(--gray-muted);
+  margin-top: 2px;
+}
+
+.advanceAmount {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--danger);
+  font-family: var(--font-display);
+}
+
+.note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--gray-muted);
+  font-style: italic;
+  text-align: center;
+}

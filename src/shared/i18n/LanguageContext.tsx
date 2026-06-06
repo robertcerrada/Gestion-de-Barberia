@@ -11,6 +11,10 @@ import React, {
 
 import es from './dictionaries/es.json';
 import en from './dictionaries/en.json';
+import pt from './dictionaries/pt.json';
+import de from './dictionaries/de.json';
+import fr from './dictionaries/fr.json';
+import ar from './dictionaries/ar.json';
 import { Locale, isValidLocale } from './types';
 import { LanguageStorageManager } from './LanguageStorage';
 
@@ -21,16 +25,7 @@ type NestedMessages = {
   [key: string]: string | NestedMessages;
 };
 
-// Acceso por ruta con puntos: "appointments.status.pending"
-type DotPath<T, Prefix extends string = ''> = {
-  [K in keyof T & string]: T[K] extends string
-    ? `${Prefix}${K}`
-    : T[K] extends object
-    ? DotPath<T[K], `${Prefix}${K}.`>
-    : never;
-}[keyof T & string];
-
-export type TranslationKey = DotPath<typeof es>;
+export type TranslationKey = string;
 
 interface LanguageContextValue {
   locale: Locale;
@@ -40,7 +35,7 @@ interface LanguageContextValue {
 
 // ─── Diccionarios ─────────────────────────────────────────────────────────────
 
-const dictionaries: Record<Locale, NestedMessages> = { es, en };
+const dictionaries: Record<Locale, NestedMessages> = { es, en, pt, de, fr, ar };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -95,6 +90,13 @@ export function LanguageProvider({
     return unsubscribe;
   }, []);
 
+  // Aplicar atributos al <html> cada vez que cambia el idioma
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('lang', locale);
+    document.documentElement.setAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr');
+  }, [locale]);
+
   // Callback para cambiar idioma
   const setLocale = useCallback((newLocale: Locale) => {
     if (!isValidLocale(newLocale)) {
@@ -147,6 +149,7 @@ export function LanguageProvider({
     </LanguageContext.Provider>
   );
 }
+
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 

@@ -5,6 +5,8 @@ import { db } from '@/lib/db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { getComisionBrutaMes, getAdelantosMes, getSaldoDisponibleBarbero } from '@/lib/business';
 
+import styles from './BarberoDetalle.module.css';
+
 export default function BarberoDetalle({ barberoId, mesFecha = new Date() }: { barberoId: number; porcentaje: number; mesFecha?: Date }) {
   const { simbolo } = useMoneda();
   const { t } = useAppConfig();
@@ -68,58 +70,58 @@ export default function BarberoDetalle({ barberoId, mesFecha = new Date() }: { b
   }, [barberoId, mesFecha]);
 
   return (
-    <div className="barbero-detalle">
-      <div className="stats-grid">
-        <div className="stat-card">
-          <span className="stat-label">{t('generated')}</span>
-          <span className="stat-value gold">{formatCurrency(ingresosBarbero)}</span>
+    <div className={styles.container}>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>{t('generated')}</span>
+          <span className={`${styles.statValue} ${styles.goldText}`} style={{ color: 'var(--gold)' }}>{formatCurrency(ingresosBarbero)}</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-label">{t('grossCommission')}</span>
-          <span className="stat-value gold">{formatCurrency(comision)}</span>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>{t('grossCommission')}</span>
+          <span className={`${styles.statValue} ${styles.goldText}`} style={{ color: 'var(--gold)' }}>{formatCurrency(comision)}</span>
         </div>
-        <div className="stat-card">
-          <span className="stat-label">{t('advancesPaid')}</span>
-          <span className="stat-value red">{formatCurrency(Adelantos)}</span>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>{t('advancesPaid')}</span>
+          <span className={styles.statValue} style={{ color: 'var(--danger)' }}>{formatCurrency(Adelantos)}</span>
         </div>
-        <div className="stat-card" style={{ borderColor: saldo > 0 ? 'rgba(76,175,130,0.3)' : saldo === 0 ? 'rgba(212,175,55,0.3)' : 'rgba(224,82,82,0.3)' }}>
-          <span className="stat-label">{t('netBalance2')}</span>
-          <span className="stat-value" style={{ color: saldo > 0 ? 'var(--success)' : saldo === 0 ? 'var(--gold)' : 'var(--danger)' }}>
+        <div className={`${styles.statCard} ${styles.balanceCard}`} style={{ borderColor: saldo > 0 ? 'rgba(76,175,130,0.3)' : saldo === 0 ? 'rgba(212,175,55,0.3)' : 'rgba(224,82,82,0.3)' }}>
+          <span className={styles.statLabel}>{t('netBalance2')}</span>
+          <span className={styles.statValue} style={{ color: saldo > 0 ? 'var(--success)' : saldo === 0 ? 'var(--gold)' : 'var(--danger)' }}>
             {saldo > 0 ? '+' : ''}{formatCurrency(saldo)}
           </span>
-          <p className="balance-subtext" style={{ color: saldo >= 0 ? 'var(--gray-muted)' : 'var(--danger)' }}>
+          <p className={styles.balanceSubtext} style={{ color: saldo >= 0 ? 'var(--gray-muted)' : 'var(--danger)' }}>
             {saldo >= 0 ? t('commissionGenMinusAdv') : t('advanceExceedsComm')}
           </p>
           {saldo > 0 && (
-            <p className="balance-subtext success">{t('canStillCollect')} {formatCurrency(saldo)}</p>
+            <p className={styles.balanceSubtext} style={{ color: 'var(--success)' }}>{t('canStillCollect')} {formatCurrency(saldo)}</p>
           )}
           {saldo < 0 && (
-            <p className="balance-subtext danger">{t('advanceExceedsBy')} {formatCurrency(Math.abs(saldo))}</p>
+            <p className={styles.balanceSubtext} style={{ color: 'var(--danger)' }}>{t('advanceExceedsBy')} {formatCurrency(Math.abs(saldo))}</p>
           )}
           {saldo === 0 && (
-            <p className="balance-subtext gold">{t('zeroBalance')}</p>
+            <p className={styles.balanceSubtext} style={{ color: 'var(--gold)' }}>{t('zeroBalance')}</p>
           )}
         </div>
       </div>
 
-      <div className="advances-section">
-        <p className="section-title">{t('advanceHistory')}</p>
+      <div className={styles.advancesSection}>
+        <p className={styles.sectionTitle}>{t('advanceHistory')}</p>
         {listaAdelantos.length === 0 ? (
-          <p className="text-hint italic">{t('noAdvancesMonth')}</p>
+          <p className={styles.note}>{t('noAdvancesMonth')}</p>
         ) : (
-          <div className="advances-list">
+          <div className={styles.advancesList}>
             {listaAdelantos.map((a) => (
-              <div key={a.id} className="advance-item">
+              <div key={a.id} className={styles.advanceItem}>
                 <div>
-                  <p className="advance-motive">{a.motivo}</p>
-                  <p className="advance-date">📅 {new Date(a.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
+                  <p className={styles.advanceMotive}>{a.motivo}</p>
+                  <p className={styles.advanceDate}>📅 {new Date(a.fecha).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
                 </div>
-                <span className="advance-amount">-{formatCurrency(a.monto)}</span>
+                <span className={styles.advanceAmount}>-{formatCurrency(a.monto)}</span>
               </div>
             ))}
           </div>
         )}
-        <p className="text-hint note">{t('productsNoBenefit')}</p>
+        <p className={styles.note}>{t('productsNoBenefit')}</p>
       </div>
     </div>
   );

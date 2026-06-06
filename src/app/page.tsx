@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Home, BarChart3, Settings } from 'lucide-react';
+import { Home, BarChart3, Settings, Sun, Moon } from 'lucide-react';
 import { seedInitialData, getConfig } from '@/lib/db';
 import { getAppToken, setAppToken } from '@/lib/auth';
 import { useAppConfig } from '@/lib/useAppConfig';
@@ -129,38 +129,147 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
   errorCarga: string | null;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh gap-6"
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-noise-texture relative overflow-hidden"
       style={{ background: 'var(--black-deep)' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '0 24px', textAlign: 'center' }}>
+      
+      {/* Estilos locales para las animaciones premium */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes premiumShimmer {
+          0% { transform: translateX(-150%); }
+          50% { transform: translateX(100%); }
+          100% { transform: translateX(150%); }
+        }
+        @keyframes luxuryScale {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(212,175,55,0.25)); }
+          50% { transform: scale(1.03); filter: drop-shadow(0 0 35px rgba(212,175,55,0.4)); }
+        }
+        @keyframes fadeInCascade {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}} />
+
+      {/* Luces de fondo ambientales */}
+      <div className="ambient-glow" style={{ zIndex: 0 }} />
+
+      {/* Contenido principal con animación de entrada */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        gap: 24, 
+        padding: '0 24px', 
+        textAlign: 'center',
+        zIndex: 10,
+        animation: 'fadeInCascade 1s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+      }}>
+        {/* Anillo exterior del Logo */}
         <div style={{
-          width: 72, height: 72, borderRadius: '50%', overflow: 'hidden',
-          boxShadow: '0 0 40px rgba(212,175,55,0.4)',
-          animation: errorCarga ? 'none' : 'goldPulse 2s ease infinite',
+          position: 'relative',
+          width: 104,
+          height: 104,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(10, 10, 10, 0.6)',
+          border: '1.5px solid rgba(212, 175, 55, 0.18)',
+          boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.8)',
+          animation: errorCarga ? 'none' : 'luxuryScale 3s ease-in-out infinite',
         }}>
-          <AppLogo size={72} src={logoSrc} />
+          {/* Anillo interior giratorio o decorativo */}
+          <div style={{
+            position: 'absolute',
+            inset: 6,
+            borderRadius: '50%',
+            border: '1px dashed rgba(212, 175, 55, 0.35)',
+            opacity: 0.8,
+          }} />
+          
+          <div style={{
+            width: 80, 
+            height: 80, 
+            borderRadius: '50%', 
+            overflow: 'hidden',
+            border: '2px solid var(--gold)',
+            position: 'relative',
+            zIndex: 2,
+          }}>
+            <AppLogo size={80} src={logoSrc} />
+          </div>
         </div>
-        <div>
-          <p style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: 'var(--gold)', letterSpacing: '-0.01em' }}>
-            {nombreBarberia}
-          </p>
+
+        {/* Bloque de texto */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div>
+            <h1 className="text-gradient-gold" style={{ 
+              fontFamily: 'var(--font-display)', 
+              fontSize: 34, 
+              fontWeight: 700, 
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2,
+              marginBottom: 4
+            }}>
+              {nombreBarberia}
+            </h1>
+            
+            {/* Ornamentación clásica */}
+            <div className="ornament-separator" style={{ width: 140, margin: '8px auto 0', opacity: 0.5 }}>
+              <span style={{ fontSize: 8 }}>♦</span>
+              <span style={{ fontSize: 10 }}>✂</span>
+              <span style={{ fontSize: 8 }}>♦</span>
+            </div>
+          </div>
+
           {errorCarga ? (
-            <>
-              <p style={{ fontSize: 13, color: '#E05252', marginTop: 10, maxWidth: 280, lineHeight: 1.5 }}>
+            <div style={{ animation: 'fadeInCascade 0.5s ease forwards', marginTop: 8 }}>
+              <p style={{ fontSize: 13, color: '#E05252', maxWidth: 280, lineHeight: 1.5, margin: '0 auto 12px' }}>
                 ⚠️ {errorCarga}
               </p>
               <button
                 onClick={() => window.location.reload()}
+                className="btn-gold"
                 style={{
-                  marginTop: 16, padding: '10px 24px', borderRadius: 10,
-                  background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)',
-                  color: 'var(--gold)', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  minHeight: 40,
+                  padding: '8px 24px',
+                  fontSize: 13,
+                  margin: '0 auto',
                 }}
               >
-                🔄 Recargar
+                🔄 Recargar Aplicación
               </button>
-            </>
+            </div>
           ) : (
-            <p style={{ fontSize: 12, color: 'var(--gray-muted)', marginTop: 4 }}>Cargando sistema...</p>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 12 }}>
+              {/* Barra de progreso de lujo */}
+              <div style={{ 
+                width: 120, 
+                height: 2, 
+                background: 'rgba(255, 255, 255, 0.05)', 
+                borderRadius: 1, 
+                overflow: 'hidden', 
+                position: 'relative' 
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  height: '100%',
+                  width: '60%',
+                  background: 'linear-gradient(90deg, transparent, var(--gold), transparent)',
+                  animation: 'premiumShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite'
+                }} />
+              </div>
+              <p style={{ 
+                fontSize: 10, 
+                color: 'var(--gray-muted)', 
+                letterSpacing: '0.15em', 
+                textTransform: 'uppercase',
+                fontWeight: 600
+              }}>
+                Cargando Sistema
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -172,7 +281,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
 export default function Page() {
   const [activeTab, setActiveTab] = useState<Tab>('inicio');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const { t } = useAppConfig();
+  const { t, theme, setTheme } = useAppConfig();
 
   const { ready, errorCarga, nombreBarberia, setNombreBarberia, logoSrc } = useAppLoader();
 
@@ -237,9 +346,23 @@ export default function Page() {
             {nombreBarberia}
           </span>
         </div>
-        <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>
-          {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>
+            {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+          </span>
+          <button 
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            style={{
+              background: 'transparent', border: '1px solid var(--black-border)',
+              borderRadius: '50%', width: 32, height: 32,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--gold)', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+            aria-label="Toggle Theme"
+          >
+            {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
+        </div>
       </header>
 
       {/* Screen Content */}

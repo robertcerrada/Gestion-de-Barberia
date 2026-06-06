@@ -92,6 +92,18 @@ export default function ScreenPanel() {
   const hoy = new Date();
   const esMesActual = selectedMes === hoy.getMonth() && selectedYear === hoy.getFullYear();
 
+  const serviciosTotalesBarberia = useMemo(() => {
+    const total: Record<string, number> = {};
+    ventasBarbero.forEach(vb => {
+      if (vb.detalleServicios) {
+        Object.entries(vb.detalleServicios).forEach(([nombre, cantidad]) => {
+          total[nombre] = (total[nombre] || 0) + cantidad;
+        });
+      }
+    });
+    return Object.entries(total).sort((a, b) => b[1] - a[1]);
+  }, [ventasBarbero]);
+
   function navAnterior() {
     if (selectedMes === 0) { setSelectedMes(11); setSelectedYear(a => a - 1); }
     else setSelectedMes(m => m - 1);
@@ -176,7 +188,7 @@ export default function ScreenPanel() {
   }, [cargarDatos]);
 
   async function handleReabrirMes() {
-    if (!confirm(`¿Estás seguro de que deseas reabrir ${MESES[selectedMes]} ${selectedYear}?`)) return;
+    if (!confirm(t('reopenMonthConfirm').replace('{month}', MESES[selectedMes]).replace('{year}', String(selectedYear)))) return;
     setReabriendo(true);
     try {
       await reabrirMes(fecha);
@@ -674,14 +686,14 @@ export default function ScreenPanel() {
       pagado:    PAD + 530,
       pendiente: W - PAD - 8,
     };
-    sectionHeader('💈 Ingresos por Barbero');
+    sectionHeader(t('incomeByBarber'));
     tableHeader([
-      { text: 'Barbero',   x: COL.nombre },
+      { text: t('barberLabel'),   x: COL.nombre },
       { text: '%',         x: COL.pct,       align: 'right' },
-      { text: 'Total',     x: COL.total,     align: 'right' },
-      { text: 'Comisión',  x: COL.comision,  align: 'right' },
-      { text: 'Pagado',    x: COL.pagado,    align: 'right' },
-      { text: 'Pendiente', x: COL.pendiente, align: 'right' },
+      { text: t('totalLabel'),     x: COL.total,     align: 'right' },
+      { text: t('commission2'),  x: COL.comision,  align: 'right' },
+      { text: t('paid'),    x: COL.pagado,    align: 'right' },
+      { text: t('pending'), x: COL.pendiente, align: 'right' },
     ]);
     let rowIdx = 0;
     for (const vb of ventasBarbero.filter(v => v.totalServicios > 0)) {
@@ -702,7 +714,7 @@ export default function ScreenPanel() {
     if (ventasProductos > 0) {
       ctx.font = '12px "Segoe UI", system-ui';
       tableRow([
-        { text: 'La Barberia (Productos)', x: COL.nombre, color: '#1565c0' },
+        { text: t('shopProducts'), x: COL.nombre, color: '#1565c0' },
         { text: '—', x: COL.pct,       align: 'right', color: '#aaa' },
         { text: `${formatCurrency(ventasProductos)}`, x: COL.total, align: 'right', color: '#1565c0' },
         { text: '—', x: COL.comision,  align: 'right', color: '#aaa' },
@@ -713,12 +725,12 @@ export default function ScreenPanel() {
     y += 12;
 
     // ── TABLA GASTOS ──
-    sectionHeader('📋 Gastos del Mes');
+    sectionHeader(t('monthExpenses'));
     tableHeader([
-      { text: 'Fecha',       x: PAD + 8 },
-      { text: 'Categoría',   x: PAD + 100 },
-      { text: 'Descripción', x: PAD + 240 },
-      { text: 'Monto',       x: W - PAD - 8, align: 'right' },
+      { text: t('dateLabel'),       x: PAD + 8 },
+      { text: t('categoryLabel'),   x: PAD + 100 },
+      { text: t('descriptionLabel'), x: PAD + 240 },
+      { text: t('amountLabel'),       x: W - PAD - 8, align: 'right' },
     ]);
     rowIdx = 0;
     for (const g of gastosDetallados.slice(0, 8)) {
@@ -734,7 +746,7 @@ export default function ScreenPanel() {
       ctx.fillStyle = '#aaa';
       ctx.font = 'italic 12px "Segoe UI", system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(`... y ${gastosDetallados.length - 8} gastos más`, W / 2, y + 14);
+      ctx.fillText(t('andMoreExpenses').replace('{count}', String(gastosDetallados.length - 8)), W / 2, y + 14);
       y += 24;
     }
     // Fila total gastos
@@ -743,13 +755,13 @@ export default function ScreenPanel() {
     ctx.fillStyle = '#888';
     ctx.font = 'bold 12px "Segoe UI", system-ui';
     ctx.textAlign = 'right';
-    ctx.fillText('Total gastos:', W - PAD - 90, y + 17);
+    ctx.fillText(t('totalExpensesLabel'), W - PAD - 90, y + 17);
     ctx.fillStyle = '#c62828';
     ctx.fillText(`${formatCurrency(resumen.gastos)}`, W - PAD - 8, y + 17);
     y += 36;
 
     // ── SOCIOS ──
-    sectionHeader('🤝 Saldos de Socios / Dueños');
+    sectionHeader(t('partnerBalancesTitle'));
     for (const s of resumen.pagosPorSocio) {
       const debeBarberia = s.saldoPendiente < -0.005;
       const leDebemos    = s.saldoPendiente >  0.005;
@@ -769,12 +781,12 @@ export default function ScreenPanel() {
       ctx.fillText(s.nombre, PAD + 12, y + 18);
       ctx.fillStyle = '#888';
       ctx.font = '11px "Segoe UI", system-ui';
-      ctx.fillText(`${(s.porcentaje * 100).toFixed(0)}% utilidad`, PAD + 12, y + 36);
+      ctx.fillText(t('utilityPercent').replace('{pct}', (s.porcentaje * 100).toFixed(0)), PAD + 12, y + 36);
 
       // Tres valores: beneficio / pagado / pendiente
       const cw = (W - PAD * 2 - 24 - 160) / 3;
       const startCol = PAD + 160;
-      const labels = ['Beneficio', 'Cobrado', debeBarberia ? 'Debe devolver' : 'Pendiente'];
+      const labels = [t('benefit'), t('alreadyCollected'), debeBarberia ? t('mustReturn') : t('pending')];
       const values = [
         `${formatCurrency(s.monto)}`,
         `${formatCurrency(s.pagado)}`,
@@ -804,7 +816,7 @@ export default function ScreenPanel() {
     ctx.fillStyle = '#bbb';
     ctx.font = '11px "Segoe UI", system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(`${nombreBarberia}  —  Sistema de Gestión Interno  —  ${mesLabel}`, W / 2, y);
+    ctx.fillText(t('internalManagement').replace('{shop}', nombreBarberia).replace('{mesLabel}', mesLabel), W / 2, y);
 
     // Borde dorado inferior
     ctx.fillStyle = '#D4AF37';
@@ -997,14 +1009,14 @@ export default function ScreenPanel() {
                       color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5
                     }}
                   >
-                    <Lock size={13} /> Ver y cerrar
+                    <Lock size={13} /> {t('viewAndClose')}
                   </button>
                 </div>
               </div>
             ))}
             {mesesPendientes.length > 5 && (
               <p style={{ padding: '12px', textAlign: 'center', fontSize: 12, color: 'var(--gray-muted)' }}>
-                ... y {mesesPendientes.length - 5} mes{mesesPendientes.length - 5 > 1 ? 'es' : ''} más sin cerrar
+                {t(mesesPendientes.length - 5 > 1 ? 'moreMonthsPendingPlural' : 'moreMonthsPending').replace('{count}', String(mesesPendientes.length - 5))}
               </p>
             )}
           </div>
@@ -1016,65 +1028,70 @@ export default function ScreenPanel() {
         <>
           <p className="section-title" style={{ marginBottom: 12 }}>{MESES[selectedMes]} {selectedYear}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
-            <div className="stat-card"><span className="stat-label">Ingresos</span><span className="stat-value green">{formatCurrency(resumen.ingresos)}</span></div>
-            <div className="stat-card"><span className="stat-label">Gastos Fijos</span><span className="stat-value red">{formatCurrency(resumen.gastos)}</span></div>
-            <div className="stat-card"><span className="stat-label">Comisiones</span><span className="stat-value gold">{formatCurrency(resumen.comisiones)}</span></div>
+            <div className="stat-card"><span className="stat-label">{t('income')}</span><span className="stat-value green">{formatCurrency(resumen.ingresos)}</span></div>
+            <div className="stat-card"><span className="stat-label">{t('fixedExpenses')}</span><span className="stat-value red">{formatCurrency(resumen.gastos)}</span></div>
+            <div className="stat-card"><span className="stat-label">{t('commissions')}</span><span className="stat-value gold">{formatCurrency(resumen.comisiones)}</span></div>
             <div className="stat-card" style={{ borderColor: resumen.utilidad_neta >= 0 ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)' }}>
-              <span className="stat-label">Saldo Neto</span>
+              <span className="stat-label">{t('netProfit')}</span>
               <span className="stat-value" style={{ color: resumen.utilidad_neta >= 0 ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(resumen.utilidad_neta)}</span>
             </div>
           </div>
 
           {/* Desglose de métodos de pago */}
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>💳 Ingresos por Método de Pago</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>{t('paymentMethods')}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
             <div className="stat-card" style={{ borderColor: 'rgba(76,175,130,0.3)', background: 'rgba(76,175,130,0.04)' }}>
-              <span className="stat-label">💵 Efectivo</span>
+              <span className="stat-label">{t('cashLabel')}</span>
               <span className="stat-value green">{formatCurrency(ingresosMetodoPago.efectivo)}</span>
               {resumen.ingresos > 0 && (
                 <span style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 6, display: 'block' }}>
-                  {((ingresosMetodoPago.efectivo / resumen.ingresos) * 100).toFixed(1)}% del total
+                  {((ingresosMetodoPago.efectivo / resumen.ingresos) * 100).toFixed(1)}% {t('ofTotal')}
                 </span>
               )}
             </div>
             <div className="stat-card" style={{ borderColor: 'rgba(82,136,224,0.3)', background: 'rgba(82,136,224,0.04)' }}>
-              <span className="stat-label">🏦 Banco neto</span>
+              <span className="stat-label">{t('bankNet')}</span>
               <span className="stat-value" style={{ color: 'var(--banco)' }}>{formatCurrency(ingresosMetodoPago.bancoNeto)}</span>
               {resumen.ingresos > 0 && (
                 <span style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 6, display: 'block' }}>
-                  {((ingresosMetodoPago.banco / resumen.ingresos) * 100).toFixed(1)}% del total
+                  {((ingresosMetodoPago.banco / resumen.ingresos) * 100).toFixed(1)}% {t('ofTotal')}
                 </span>
               )}
               <span style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 4, display: 'block' }}>
-                Bruto {formatCurrency(ingresosMetodoPago.banco)} • Comisión {formatCurrency(ingresosMetodoPago.comisionBancaria)}
+                {t('gross')} {formatCurrency(ingresosMetodoPago.banco)} • {t('commission2')} {formatCurrency(ingresosMetodoPago.comisionBancaria)}
               </span>
             </div>
           </div>
 
           {/* Ingresos por Barbero */}
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>💈 Ingresos por Barbero</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>{t('incomeByBarber')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
             {ventasBarbero.filter(vb => vb.totalServicios > 0).map(vb => (
               <div key={vb.barberoId} className="card" style={{ padding: '12px 14px' }}>
                 {/* Cabecera: nombre + % */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--white-soft)' }}>{vb.nombre}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--white-soft)' }}>{vb.nombre}</span>
+                    <span style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 600 }}>
+                      {(vb.porcentajeDelTotal * 100).toFixed(1)}% {t('ofTotal')}
+                    </span>
+                  </div>
                   <span style={{ fontSize: 11, color: 'var(--gray-muted)', background: 'rgba(212,175,55,0.1)', padding: '2px 8px', borderRadius: 12, border: '1px solid rgba(212,175,55,0.2)' }}>
-                    {(vb.porcentaje * 100).toFixed(0)}% comisión
+                    {(vb.porcentaje * 100).toFixed(0)}% {t('commission2')}
                   </span>
                 </div>
                 {/* Grid 2x2 de cifras */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(76,175,130,0.07)', border: '1px solid rgba(76,175,130,0.12)' }}>
-                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total servicios</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('totalServices')}</p>
                     <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--success)' }}>{formatCurrency(vb.totalServicios)}</p>
                   </div>
                   <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(212,175,55,0.07)', border: '1px solid rgba(212,175,55,0.12)' }}>
-                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Comisión</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('commissions')}</p>
                     <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--gold)' }}>{formatCurrency(vb.comision)}</p>
                   </div>
                   <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(224,82,82,0.07)', border: '1px solid rgba(224,82,82,0.12)' }}>
-                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Ya pagado</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('paid')}</p>
                     <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--danger)' }}>{formatCurrency(vb.pagado)}</p>
                   </div>
                   <div style={{
@@ -1082,9 +1099,9 @@ export default function ScreenPanel() {
                     background: vb.saldoPendiente <= 0 ? 'rgba(255,255,255,0.02)' : 'rgba(212,175,55,0.1)',
                     border: `1px solid ${vb.saldoPendiente <= 0 ? 'rgba(255,255,255,0.06)' : 'rgba(212,175,55,0.3)'}`
                   }}>
-                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pendiente</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('pending')}</p>
                     <p style={{ fontSize: 15, fontWeight: 700, color: vb.saldoPendiente <= 0 ? 'var(--gray-muted)' : 'var(--warning)' }}>
-                      {vb.saldoPendiente <= 0 ? '✓ Pagado' : formatCurrency(vb.saldoPendiente)}
+                      {vb.saldoPendiente <= 0 ? `✓ ${t('paid')}` : formatCurrency(vb.saldoPendiente)}
                     </p>
                   </div>
                 </div>
@@ -1095,21 +1112,61 @@ export default function ScreenPanel() {
             {ventasProductos > 0 && (
               <div className="card" style={{ padding: '12px 14px', borderColor: 'rgba(82,136,224,0.2)', background: 'rgba(82,136,224,0.04)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--banco)' }}>📦 La Barbería</span>
-                  <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>Productos</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--banco)' }}>📦 {t('shopLabel')}</span>
+                  <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{t('productos')}</span>
                 </div>
                 <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(82,136,224,0.08)', border: '1px solid rgba(82,136,224,0.15)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total vendido</p>
+                  <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('totalSold')}</p>
                   <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--banco)' }}>{formatCurrency(ventasProductos)}</p>
                 </div>
               </div>
             )}
           </div>
 
+          {/* Reporte de Servicios */}
+          {serviciosTotalesBarberia.length > 0 && (
+            <>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10, marginTop: 10 }}>✂️ {t('totalServices')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                {/* Total Barbería */}
+                <div className="card" style={{ padding: '12px 14px', borderColor: 'rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}>
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--gold)' }}>{t('totalLabel')}</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 6 }}>
+                    {serviciosTotalesBarberia.map(([nombre, cant]) => (
+                      <div key={nombre} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{nombre}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--white-soft)' }}>{cant}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Por Barbero */}
+                {ventasBarbero.filter(vb => vb.detalleServicios && Object.keys(vb.detalleServicios).length > 0).map(vb => (
+                  <div key={`serv-${vb.barberoId}`} className="card" style={{ padding: '12px 14px' }}>
+                    <div style={{ marginBottom: 10 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--white-soft)' }}>{vb.nombre}</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 6 }}>
+                      {Object.entries(vb.detalleServicios).sort((a, b) => b[1] - a[1]).map(([nombre, cant]) => (
+                        <div key={nombre} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{nombre}</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--white-soft)' }}>{cant}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Torta barberos */}
           {ventasBarbero.filter(vb => vb.totalServicios > 0).length > 0 && (
             <>
-              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>🍕 Distribución de Ingresos por Barbero</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>{t('incomeDist')}</p>
               <div className="card" style={{ marginBottom: 20, padding: '16px 8px' }}>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
@@ -1150,11 +1207,11 @@ export default function ScreenPanel() {
           )}
 
           {/* Gastos del mes */}
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>📋 Gastos del Mes ({gastosDetallados.length})</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>📋 {t('monthExpenses')} ({gastosDetallados.length})</p>
           {gastosDetallados.length > 0 ? (
             <div className="card" style={{ marginBottom: 20, padding: 0, overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr', padding: '10px 14px', background: 'rgba(224,82,82,0.04)', borderBottom: '1px solid var(--black-border)', fontSize: 11, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <span>Fecha</span><span>Detalle</span><span style={{ textAlign: 'right' }}>Monto</span>
+                <span>{t('date')}</span><span>{t('detail')}</span><span style={{ textAlign: 'right' }}>{t('amount')}</span>
               </div>
               {gastosDetallados.filter(g => g.categoria !== 'comision_bancaria').map(g => (
                 <div key={g.id} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 1fr', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: 13, alignItems: 'center' }}>
@@ -1173,9 +1230,9 @@ export default function ScreenPanel() {
                 return (
                   <div style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                     <button type="button" onClick={() => setComisionesAbiertas(!comisionesAbiertas)} style={{ width: '100%', display: 'grid', gridTemplateColumns: '70px 1fr 1fr', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', alignItems: 'center', transition: 'background 0.2s' }}>
-                      <span style={{ color: 'var(--gray-muted)', fontSize: 12 }}>Varias</span>
+                      <span style={{ color: 'var(--gray-muted)', fontSize: 12 }}>{t('various')}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>💸 Comisiones Bancarias ({comisiones.length})</span>
+                        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>💸 {t('bankCommissionLabel')} ({comisiones.length})</span>
                         <ChevronDown size={14} color="var(--gold)" style={{ transition: 'transform 0.25s', transform: comisionesAbiertas ? 'rotate(180deg)' : 'none' }} />
                       </div>
                       <span style={{ textAlign: 'right', color: 'var(--gold)', fontWeight: 700 }}>{formatCurrency(totalComisiones)}</span>
@@ -1196,16 +1253,16 @@ export default function ScreenPanel() {
             </div>
           ) : (
             <div className="card" style={{ marginBottom: 20, padding: '20px 14px', textAlign: 'center', color: 'var(--gray-muted)', fontSize: 13 }}>
-              Sin gastos registrados en este mes
+              {t('noExpensesMonth')}
             </div>
           )}
 
           {/* Fondo de Caja */}
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>💵 Fondo de Caja</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>{t('cashFundTitle')}</p>
           <div className="card" style={{ marginBottom: 20, padding: '14px 16px', borderColor: 'rgba(212,175,55,0.2)', background: 'linear-gradient(135deg, rgba(212,175,55,0.05) 0%, transparent 100%)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div>
-                <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Saldo Actual del Fondo</p>
+                <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('currentFundBalance')}</p>
                 <p style={{ fontSize: 26, fontWeight: 800, color: saldoFondo >= 0 ? 'var(--gold)' : 'var(--danger)', fontFamily: 'var(--font-display)', lineHeight: 1 }}>{formatCurrency(saldoFondo)}</p>
               </div>
               <div style={{ fontSize: 28 }}>🏦</div>
@@ -1213,14 +1270,14 @@ export default function ScreenPanel() {
             {(movimientosFondoMes.ingreso > 0 || movimientosFondoMes.egreso > 0) && (
               <>
                 <hr style={{ borderColor: 'rgba(212,175,55,0.12)', margin: '10px 0' }} />
-                <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Movimientos de {MESES[selectedMes]}</p>
+                <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('fundMovements')} {MESES[selectedMes]}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(76,175,130,0.07)', border: '1px solid rgba(76,175,130,0.15)' }}>
-                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 2 }}>➕ Ingresos al fondo</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 2 }}>{t('fundInflows')}</p>
                     <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--success)' }}>{formatCurrency(movimientosFondoMes.ingreso)}</p>
                   </div>
                   <div style={{ padding: '8px 10px', borderRadius: 8, background: 'rgba(224,82,82,0.07)', border: '1px solid rgba(224,82,82,0.15)' }}>
-                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 2 }}>➖ Egresos del fondo</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 2 }}>{t('fundOutflows')}</p>
                     <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--danger)' }}>{formatCurrency(movimientosFondoMes.egreso)}</p>
                   </div>
                 </div>
@@ -1229,7 +1286,7 @@ export default function ScreenPanel() {
           </div>
 
           {/* Saldos de Socios */}
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>🤝 Saldos de Socios / Dueños</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10 }}>{t('partnerBalances')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
             {resumen.pagosPorSocio.map((socio) => {
               const debeBarberia = socio.saldoPendiente < -0.005;
@@ -1243,17 +1300,17 @@ export default function ScreenPanel() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                     <div>
                       <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--white-soft)' }}>{socio.nombre}</p>
-                      <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>{(socio.porcentaje * 100).toFixed(0)}% de la utilidad</p>
+                      <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>{(socio.porcentaje * 100).toFixed(0)}% {t('utilityPercent')}</p>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: debeBarberia ? 'rgba(224,82,82,0.15)' : leDebemos ? 'rgba(212,175,55,0.15)' : 'rgba(76,175,130,0.15)', color: debeBarberia ? 'var(--danger)' : leDebemos ? 'var(--gold)' : 'var(--success)', border: `1px solid ${debeBarberia ? 'rgba(224,82,82,0.3)' : leDebemos ? 'rgba(212,175,55,0.3)' : 'rgba(76,175,130,0.3)'}` }}>
-                      {debeBarberia ? '⚠️ Debe a la barbería' : leDebemos ? '💰 Pendiente de cobro' : '✅ Saldado'}
+                      {debeBarberia ? t('owesBarberShop') : leDebemos ? t('pendingCollection') : t('settled')}
                     </span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     {[
-                      { label: 'Beneficio mes', value: formatCurrency(socio.monto), color: 'var(--gold)' },
-                      { label: 'Ya cobrado', value: formatCurrency(socio.pagado), color: 'var(--warning)' },
-                      { label: debeBarberia ? 'Debe devolver' : 'Pendiente', value: debeBarberia ? formatCurrency(Math.abs(socio.saldoPendiente)) : formatCurrency(Math.max(0, socio.saldoPendiente)), color: debeBarberia ? 'var(--danger)' : leDebemos ? 'var(--success)' : 'var(--gray-muted)' },
+                      { label: t('monthBenefit'), value: formatCurrency(socio.monto), color: 'var(--gold)' },
+                      { label: t('alreadyCollected'), value: formatCurrency(socio.pagado), color: 'var(--warning)' },
+                      { label: debeBarberia ? t('mustReturn') : t('pending'), value: debeBarberia ? formatCurrency(Math.abs(socio.saldoPendiente)) : formatCurrency(Math.max(0, socio.saldoPendiente)), color: debeBarberia ? 'var(--danger)' : leDebemos ? 'var(--success)' : 'var(--gray-muted)' },
                     ].map(item => (
                       <div key={item.label} style={{ textAlign: 'center', padding: '8px 4px', borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
                         <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginBottom: 3 }}>{item.label}</p>
@@ -1263,7 +1320,7 @@ export default function ScreenPanel() {
                   </div>
                   {debeBarberia && (
                     <div style={{ marginTop: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.2)', fontSize: 12, color: 'var(--danger)' }}>
-                      Este socio cobró <strong>{formatCurrency(Math.abs(socio.saldoPendiente))}</strong> más de lo correspondiente. Registrá una &quot;Devolución&quot; en Inicio.
+                      {t('overchargedWarning')} <strong>{formatCurrency(Math.abs(socio.saldoPendiente))}</strong> {t('overchargedWarning2')}
                     </div>
                   )}
                 </div>
@@ -1274,45 +1331,45 @@ export default function ScreenPanel() {
           {/* Reparto detallado */}
           {resumen.pagosPorSocio.length > 0 && (
             <div className="card-gold" style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 600, marginBottom: 14, letterSpacing: '0.05em', textTransform: 'uppercase' }}>💰 Reparto de Socios</p>
+              <p style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 600, marginBottom: 14, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{t('partnerDistribution')}</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {resumen.pagosPorSocio.map((socio) => {
                   const saldo = socio.saldoPendiente;
-                  const estado = saldo > 0.01 ? { label: 'Falta pagar:', value: saldo, color: 'var(--gold)' }
-                    : saldo < -0.01 ? { label: 'Debe a la barbería:', value: Math.abs(saldo), color: 'var(--danger)' }
-                    : { label: 'Estado:', value: 0, color: 'var(--success)' };
+                  const estado = saldo > 0.01 ? { label: t('missingToPay'), value: saldo, color: 'var(--gold)' }
+                    : saldo < -0.01 ? { label: t('owesShop'), value: Math.abs(saldo), color: 'var(--danger)' }
+                    : { label: '', value: 0, color: 'var(--success)' };
                   const pagosDetalle = adelantosPorSocio[socio.id] ?? [];
                   return (
                     <div key={socio.id}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
                         <p style={{ fontSize: 14, color: 'var(--white-soft)', fontWeight: 700 }}>{socio.nombre}</p>
-                        <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{(socio.porcentaje * 100).toFixed(0)}% de utilidad</span>
+                        <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{(socio.porcentaje * 100).toFixed(0)}% {t('utilityPercent')}</span>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, marginBottom: 10 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--gray-muted)' }}>Monto asignado:</span>
+                          <span style={{ color: 'var(--gray-muted)' }}>{t('assignedAmount')}:</span>
                           <span style={{ fontWeight: 600, color: 'var(--white-soft)' }}>{formatCurrency(socio.monto)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: 'var(--gray-muted)' }}>Total pagado:</span>
+                          <span style={{ color: 'var(--gray-muted)' }}>{t('totalPaid')}:</span>
                           <span style={{ fontWeight: 600, color: saldo <= 0 ? 'var(--success)' : 'var(--warning)' }}>{formatCurrency(socio.pagado)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 4, borderTop: '1px solid rgba(212,175,55,0.15)', fontWeight: 700, fontSize: 13 }}>
                           <span style={{ color: estado.color }}>{estado.label}</span>
-                          <span style={{ color: estado.color }}>{estado.value > 0 ? formatCurrency(estado.value) : '✓ Saldado'}</span>
+                          <span style={{ color: estado.color }}>{estado.value > 0 ? formatCurrency(estado.value) : `✓ ${t('settled')}`}</span>
                         </div>
                       </div>
                       {pagosDetalle.length > 0 && (
                         <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 10, padding: '10px 12px' }}>
-                          <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Detalle de pagos</p>
+                          <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('paymentDetail')}</p>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                             {pagosDetalle.map((p: any) => (
                               <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
                                 <div>
-                                  <span style={{ color: 'var(--white-soft)', fontWeight: 500 }}>{p.motivo || 'Pago'}</span>
+                                  <span style={{ color: 'var(--white-soft)', fontWeight: 500 }}>{p.motivo || t('payment')}</span>
                                   <span style={{ color: 'var(--gray-muted)', fontSize: 10, display: 'block', marginTop: 1 }}>
                                     {format(new Date(p.fecha), 'dd/MM/yyyy')}
-                                    {p.destinatario_tipo === 'devolucion_socio' && <span style={{ color: 'var(--success)', marginLeft: 6 }}>↩ Devolución</span>}
+                                    {p.destinatario_tipo === 'devolucion_socio' && <span style={{ color: 'var(--success)', marginLeft: 6 }}>↩ {t('returnLabel')}</span>}
                                   </span>
                                 </div>
                                 <span style={{ fontWeight: 700, color: p.destinatario_tipo === 'devolucion_socio' ? 'var(--success)' : 'var(--warning)' }}>
@@ -1324,7 +1381,7 @@ export default function ScreenPanel() {
                         </div>
                       )}
                       {pagosDetalle.length === 0 && (
-                        <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center', padding: '6px 0' }}>Sin pagos registrados este mes</p>
+                        <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center', padding: '6px 0' }}>{t('noPaymentsMonth')}</p>
                       )}
                     </div>
                   );
@@ -1338,7 +1395,7 @@ export default function ScreenPanel() {
       {/* Ingresos/Gastos Diarios */}
       {ingresosDiarios.length > 0 && (
         <>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>📅 Evolución Diaria</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>{t('dailyEvolution')}</p>
           <div className="card" style={{ marginBottom: 20, padding: '20px 10px 10px' }}>
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={ingresosDiarios} margin={{ top: 10, right: 10, bottom: 0, left: -16 }}>
@@ -1371,7 +1428,7 @@ export default function ScreenPanel() {
                   cursor={{ fill: 'rgba(255,255,255,0.03)' }}
                   formatter={(val: number, name: string) => [
                     <span key="value" style={{ color: 'var(--white-soft)', fontWeight: 700 }}>{formatCurrency(val)}</span>, 
-                    <span key="label" style={{ color: 'var(--gray-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em' }}>{name === 'ingresos' ? 'Ingresos' : 'Gastos'}</span>
+                    <span key="label" style={{ color: 'var(--gray-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em' }}>{name === 'ingresos' ? t('incomeLabel') : t('expensesLabel')}</span>
                   ]} 
                   contentStyle={{ 
                     background: 'rgba(15, 15, 15, 0.95)', 
@@ -1383,12 +1440,12 @@ export default function ScreenPanel() {
                     padding: '12px 16px'
                   }} 
                   labelStyle={{ color: 'var(--gold)', fontWeight: 600, marginBottom: 6 }} 
-                  labelFormatter={(label) => `Día ${label}`} 
+                  labelFormatter={(label) => `${t('day')} ${label}`} 
                 />
                 <Legend 
                   iconType="circle"
                   wrapperStyle={{ fontSize: 12, color: '#888', paddingTop: 16 }} 
-                  formatter={(value) => <span style={{ color: 'var(--white-soft)', fontWeight: 500, marginRight: 12 }}>{value === 'ingresos' ? 'Ingresos' : 'Gastos'}</span>}
+                  formatter={(value) => <span style={{ color: 'var(--white-soft)', fontWeight: 500, marginRight: 12 }}>{value === 'ingresos' ? t('incomeLabel') : t('expensesLabel')}</span>}
                 />
                 
                 {/* Gastos as an Area underneath */}
@@ -1417,7 +1474,7 @@ export default function ScreenPanel() {
       )}
 
       {/* Comparativo interanual */}
-      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>📊 Comparativo Interanual</p>
+      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>{t('annualComparison')}</p>
       <div className="card" style={{ marginBottom: 20, padding: '16px 8px 10px' }}>
         <ResponsiveContainer width="100%" height={350}>
           <BarChart
@@ -1461,7 +1518,7 @@ export default function ScreenPanel() {
               formatter={(val: any, name: any) => [
                 <span key="val" style={{ color: 'var(--white-soft)', fontWeight: 700 }}>{formatCurrency(Number(val) || 0)}</span>,
                 <span key="label" style={{ color: 'var(--gray-muted)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.05em' }}>
-                  {String(name) === String(selectedYear) ? `Año ${selectedYear}` : `Año ${selectedYear - 1}`}
+                  {String(name) === String(selectedYear) ? `${t('year')} ${selectedYear}` : `${t('year')} ${selectedYear - 1}`}
                 </span>
               ]}
               contentStyle={{
@@ -1475,18 +1532,18 @@ export default function ScreenPanel() {
               }}
               labelStyle={{ color: 'var(--gold)', fontWeight: 600, marginBottom: 6 }}
             />
-            <Bar dataKey={selectedYear - 1} name={`Año ${selectedYear - 1}`} fill="#6B8CBA" radius={[0, 4, 4, 0]} maxBarSize={10} />
-            <Bar dataKey={selectedYear} name={`Año ${selectedYear}`} fill="url(#gradActual)" radius={[0, 4, 4, 0]} maxBarSize={10} />
+            <Bar dataKey={selectedYear - 1} name={`${t('year')} ${selectedYear - 1}`} fill="#6B8CBA" radius={[0, 4, 4, 0]} maxBarSize={10} />
+            <Bar dataKey={selectedYear} name={`${t('year')} ${selectedYear}`} fill="url(#gradActual)" radius={[0, 4, 4, 0]} maxBarSize={10} />
           </BarChart>
         </ResponsiveContainer>
           <div style={{ display: 'flex', gap: 24, justifyContent: 'center', marginTop: 8, paddingBottom: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--gray-muted)', fontWeight: 500 }}>
               <div style={{ width: 12, height: 12, borderRadius: 3, background: '#6B8CBA' }} />
-              Año {selectedYear - 1}
+              {t('year')} {selectedYear - 1}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--gray-muted)', fontWeight: 500 }}>
               <div style={{ width: 12, height: 12, borderRadius: 3, background: GOLD }} />
-              Año {selectedYear}
+              {t('year')} {selectedYear}
             </div>
           </div>
       </div>
@@ -1494,7 +1551,7 @@ export default function ScreenPanel() {
       {/* Gastos por categoría */}
       {gastosCategoria.length > 0 && (
         <>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>🍕 Gastos por Categoría</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>{t('expensesByCategory')}</p>
           <div className="card" style={{ marginBottom: 20, padding: '16px 8px 30px' }}>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
@@ -1551,7 +1608,7 @@ export default function ScreenPanel() {
           onClick={() => setShowExportMenu(!showExportMenu)}
         >
           <Download size={18} />
-          Exportar Reporte de {MESES[selectedMes]}
+          {t('exportReport')} {MESES[selectedMes]}
           <ChevronDown size={15} style={{ marginLeft: 2, transition: 'transform 0.22s', transform: showExportMenu ? 'rotate(180deg)' : 'none', opacity: 0.75 }} />
         </button>
 
@@ -1599,7 +1656,7 @@ export default function ScreenPanel() {
                     <Download size={14} color={GOLD} />
                   </div>
                   <div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--white-soft)', margin: 0 }}>Exportar Reporte</p>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--white-soft)', margin: 0 }}>{t('exportTitle')}</p>
                     <p style={{ fontSize: 11, color: 'var(--gray-muted)', margin: 0 }}>{MESES[selectedMes]} {selectedYear}</p>
                   </div>
                 </div>
@@ -1618,24 +1675,24 @@ export default function ScreenPanel() {
                     icon: <FileSpreadsheet size={20} color={GREEN} />,
                     iconBg: 'rgba(76,175,130,0.1)',
                     iconBorder: 'rgba(76,175,130,0.2)',
-                    label: 'Excel (CSV)',
-                    subtitle: 'Datos tabulares listos para abrir en Excel',
+                    label: t('excelCSV'),
+                    subtitle: t('excelSubtitle'),
                     action: exportCSV,
                   },
                   {
                     icon: <FileText size={20} color={RED} />,
                     iconBg: 'rgba(224,82,82,0.1)',
                     iconBorder: 'rgba(224,82,82,0.2)',
-                    label: 'Imprimir / PDF',
-                    subtitle: 'Abre el diálogo de impresión del navegador',
+                    label: t('printPDF'),
+                    subtitle: t('printSubtitle'),
                     action: exportPDF,
                   },
                   {
                     icon: <FileImage size={20} color={GOLD} />,
                     iconBg: 'rgba(212,175,55,0.1)',
                     iconBorder: 'rgba(212,175,55,0.25)',
-                    label: 'Imagen (PNG)',
-                    subtitle: 'Resumen visual listo para compartir',
+                    label: t('imagePNG'),
+                    subtitle: t('imageSubtitle'),
                     action: exportPNG,
                   },
                 ].map(({ icon, iconBg, iconBorder, label, subtitle, action }) => (
@@ -1688,7 +1745,7 @@ export default function ScreenPanel() {
       {/* Cerrar mes */}
       {!mesBloqueado && (
         <button className="btn-danger" style={{ width: '100%', marginBottom: 24 }} onClick={() => setShowCerrarModal(true)}>
-          <Lock size={18} /> Cerrar Mes {MESES[selectedMes]}
+          <Lock size={18} /> {t('closeMonth')} {MESES[selectedMes]}
         </button>
       )}
 
@@ -1715,10 +1772,12 @@ function ModalLiquidacionRapida({
   mesAno, mesLabel, onClose
 }: {
   mesAno: string;
+
   mesLabel: string;
   onClose: () => void;
 }) {
   const formatCurrency = useFmt();
+  const { t } = useLanguage();
   const [mesNum, anio] = mesAno.split('-').map(Number);
   const fechaMes = useMemo(() => new Date(anio, mesNum - 1, 15, 12, 0, 0), [anio, mesNum]);
 
@@ -1750,11 +1809,11 @@ function ModalLiquidacionRapida({
       const mot: Record<string, string> = {};
       vb.filter(b => b.saldoPendiente > 0.01).forEach(b => {
         m[`b-${b.barberoId}`] = b.saldoPendiente.toFixed(2);
-        mot[`b-${b.barberoId}`] = `Pago comisión ${mesLabel}`;
+        mot[`b-${b.barberoId}`] = `${t('paymentComm')} ${mesLabel}`;
       });
       resumen.pagosPorSocio.filter(s => s.saldoPendiente > 0.01).forEach(s => {
         m[`s-${s.id}`] = s.saldoPendiente.toFixed(2);
-        mot[`s-${s.id}`] = `Pago utilidad ${mesLabel}`;
+        mot[`s-${s.id}`] = `${t('paymentUtility')} ${mesLabel}`;
       });
       setMontos(m);
       setMotivos(mot);
@@ -1766,17 +1825,17 @@ function ModalLiquidacionRapida({
   async function pagarBarbero(b: any) {
     const key = `b-${b.barberoId}`;
     const montoNum = Number(montos[key]);
-    if (!montoNum || montoNum <= 0) { setError(e => ({ ...e, [key]: 'Ingresá un monto válido.' })); return; }
-    if (montoNum > b.saldoPendiente + 0.01) { setError(e => ({ ...e, [key]: `Excede la comisión pendiente (${b.saldoPendiente.toFixed(2)})` })); return; }
+    if (!montoNum || montoNum <= 0) { setError(e => ({ ...e, [key]: t('invalidAmount') })); return; }
+    if (montoNum > b.saldoPendiente + 0.01) { setError(e => ({ ...e, [key]: `${t('exceedsPending')} (${b.saldoPendiente.toFixed(2)})` })); return; }
     setPagando(p => ({ ...p, [key]: true }));
     const { isMesBloqueado } = await import('@/lib/business');
     const bloqueado = await isMesBloqueado(fechaMes);
-    if (bloqueado) { setError(e => ({ ...e, [key]: 'El mes está cerrado.' })); setPagando(p => ({ ...p, [key]: false })); return; }
+    if (bloqueado) { setError(e => ({ ...e, [key]: t('monthClosed') })); setPagando(p => ({ ...p, [key]: false })); return; }
     await db.Adelantos.add({
       fecha: fechaMes,
       barbero_id: b.barberoId,
       monto: montoNum,
-      motivo: motivos[key] || `Pago comisión ${mesLabel}`,
+      motivo: motivos[key] || `${t('paymentComm')} ${mesLabel}`,
       destinatario_tipo: 'barbero',
     });
     setPagados(p => ({ ...p, [key]: true }));
@@ -1790,19 +1849,19 @@ function ModalLiquidacionRapida({
   async function pagarSocio(s: any) {
     const key = `s-${s.id}`;
     const montoNum = Number(montos[key]);
-    if (!montoNum || montoNum <= 0) { setError(e => ({ ...e, [key]: 'Ingresá un monto válido.' })); return; }
-    if (montoNum > s.saldoPendiente + 0.01) { setError(e => ({ ...e, [key]: `Excede el saldo pendiente (${s.saldoPendiente.toFixed(2)})` })); return; }
+    if (!montoNum || montoNum <= 0) { setError(e => ({ ...e, [key]: t('invalidAmount') })); return; }
+    if (montoNum > s.saldoPendiente + 0.01) { setError(e => ({ ...e, [key]: `${t('exceedsPending')} (${s.saldoPendiente.toFixed(2)})` })); return; }
     setPagando(p => ({ ...p, [key]: true }));
     const { isMesBloqueado, getEfectivoDisponibleCaja } = await import('@/lib/business');
     const bloqueado = await isMesBloqueado(fechaMes);
-    if (bloqueado) { setError(e => ({ ...e, [key]: 'El mes está cerrado.' })); setPagando(p => ({ ...p, [key]: false })); return; }
+    if (bloqueado) { setError(e => ({ ...e, [key]: t('monthClosed') })); setPagando(p => ({ ...p, [key]: false })); return; }
     const efectivoActual = await getEfectivoDisponibleCaja(fechaMes);
-    if (montoNum > efectivoActual) { setError(e => ({ ...e, [key]: `Efectivo insuficiente en caja (${efectivoActual.toFixed(2)})` })); setPagando(p => ({ ...p, [key]: false })); return; }
+    if (montoNum > efectivoActual) { setError(e => ({ ...e, [key]: `${t('insufficientCash')} (${efectivoActual.toFixed(2)})` })); setPagando(p => ({ ...p, [key]: false })); return; }
     await db.Adelantos.add({
       fecha: fechaMes,
       barbero_id: s.id,
       monto: montoNum,
-      motivo: motivos[key] || `Pago utilidad ${mesLabel}`,
+      motivo: motivos[key] || `${t('paymentUtility')} ${mesLabel}`,
       destinatario_tipo: 'socio',
       socio_id: s.id,
     });
@@ -1823,33 +1882,33 @@ function ModalLiquidacionRapida({
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
-            <h2 className="section-title" style={{ marginBottom: 2 }}>💸 Liquidación Rápida</h2>
+            <h2 className="section-title" style={{ marginBottom: 2 }}>{t('quickSettlement')}</h2>
             <p style={{ fontSize: 12, color: 'var(--gray-muted)', textTransform: 'capitalize' }}>{mesLabel}</p>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         {cargando ? (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--gray-muted)' }}>Cargando pendientes...</div>
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--gray-muted)' }}>{t('loadingPending')}</div>
         ) : todosPagados ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}>
             <CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 16, fontWeight: 600 }}>¡Todo pagado!</p>
-            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 6 }}>Ya podés cerrar el mes desde el panel.</p>
+            <p style={{ fontSize: 16, fontWeight: 600 }}>{t('allPaid')}</p>
+            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 6 }}>{t('allPaidSubtitle')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Efectivo disponible */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 10, background: 'rgba(76,175,130,0.07)', border: '1px solid rgba(76,175,130,0.2)' }}>
-              <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>💵 Efectivo disponible en caja</span>
+              <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('cashAvailable')}</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: efectivoCaja > 0 ? 'var(--success)' : 'var(--danger)' }}>{formatCurrency(efectivoCaja)}</span>
             </div>
 
             {/* Barberos pendientes */}
             {barberos.length > 0 && (
               <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>💈 Barberos con saldo pendiente</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('barbersPending')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {barberos.map(b => {
                     const key = `b-${b.barberoId}`;
@@ -1858,19 +1917,19 @@ function ModalLiquidacionRapida({
                       <div key={key} className="card" style={{ padding: '12px 14px', borderColor: 'rgba(212,175,55,0.25)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
                           <span style={{ fontWeight: 600, fontSize: 14 }}>{b.nombre}</span>
-                          <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{(b.porcentaje * 100).toFixed(0)}% comisión</span>
+                          <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{(b.porcentaje * 100).toFixed(0)}% {t('commPercent')}</span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10, fontSize: 11, textAlign: 'center' }}>
                           <div style={{ padding: '6px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>Generado</span>
+                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>{t('generated2')}</span>
                             <span style={{ color: 'var(--success)', fontWeight: 600 }}>{formatCurrency(b.totalServicios)}</span>
                           </div>
                           <div style={{ padding: '6px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>Comisión</span>
+                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>{t('commissions')}</span>
                             <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{formatCurrency(b.comision)}</span>
                           </div>
                           <div style={{ padding: '6px', borderRadius: 6, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>Pendiente</span>
+                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>{t('pending')}</span>
                             <span style={{ color: 'var(--warning)', fontWeight: 700 }}>{formatCurrency(b.saldoPendiente)}</span>
                           </div>
                         </div>
@@ -1881,7 +1940,7 @@ function ModalLiquidacionRapida({
                             value={montos[key] ?? ''}
                             onKeyDown={e => { if (['-','e','E','+'].includes(e.key)) e.preventDefault(); }}
                             onChange={e => { setMontos(m => ({ ...m, [key]: e.target.value })); setError(er => ({ ...er, [key]: '' })); }}
-                            placeholder="Monto a pagar"
+                            placeholder={t('amountToPay')}
                             style={{ flex: 1, margin: 0 }}
                           />
                           <button
@@ -1889,7 +1948,7 @@ function ModalLiquidacionRapida({
                             disabled={!!pagando[key]}
                             style={{ padding: '0 16px', borderRadius: 10, background: 'var(--gold)', border: 'none', color: '#0a0a0a', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
                           >
-                            {pagando[key] ? '...' : 'Pagar'}
+                            {pagando[key] ? '...' : t('pay')}
                           </button>
                         </div>
                         <input
@@ -1897,7 +1956,7 @@ function ModalLiquidacionRapida({
                           type="text" maxLength={200}
                           value={motivos[key] ?? ''}
                           onChange={e => setMotivos(m => ({ ...m, [key]: e.target.value }))}
-                          placeholder="Concepto (ej: Pago comisión mayo)"
+                          placeholder={t('conceptPlaceholder')}
                           style={{ margin: '6px 0 0' }}
                         />
                         {error[key] && <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4 }}>{error[key]}</p>}
@@ -1911,7 +1970,7 @@ function ModalLiquidacionRapida({
             {/* Socios pendientes */}
             {socios.length > 0 && (
               <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>🤝 Socios con saldo pendiente</p>
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('partnersPending')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {socios.map(s => {
                     const key = `s-${s.id}`;
@@ -1920,19 +1979,19 @@ function ModalLiquidacionRapida({
                       <div key={key} className="card" style={{ padding: '12px 14px', borderColor: 'rgba(212,175,55,0.25)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
                           <span style={{ fontWeight: 600, fontSize: 14 }}>{s.nombre}</span>
-                          <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{(s.porcentaje * 100).toFixed(0)}% utilidad</span>
+                          <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>{(s.porcentaje * 100).toFixed(0)}% {t('utilityPercent')}</span>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10, fontSize: 11, textAlign: 'center' }}>
                           <div style={{ padding: '6px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>Beneficio</span>
+                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>{t('benefit')}</span>
                             <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{formatCurrency(s.monto)}</span>
                           </div>
                           <div style={{ padding: '6px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>Ya cobrado</span>
+                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>{t('alreadyCollected')}</span>
                             <span style={{ color: 'var(--warning)', fontWeight: 600 }}>{formatCurrency(s.pagado)}</span>
                           </div>
                           <div style={{ padding: '6px', borderRadius: 6, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>Pendiente</span>
+                            <span style={{ color: 'var(--gray-muted)', display: 'block' }}>{t('pending')}</span>
                             <span style={{ color: 'var(--warning)', fontWeight: 700 }}>{formatCurrency(s.saldoPendiente)}</span>
                           </div>
                         </div>
@@ -1943,7 +2002,7 @@ function ModalLiquidacionRapida({
                             value={montos[key] ?? ''}
                             onKeyDown={e => { if (['-','e','E','+'].includes(e.key)) e.preventDefault(); }}
                             onChange={e => { setMontos(m => ({ ...m, [key]: e.target.value })); setError(er => ({ ...er, [key]: '' })); }}
-                            placeholder="Monto a pagar"
+                            placeholder={t('amountToPay')}
                             style={{ flex: 1, margin: 0 }}
                           />
                           <button
@@ -1951,7 +2010,7 @@ function ModalLiquidacionRapida({
                             disabled={!!pagando[key]}
                             style={{ padding: '0 16px', borderRadius: 10, background: 'var(--gold)', border: 'none', color: '#0a0a0a', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 }}
                           >
-                            {pagando[key] ? '...' : 'Pagar'}
+                            {pagando[key] ? '...' : t('pay')}
                           </button>
                         </div>
                         <input
@@ -1959,7 +2018,7 @@ function ModalLiquidacionRapida({
                           type="text" maxLength={200}
                           value={motivos[key] ?? ''}
                           onChange={e => setMotivos(m => ({ ...m, [key]: e.target.value }))}
-                          placeholder="Concepto (ej: Pago utilidad mayo)"
+                          placeholder={t('conceptPlaceholder')}
                           style={{ margin: '6px 0 0' }}
                         />
                         {error[key] && <p style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4 }}>{error[key]}</p>}
@@ -1971,7 +2030,7 @@ function ModalLiquidacionRapida({
             )}
 
             <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)', fontSize: 12, color: 'var(--gray-muted)' }}>
-              💡 Una vez pagados todos los saldos, cerrá el mes desde el Panel para bloquearlo.
+              {t('settlementTip')}
             </div>
           </div>
         )}
@@ -1982,25 +2041,26 @@ function ModalLiquidacionRapida({
 
 function HistorialCierres() {
   const formatCurrency = useFmt();
+  const { t } = useLanguage();
   const cierres = useLiveQuery(() =>
     db.historico_cierres.orderBy('mes_ano').reverse().limit(12).toArray(), []
   );
   if (!cierres?.length) return null;
   return (
     <div style={{ marginBottom: 16 }}>
-      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>📋 Historial de Cierres</p>
+      <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 12 }}>{t('closeHistoryTitle')}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {cierres.map(c => (
           <div key={c.id} className="card" style={{ padding: '12px 14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ fontWeight: 600, fontSize: 14 }}>{c.mes_ano}</p>
-                <p style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Utilidad: {formatCurrency(c.utilidad_neta)}</p>
+                <p style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('utility')} {formatCurrency(c.utilidad_neta)}</p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: 14, color: GOLD, fontWeight: 700 }}>{formatCurrency(c.ingresos_totales)}</p>
                 <span className={`badge ${c.bloqueado ? 'badge-gold' : 'badge-green'}`}>
-                  {c.bloqueado ? <><Lock size={9} /> Cerrado</> : <><Unlock size={9} /> Abierto</>}
+                  {c.bloqueado ? <><Lock size={9} /> {t('closedBadge')}</> : <><Unlock size={9} /> {t('openBadge')}</>}
                 </span>
               </div>
             </div>
@@ -2013,6 +2073,7 @@ function HistorialCierres() {
 
 function ModalCerrarMes({ mes, year, resumen, fecha, onClose }: { mes: string; year: number; resumen: Resumen | null; fecha: Date; onClose: () => void; }) {
   const formatCurrency = useFmt();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
@@ -2035,30 +2096,30 @@ function ModalCerrarMes({ mes, year, resumen, fecha, onClose }: { mes: string; y
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">Cerrar {mes} {year}</h2>
+          <h2 className="section-title">{t('closeMonthTitle')} {mes} {year}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}>
             <CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 16, fontWeight: 600 }}>¡Mes cerrado correctamente!</p>
-            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 6 }}>Copia de seguridad enviada a Drive</p>
+            <p style={{ fontSize: 16, fontWeight: 600 }}>{t('monthClosedOk')}</p>
+            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 6 }}>{t('backupSentDrive')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.25)' }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', color: 'var(--danger)' }}>
                 <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 1 }} />
-                <p style={{ fontSize: 13 }}>Esta acción bloqueará el mes y no podrá editarse. Se enviará una copia de seguridad a Google Drive automáticamente.</p>
+                <p style={{ fontSize: 13 }}>{t('closeMonthWarning')}</p>
               </div>
             </div>
             {resumen && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { label: 'Ingresos Totales', value: resumen.ingresos, color: GREEN },
-                  { label: 'Gastos Fijos', value: resumen.gastos, color: RED },
-                  { label: 'Comisiones', value: resumen.comisiones, color: GOLD },
-                  { label: 'Utilidad Neta', value: resumen.utilidad_neta, color: resumen.utilidad_neta >= 0 ? GREEN : RED },
+                  { label: t('totalIncome'), value: resumen.ingresos, color: GREEN },
+                  { label: t('fixedExpenses2'), value: resumen.gastos, color: RED },
+                  { label: t('commissions'), value: resumen.comisiones, color: GOLD },
+                  { label: t('netUtility'), value: resumen.utilidad_neta, color: resumen.utilidad_neta >= 0 ? GREEN : RED },
                   ...resumen.pagosPorSocio.map(s => ({ label: `💰 ${s.nombre} (${(s.porcentaje * 100).toFixed(0)}%)`, value: s.monto, color: GOLD })),
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--black-border)' }}>
@@ -2072,7 +2133,7 @@ function ModalCerrarMes({ mes, year, resumen, fecha, onClose }: { mes: string; y
               <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>
             )}
             <button className="btn-danger" style={{ marginTop: 8 }} disabled={loading} onClick={confirmar}>
-              <Lock size={16} /> {loading ? 'Cerrando...' : 'Confirmar Cierre de Mes'}
+              <Lock size={16} /> {loading ? t('closing') : t('confirmClose')}
             </button>
           </div>
         )}

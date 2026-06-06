@@ -33,7 +33,12 @@ export class LanguageStorageManager {
     }
 
     try {
-      const saved = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+      let saved = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+      
+      // Fallback a la clave legacy de useAppConfig
+      if (!saved) {
+        saved = localStorage.getItem('barberia_lang');
+      }
 
       // SEGURIDAD: Validar tipo y longitud
       if (

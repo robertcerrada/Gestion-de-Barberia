@@ -2,7 +2,6 @@
 
 import { useMoneda } from '@/lib/useMoneda';
 import { isMesBloqueado, getSaldoFondoCaja, getArqueoDia, getPorcentajeComisionBancaria, getIngresosEfectivoMes, getGastosTotalesMes, getSaldoDisponibleBarbero, getResumenMes, getEfectivoDisponibleCaja, getAdelantosMes, getPagosSocioMes, getVentasDia, guardarArqueo } from '@/lib/business';
-import { useAppConfig } from '@/lib/useAppConfig';
 import { useLanguage } from '@/shared/i18n/LanguageContext';
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, DollarSign, TrendingDown, Wallet, X, ChevronDown, AlertCircle, CheckCircle2, Calendar, Edit3, Trash2 } from 'lucide-react';
@@ -68,12 +67,25 @@ export default function ScreenInicio() {
   const [adelantosBarberosDia, setAdelantosBarberosDia] = useState(0);
   const [comisionBancariaDia, setComisionBancariaDia] = useState(0);
   const [comisionesTransacciones, setComisionesTransacciones] = useState<Array<{ id: number; fecha: Date; monto: number; comision: number }>>([]);
-  const [fechasConRegistro, setFechasConRegistro] = useState<string[]>([]);
   const [registroAEditar, setRegistroAEditar] = useState<any | null>(null);
 
   const barberos = useLiveQuery(() => db.barberos.toArray().then(list => list.filter(b => b.activo)), []);
   const servicios = useLiveQuery(() => db.servicios_productos.toArray(), []);
   const [mesFiltroActivo, setMesFiltroActivo] = useState(false);
+
+  // ── Fechas con registro: useLiveQuery independiente para no bloquear recargar() ──
+  const fechasConRegistroRaw = useLiveQuery(async () => {
+    const [registros, gastos, adelantos] = await Promise.all([
+      db.registros_diarios.toArray(),
+      db.gastos_fijos.toArray(),
+      db.Adelantos.toArray(),
+    ]);
+    const s = new Set<string>();
+    registros.forEach(r => s.add(format(new Date(r.fecha), 'yyyy-MM-dd')));
+    gastos.forEach(g => s.add(format(new Date(g.fecha), 'yyyy-MM-dd')));
+    adelantos.forEach(a => s.add(format(new Date(a.fecha), 'yyyy-MM-dd')));
+    return Array.from(s);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,17 +139,6 @@ export default function ScreenInicio() {
     const totalComision = comisiones.reduce((s, c) => s + c.comision, 0);
     setComisionBancariaDia(totalComision);
     setComisionesTransacciones(comisiones);
-
-    const [registrosMes, gastosMes, adelantosMes] = await Promise.all([
-      db.registros_diarios.toArray(),
-      db.gastos_fijos.toArray(),
-      db.Adelantos.toArray(),
-    ]);
-    const fechasSet = new Set<string>();
-    registrosMes.forEach(r => fechasSet.add(format(new Date(r.fecha), 'yyyy-MM-dd')));
-    gastosMes.forEach(g => fechasSet.add(format(new Date(g.fecha), 'yyyy-MM-dd')));
-    adelantosMes.forEach(a => fechasSet.add(format(new Date(a.fecha), 'yyyy-MM-dd')));
-    setFechasConRegistro(Array.from(fechasSet));
 
     const gastosDiaArr = await db.gastos_fijos
       .where('fecha').between(inicioDia, finDia, true, true).toArray();
@@ -205,7 +206,7 @@ export default function ScreenInicio() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 12px', borderRadius: 12, background: 'var(--black-card)', border: '1px solid var(--black-border)' }}>
         <Calendar size={15} color="var(--gold)" style={{ flexShrink: 0 }} />
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--white-soft)', flexShrink: 0 }}>{t('filterDate')}:</span>
-        <DatePicker compact value={fechaFiltro} onChange={setFechaFiltro} markedDates={fechasConRegistro} />
+        <DatePicker compact value={fechaFiltro} onChange={setFechaFiltro} markedDates={fechasConRegistroRaw ?? []} />
         {fechaFiltro !== hoyStr && (
           <button onClick={() => setFechaFiltro(hoyStr)} style={{ border: 'none', cursor: 'pointer', color: 'var(--gold)', fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6, background: 'rgba(212,175,55,0.1)', flexShrink: 0, fontFamily: 'var(--font-body)' }}>
             {t('today')}
@@ -218,26 +219,26 @@ export default function ScreenInicio() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <p style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📈 {t('todaySales')}</p>
           {arqueoDelDia && (
-            <span style={{ fontSize: 10, color: 'var(--success)', background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.3)', borderRadius: 6, padding: '2px 7px', fontWeight: 600 }}>✓ Arqueo aplicado</span>
+            <span style={{ fontSize: 10, color: 'var(--success)', background: 'rgba(76,175,130,0.12)', border: '1px solid rgba(76,175,130,0.3)', borderRadius: 6, padding: '2px 7px', fontWeight: 600 }}>{t('auditApplied')}</span>
           )}
         </div>
         <p className="stat-value gold" style={{ fontSize: 32, fontWeight: 800 }}>{fc(totalVentasDia)}</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12, borderTop: '1px solid rgba(212,175,55,0.15)', paddingTop: 10 }}>
           <div>
-            <p className="text-sub" style={{ marginBottom: 2 }}>💵 Efectivo{arqueoDelDia ? ' (arqueo)' : ''}</p>
+            <p className="text-sub" style={{ marginBottom: 2 }}>{t('cashLabel') || '💵 Efectivo'}{arqueoDelDia ? ` ${t('cashAudit2') || '(arqueo)'}` : ''}</p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--success)' }}>{fc(efectivoDia)}</p>
               {totalVentasDia > 0 && <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>({((efectivoDia / totalVentasDia) * 100).toFixed(1)}%)</span>}
             </div>
           </div>
           <div>
-            <p className="text-sub" style={{ marginBottom: 2 }}>🏦 Banco{arqueoDelDia ? ' (arqueo)' : ''}</p>
+            <p className="text-sub" style={{ marginBottom: 2 }}>{t('bank') || '🏦 Banco'}{arqueoDelDia ? ` ${t('cashAudit2') || '(arqueo)'}` : ''}</p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc(bancoDia)}</p>
               {totalVentasDia > 0 && <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>({((bancoDia / totalVentasDia) * 100).toFixed(1)}%)</span>}
             </div>
             <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 6 }}>
-              Comisión: {fc(comisionBancariaDia)} • Neto: {fc(Math.max(0, bancoDia - comisionBancariaDia))}
+              {t('commission2') || 'Comisión'}: {fc(comisionBancariaDia)} • {t('netBalance2') || 'Neto'}: {fc(Math.max(0, bancoDia - comisionBancariaDia))}
             </p>
           </div>
         </div>
@@ -246,80 +247,80 @@ export default function ScreenInicio() {
       {/* Tarjetas resumen */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
         <div className="stat-card" style={{ padding: '10px 12px' }}>
-          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>💰 Ingresos</span>
+          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>{t('incomeLabel2')}</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--success)' }}>{fc(totalVentasDia)}</span>
         </div>
         <div className="stat-card" style={{ padding: '10px 12px' }}>
-          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>📋 Gastos</span>
+          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>{t('expensesLabel2')}</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger)' }}>{fc(gastosDia)}</span>
         </div>
         <div className="stat-card" style={{ padding: '10px 12px' }}>
-          <span className="label-xs" style={{ display: 'block', marginBottom: 4 }}>💳 Adelantos</span>
+          <span className="label-xs" style={{ display: 'block', marginBottom: 4 }}>{t('advancesLabel')}</span>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {adelantosSociosDia > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: 'var(--gray-muted)' }}>Socios:</span>
+                <span style={{ color: 'var(--gray-muted)' }}>{t('partners')}:</span>
                 <span style={{ fontWeight: 700, color: 'var(--gold)' }}>{fc(adelantosSociosDia)}</span>
               </div>
             )}
             {adelantosBarberosDia > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                <span style={{ color: 'var(--gray-muted)' }}>Barberos:</span>
+                <span style={{ color: 'var(--gray-muted)' }}>{t('barbers_label') || 'Barberos'}:</span>
                 <span style={{ fontWeight: 700, color: 'var(--warning)' }}>{fc(adelantosBarberosDia)}</span>
               </div>
             )}
             {adelantosSociosDia === 0 && adelantosBarberosDia === 0 && (
-              <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Sin pagos</span>
+              <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('noPays')}</span>
             )}
             {(adelantosSociosDia + adelantosBarberosDia > 0) && (
               <div style={{ marginTop: 4, paddingTop: 4, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--white-soft)' }}>Total:</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--white-soft)' }}>{t('total')}:</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--warning)' }}>{fc(adelantosSociosDia + adelantosBarberosDia)}</span>
               </div>
             )}
           </div>
         </div>
         <div className="stat-card" style={{ padding: '10px 12px', borderColor: 'rgba(212,175,55,0.25)' }}>
-          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>🏦 Fondo</span>
+          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>{t('fund')}</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--gold)' }}>{fc(fondoCaja)}</span>
         </div>
         <div className="stat-card" style={{ padding: '10px 12px', borderColor: 'rgba(76,175,130,0.25)' }}>
-          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>💵 Efectivo en Caja</span>
+          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>{t('cashInBoxLabel')}</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--white-soft)' }}>{fc(efectivoEnCaja)}</span>
-          <span className="text-hint" style={{ display: 'block', marginTop: 2 }}>Efectivo día + Fondo</span>
+          <span className="text-hint" style={{ display: 'block', marginTop: 2 }}>{t('cashDayFund')}</span>
         </div>
         <div className="stat-card" style={{ padding: '10px 12px', borderColor: saldoNeto >= 0 ? 'rgba(76,175,130,0.25)' : 'rgba(224,82,82,0.25)' }}>
-          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>📊 Saldo Neto</span>
+          <span className="label-xs" style={{ display: 'block', marginBottom: 2 }}>{t('netBalanceLabel')}</span>
           <span style={{ fontSize: 16, fontWeight: 700, color: saldoNeto >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fc(saldoNeto)}</span>
-          <span className="text-hint" style={{ display: 'block', marginTop: 2 }}>Ingresos − Com. − Gastos − Pagos</span>
+          <span className="text-hint" style={{ display: 'block', marginTop: 2 }}>{t('incomeMinusCom')}</span>
         </div>
       </div>
 
       {/* Acciones rápidas */}
       <p className="section-title" style={{ marginBottom: 12 }}>{t('quickRegisterTitle') || 'Registro Rápido'}</p>
       {mesFiltroActivo && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.35)', fontSize: 12, color: 'var(--danger)' }}>
-          🔒 El mes está <strong>cerrado</strong>. Reabrilo en el Panel para agregar registros.
-        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.35)', fontSize: 12, color: 'var(--danger)' }}
+          dangerouslySetInnerHTML={{ __html: '🔒 ' + t('monthlyClosed') }}
+        />
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
         <button id="btn-registrar-venta" className="btn-gold" style={{ width: '100%', fontSize: 15, padding: '10px', opacity: mesFiltroActivo ? 0.45 : 1 }}
-          onClick={() => { if (mesFiltroActivo) { alert('El mes está cerrado.'); return; } setShowVentaModal(true); }}>
-          <Plus size={18} /> {t('registerSaleBtn') || 'Registrar Venta'}
+          onClick={() => { if (mesFiltroActivo) { alert(t('monthClosedAlert')); return; } setShowVentaModal(true); }}>
+          <Plus size={18} /> {t('registerSaleBtn')}
         </button>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button id="btn-registrar-gasto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
-            onClick={() => { if (mesFiltroActivo) { alert('El mes está cerrado.'); return; } setShowGastoModal(true); }}>
-            <TrendingDown size={16} /> {t('expensesLabel2') || 'Gastos'}
+            onClick={() => { if (mesFiltroActivo) { alert(t('monthClosedAlert')); return; } setShowGastoModal(true); }}>
+            <TrendingDown size={16} /> {t('expensesLabel2')}
           </button>
           <button id="btn-registrar-Adelanto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
-            onClick={() => { if (mesFiltroActivo) { alert('El mes está cerrado.'); return; } setShowAdelantoModal(true); }}>
-            <Wallet size={16} /> {t('advancePayment') || 'Adelanto / Pago'}
+            onClick={() => { if (mesFiltroActivo) { alert(t('monthClosedAlert')); return; } setShowAdelantoModal(true); }}>
+            <Wallet size={16} /> {t('advancePayment')}
           </button>
         </div>
         <button id="btn-cerrar-caja" className="btn-ghost" style={{ width: '100%', padding: '8px', fontSize: 13, borderColor: 'rgba(212,175,55,0.5)', color: 'var(--gold)' }}
           onClick={() => setShowArqueoModal(true)}>
-          {t('cashAuditBtn') || '📊 Arqueo / Cerrar Caja del Día'}
+          {t('cashAuditBtn')}
         </button>
       </div>
 
@@ -336,7 +337,7 @@ export default function ScreenInicio() {
 
       {/* Modales */}
       {showVentaModal && (
-        <ModalVenta barberos={barberos || []} servicios={servicios || []} fechaInicial={fechaFiltro} fechasConRegistro={fechasConRegistro}
+        <ModalVenta barberos={barberos || []} servicios={servicios || []} fechaInicial={fechaFiltro} fechasConRegistro={fechasConRegistroRaw ?? []}
           onClose={() => { setShowVentaModal(false); recargar(); }} />
       )}
       {showGastoModal && (
@@ -373,6 +374,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
   fechaFiltro: string; simbolo: string; comisionesTransacciones: any[]; comisionBancariaDia: number;
   onEdit: (r: any) => void; onDelete: (id: number) => void; onRecargar: () => void;
 }) {
+  const { t } = useLanguage();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [y, m, d] = fechaFiltro.split('-').map(Number);
   const inicio = new Date(y, m - 1, d, 0, 0, 0);
@@ -427,7 +429,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
     return (
       <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--gray-muted)' }}>
         <DollarSign size={32} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
-        <p style={{ fontSize: 14 }}>Sin registros en esta fecha</p>
+        <p style={{ fontSize: 14 }}>{t('noRecordsDate')}</p>
       </div>
     );
   }
@@ -461,7 +463,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
       {/* Ventas */}
       {gruposBarbero.length > 0 && (
         <>
-          <p className="text-section" style={{ marginBottom: 8 }}>💈 Ventas del día ({registros!.length})</p>
+          <p className="text-section" style={{ marginBottom: 8 }}>💈 {t('salesDay2')} ({registros!.length})</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {gruposBarbero.map(gb => {
               const key = String(gb.barberoId);
@@ -475,11 +477,11 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 13, fontWeight: 700, color: gb.barberoInactivo ? 'var(--danger)' : 'var(--gold)' }}>{gb.barberoNombre}</span>
-                        {gb.barberoInactivo && <span style={{ fontSize: 10, color: 'var(--danger)', background: 'rgba(224,82,82,0.1)', padding: '1px 6px', borderRadius: 6 }}>⚠️ inactivo</span>}
+                        {gb.barberoInactivo && <span style={{ fontSize: 10, color: 'var(--danger)', background: 'rgba(224,82,82,0.1)', padding: '1px 6px', borderRadius: 6 }}>⚠️ {t('inactiveLabel')}</span>}
                       </div>
                       {!abierto && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{gb.totalRegistros} servicio{gb.totalRegistros !== 1 ? 's' : ''}</span>
+                          <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{gb.totalRegistros} {t('services_label').toLowerCase()}</span>
                           {gb.totalEfectivo > 0 && <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>💵 {fc(gb.totalEfectivo)}</span>}
                           {gb.totalBanco > 0 && <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600 }}>🏦 {fc(gb.totalBanco)}</span>}
                         </div>
@@ -542,7 +544,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                           {gb.totalEfectivo > 0 && <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>💵 {fc(gb.totalEfectivo)}</span>}
                           {gb.totalBanco > 0 && <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600 }}>🏦 {fc(gb.totalBanco)}</span>}
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold)' }}>Total: {fc(gb.totalMonto)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold)' }}>{t('totalLabel')}: {fc(gb.totalMonto)}</span>
                       </div>
                     </div>
                   )}
@@ -559,7 +561,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
         if (gastosFiltrados.length === 0) return null;
         return (
           <>
-            <p className="text-section" style={{ marginBottom: 8 }}>📋 Gastos del día ({gastosFiltrados.length})</p>
+            <p className="text-section" style={{ marginBottom: 8 }}>📋 {t('expensesDay2')} ({gastosFiltrados.length})</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               {gastosFiltrados.map(g => {
                 const esComisionBancaria = g.categoria === 'comision_bancaria';
@@ -587,7 +589,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
       {/* Adelantos */}
       {(adelantosDia?.length ?? 0) > 0 && (
         <>
-          <p className="text-section" style={{ marginBottom: 8 }}>💳 Adelantos / Pagos ({adelantosDia!.length})</p>
+          <p className="text-section" style={{ marginBottom: 8 }}>💳 {t('advancesDay2')} ({adelantosDia!.length})</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
             {adelantosDia!.map(a => {
               const esSocio = esSocioAdelanto(a);
@@ -599,14 +601,14 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                 <div key={a.id} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderColor: esDevolucion ? 'rgba(76,175,130,0.25)' : esSocio ? 'rgba(212,175,55,0.2)' : 'var(--black-border)' }}>
                   <div>
                     <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--white-soft)' }}>{esDevolucion ? '↩️' : esSocio ? '🤝' : '💈'} {a.motivo}</p>
-                    <p className="text-hint">{nombre} · {format(new Date(a.fecha), 'HH:mm')}{esDevolucion && <span style={{ color: 'var(--success)', marginLeft: 6, fontWeight: 600 }}>Devolución</span>}</p>
+                    <p className="text-hint">{nombre} · {format(new Date(a.fecha), 'HH:mm')}{esDevolucion && <span style={{ color: 'var(--success)', marginLeft: 6, fontWeight: 600 }}>{t('returnLabel')}</span>}</p>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <div style={{ textAlign: 'right' }}>
                       <p style={{ fontSize: 16, fontWeight: 700, color: esDevolucion ? 'var(--success)' : esSocio ? 'var(--gold)' : 'var(--warning)' }}>
                         {esDevolucion ? '+' : '-'}{fc(Math.abs(a.monto))}
                       </p>
-                      <span className="text-hint">{esDevolucion ? 'Ingreso al fondo' : esSocio ? 'Socio/Dueño' : 'Barbero'}</span>
+                      <span className="text-hint">{esDevolucion ? t('fund') : esSocio ? t('partnerOwner') : t('barberLabel')}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button className="btn-ghost" aria-label="Editar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setAdelantoEditando(a)}><Edit3 size={14} color="var(--gold)" /></button>
@@ -627,7 +629,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
         {comisionesTransacciones?.length > 0 && (
           <div className="card-gold" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(20,20,20,0.95) 100%)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>💸 Comisión Bancaria</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>💸 {t('bankCommissionLabel')}</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc(comisionBancariaDia)}</span>
             </div>
             <div style={{ borderTop: '1px solid rgba(212,175,55,0.15)', padding: '8px 12px' }}>
@@ -649,7 +651,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
 
 // ─── MODAL EDITAR GASTO ───────────────────────────────────────────────────────
 function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>(gasto.categoria);
   const [monto, setMonto] = useState(String(gasto.monto));
   const [descripcion, setDescripcion] = useState(gasto.descripcion);
@@ -673,17 +675,17 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">✏️ {t('modals.editExpense') || 'Editar Gasto'}</h2>
+          <h2 className="section-title">✏️ {t('editExpenseTitle')}</h2>
           <button aria-label="Cerrar" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Gasto actualizado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('expenseUpdated')}</p></div>
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Fecha</label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('dateLabel')}</label><DatePicker value={fecha} onChange={setFecha} /></div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Categoría</label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('categoryLabel')}</label>
                 <CustomSelect value={categoria} onChange={v => setCategoria(v as GastoFijo['categoria'])} placeholder="— Categoría —" grouped={false} searchThreshold={99}
                   options={[
                     { value: 'alquiler', label: 'Alquiler', icon: '🏠', badge: 'Fijo', badgeColor: '#5288E0', subtitle: 'Gasto mensual de local' },
@@ -700,12 +702,12 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
                     { value: 'otro', label: 'Otro', icon: '📌', badge: 'Varios', badgeColor: '#888888', subtitle: 'Varios' },
                   ]} />
               </div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Monto</label><input className="input-dark" type="number" inputMode="decimal" min="0" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" /></div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Descripción</label><input className="input-dark" type="text" value={descripcion} onChange={e => setDescripcion(e.target.value)} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('amountLabel')}</label><input className="input-dark" type="number" inputMode="decimal" min="0" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('descriptionLabel')}</label><input className="input-dark" type="text" value={descripcion} onChange={e => setDescripcion(e.target.value)} /></div>
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button className="btn-gold" style={{ width: '100%' }} disabled={!monto || !descripcion || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Guardar Cambios'}</button>
+              <button className="btn-gold" style={{ width: '100%' }} disabled={!monto || !descripcion || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
             </div>
           </>
         )}
@@ -716,7 +718,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
 
 // ─── MODAL EDITAR ADELANTO ────────────────────────────────────────────────────
 function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto: any; barberos: any[]; socios: any[]; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const [monto, setMonto] = useState(String(adelanto.monto));
   const [motivo, setMotivo] = useState(adelanto.motivo);
   const [fecha, setFecha] = useState<string>(() => { const d = new Date(adelanto.fecha); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
@@ -744,24 +746,24 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">✏️ {t('modals.editAdvance') || 'Editar Adelanto / Pago'}</h2>
+          <h2 className="section-title">✏️ {t('editAdvanceTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Adelanto actualizado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('advanceUpdated')}</p></div>
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
               <div className="card" style={{ padding: '10px 14px', background: 'rgba(212,175,55,0.05)', borderColor: 'rgba(212,175,55,0.2)' }}>
-                <p style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Destinatario: <strong style={{ color: 'var(--gold)' }}>{nombre}</strong></p>
+                <p style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('recipient')}: <strong style={{ color: 'var(--gold)' }}>{nombre}</strong></p>
               </div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Fecha</label><DatePicker value={fecha} onChange={setFecha} /></div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Monto</label><input className="input-dark" type="number" inputMode="decimal" min="0" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" /></div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Motivo</label><input className="input-dark" type="text" value={motivo} onChange={e => setMotivo(e.target.value)} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('dateLabel')}</label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('amountLabel')}</label><input className="input-dark" type="number" inputMode="decimal" min="0" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('reasonLabel')}</label><input className="input-dark" type="text" value={motivo} onChange={e => setMotivo(e.target.value)} /></div>
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button className="btn-gold" style={{ width: '100%' }} disabled={!monto || !motivo || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Guardar Cambios'}</button>
+              <button className="btn-gold" style={{ width: '100%' }} disabled={!monto || !motivo || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
             </div>
           </>
         )}
@@ -772,7 +774,7 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
 
 // ─── MODAL EDITAR VENTA ───────────────────────────────────────────────────────
 function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro: any; barberos: Barbero[]; servicios: ServicioProducto[]; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const { simbolo } = useMoneda();
   const [barberoId, setBarberoId] = useState(String(registro.barbero_id || ''));
   const [itemId, setItemId] = useState(String(registro.item_id));
@@ -828,22 +830,22 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">✏️ {t('common.edit') || 'Editar'} Registro</h2>
+          <h2 className="section-title">✏️ {t('editSaleTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Registro actualizado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('saleUpdated')}</p></div>
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Fecha</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Barbero{esProducto && <span style={{ opacity: .7, color: 'var(--gold)' }}> (opcional para productos)</span>}</label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('barberLabel')}{esProducto && <span style={{ opacity: .7, color: 'var(--gold)' }}> {t('barberOptional')}</span>}</label>
                 <PersonSelect id="edit-barbero" value={barberoId} onChange={setBarberoId} placeholder={esProducto ? '— La Barbería —' : '— Seleccionar barbero —'} tipo="barbero"
                   options={barberos.map(b => ({ id: String(b.id), nombre: b.nombre, subtitle: `Comisión ${(b.porcentaje_comision * 100).toFixed(0)}%` }))} />
               </div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Servicio / Producto</label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceProduct')}</label>
                 <ItemSelect
                   id="edit-item"
                   value={itemId}
@@ -855,24 +857,24 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
                   ]}
                 />
               </div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Monto Total</label><input id="edit-monto" className="input-dark" type="number" inputMode="decimal" min="0" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('totalAmount')}</label><input id="edit-monto" className="input-dark" type="number" inputMode="decimal" min="0" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0.00" /></div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Método de Pago</label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('paymentMethod')}</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <button type="button" className="btn-ghost" style={{ background: metodo === 'efectivo' ? 'rgba(76,175,130,0.1)' : 'transparent', borderColor: metodo === 'efectivo' ? 'var(--success)' : 'var(--black-border)', color: metodo === 'efectivo' ? 'var(--success)' : 'var(--gray-muted)' }} onClick={() => setMetodo('efectivo')}>💵 Efectivo</button>
-                  <button type="button" className="btn-ghost" style={{ background: metodo === 'banco' ? 'rgba(82,136,224,0.1)' : 'transparent', borderColor: metodo === 'banco' ? 'var(--gold)' : 'var(--black-border)', color: metodo === 'banco' ? 'var(--gold)' : 'var(--gray-muted)' }} onClick={() => setMetodo('banco')}>🏦 Banco</button>
+                  <button type="button" className="btn-ghost" style={{ background: metodo === 'efectivo' ? 'rgba(76,175,130,0.1)' : 'transparent', borderColor: metodo === 'efectivo' ? 'var(--success)' : 'var(--black-border)', color: metodo === 'efectivo' ? 'var(--success)' : 'var(--gray-muted)' }} onClick={() => setMetodo('efectivo')}>💵 {t('cash')}</button>
+                  <button type="button" className="btn-ghost" style={{ background: metodo === 'banco' ? 'rgba(82,136,224,0.1)' : 'transparent', borderColor: metodo === 'banco' ? 'var(--gold)' : 'var(--black-border)', color: metodo === 'banco' ? 'var(--gold)' : 'var(--gray-muted)' }} onClick={() => setMetodo('banco')}>🏦 {t('bank')}</button>
                 </div>
               </div>
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
               {barberoCambio && (
                 <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.3)', color: 'var(--warning)', fontSize: 12 }}>
-                  <strong>⚠️ Cambio de Barbero</strong>
-                  <p style={{ fontSize: 11, marginTop: 4 }}>De <strong>{barberoOrig}</strong> a <strong>{barberoNuevo}</strong>. Afectará las comisiones.</p>
+                  <strong>⚠️ {t('barberChangeWarning')}</strong>
+                  <p style={{ fontSize: 11, marginTop: 4 }}>{t('from') || 'De'} <strong>{barberoOrig}</strong> {t('to') || 'a'} <strong>{barberoNuevo}</strong>. {t('barberChangeDetail')}</p>
                 </div>
               )}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button id="btn-guardar-edit" className="btn-gold" style={{ width: '100%' }} disabled={(!esProducto && !barberoId) || !itemId || !monto || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Guardar Cambios'}</button>
+              <button id="btn-guardar-edit" className="btn-gold" style={{ width: '100%' }} disabled={(!esProducto && !barberoId) || !itemId || !monto || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
             </div>
           </>
         )}
@@ -883,7 +885,7 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
 
 // ─── MODAL VENTA ──────────────────────────────────────────────────────────────
 function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onClose }: { barberos: Barbero[]; servicios: ServicioProducto[]; fechaInicial?: string; fechasConRegistro?: string[]; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [barberoId, setBarberoId] = useState('');
@@ -986,15 +988,15 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">{t('modals.registerSale') || 'Registrar Venta'}</h2>
+          <h2 className="section-title">{t('registerSaleTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}>
             <CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} />
-            <p style={{ fontSize: 16, fontWeight: 600 }}>{successCount > 1 ? `¡${successCount} registros guardados!` : '¡Venta registrada!'}</p>
-            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 4 }}>Total: {fc(totalGeneral)}</p>
+            <p style={{ fontSize: 16, fontWeight: 600 }}>{successCount > 1 ? `${successCount} ${t('savedRecords')}` : t('saleRegistered')}</p>
+            <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 4 }}>{t('totalLabel')}: {fc(totalGeneral)}</p>
           </div>
         ) : (
           <>
@@ -1003,7 +1005,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
               {/* Fecha */}
               <div style={{ flexShrink: 0 }}>
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Fecha</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span>
                 </label>
                 <DatePicker value={fecha} onChange={setFecha} markedDates={fechasConRegistro} />
               </div>
@@ -1011,7 +1013,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
               {/* Barbero (común para todos los servicios) */}
               <div style={{ flexShrink: 0 }}>
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
-                  Barbero {!algunaServicio && <span style={{ opacity: .6 }}>(opcional si solo hay productos)</span>}
+                   {t('barberLabel')} {!algunaServicio && <span style={{ opacity: .6 }}>{t('barberOptional')}</span>}
                 </label>
                 <PersonSelect id="venta-barbero" value={barberoId} onChange={setBarberoId}
                   placeholder="— Seleccionar barbero —" tipo="barbero"
@@ -1020,17 +1022,17 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
 
               {/* Método de pago (común para todos) */}
               <div style={{ flexShrink: 0 }}>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Método de Pago</label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('paymentMethod')}</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <button type="button" className="btn-ghost" style={{ background: metodo === 'efectivo' ? 'rgba(76,175,130,0.1)' : 'transparent', borderColor: metodo === 'efectivo' ? 'var(--success)' : 'var(--black-border)', color: metodo === 'efectivo' ? 'var(--success)' : 'var(--gray-muted)' }} onClick={() => setMetodo('efectivo')}>💵 Efectivo</button>
-                  <button type="button" className="btn-ghost" style={{ background: metodo === 'banco' ? 'rgba(82,136,224,0.1)' : 'transparent', borderColor: metodo === 'banco' ? 'var(--gold)' : 'var(--black-border)', color: metodo === 'banco' ? 'var(--gold)' : 'var(--gray-muted)' }} onClick={() => setMetodo('banco')}>🏦 Banco</button>
+                  <button type="button" className="btn-ghost" style={{ background: metodo === 'efectivo' ? 'rgba(76,175,130,0.1)' : 'transparent', borderColor: metodo === 'efectivo' ? 'var(--success)' : 'var(--black-border)', color: metodo === 'efectivo' ? 'var(--success)' : 'var(--gray-muted)' }} onClick={() => setMetodo('efectivo')}>💵 {t('cash')}</button>
+                  <button type="button" className="btn-ghost" style={{ background: metodo === 'banco' ? 'rgba(82,136,224,0.1)' : 'transparent', borderColor: metodo === 'banco' ? 'var(--gold)' : 'var(--black-border)', color: metodo === 'banco' ? 'var(--gold)' : 'var(--gray-muted)' }} onClick={() => setMetodo('banco')}>🏦 {t('bank')}</button>
                 </div>
               </div>
 
               {/* ── Lista de ítems ── */}
               <div style={{ flexShrink: 0 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Servicios / Productos</label>
+                  <label style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('servicesProducts2')}</label>
                   <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600 }}>{lineasValidas.length} ítem{lineasValidas.length !== 1 ? 's' : ''}</span>
                 </div>
 
@@ -1072,7 +1074,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               {/* Monto */}
                               <div>
-                                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Precio unit.</label>
+                                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('unitPrice')}</label>
                                 <input
                                   className="input-dark"
                                   type="number" inputMode="decimal" min="0" max="99999" step="0.01"
@@ -1086,7 +1088,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
 
                               {/* Cantidad */}
                               <div>
-                                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>Cantidad</label>
+                                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('quantityLabel')}</label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                   <button type="button"
                                     onClick={() => setLineaCantidad(linea.id, Math.max(1, linea.cantidad - 1))}
@@ -1129,7 +1131,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
                   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.09)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'rgba(212,175,55,0.04)')}
                 >
-                  <Plus size={14} /> Agregar otro ítem
+                  <Plus size={14} /> {t('addAnotherItem')}
                 </button>
               </div>
 
@@ -1140,14 +1142,14 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
               {lineasValidas.length > 1 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(76,175,130,0.07)', border: '1px solid rgba(76,175,130,0.2)' }}>
-                  <span style={{ fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600 }}>Total {lineasValidas.length} ítems</span>
+                  <span style={{ fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600 }}>{t('totalLabel')} {lineasValidas.length} ítems</span>
                   <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--success)', fontFamily: 'var(--font-display)' }}>{fc(totalGeneral)}</span>
                 </div>
               )}
               <button id="btn-guardar-venta" className="btn-gold" style={{ width: '100%' }}
                 disabled={!puedeGuardar}
                 onClick={guardar}>
-                {loading ? 'Guardando...' : `Guardar ${lineasValidas.length > 1 ? `${lineasValidas.reduce((s,l)=>s+l.cantidad,0)} registros` : 'Venta'}`}
+                {loading ? t('savingBtn') : `${t('save')} ${lineasValidas.length > 1 ? `${lineasValidas.reduce((s,l)=>s+l.cantidad,0)} ${t('savedRecords')}` : t('registerSale')}`}
               </button>
             </div>
           </>
@@ -1159,7 +1161,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
 
 // ─── MODAL GASTO ──────────────────────────────────────────────────────────────
 function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>('alquiler');
   const [monto, setMonto] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -1201,28 +1203,28 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">{t('modals.registerExpense') || 'Registrar Gasto'}</h2>
+          <h2 className="section-title">{t('registerExpenseTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Gasto registrado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('expenseRegistered')}</p></div>
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Fecha</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Categoría</label><CustomSelect id="gasto-categoria" value={categoria} onChange={v => setCategoria(v as GastoFijo['categoria'])} placeholder="— Categoría —" grouped={false} searchThreshold={99} options={catOptions} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('categoryLabel')}</label><CustomSelect id="gasto-categoria" value={categoria} onChange={v => setCategoria(v as GastoFijo['categoria'])} placeholder="— Categoría —" grouped={false} searchThreshold={99} options={catOptions} /></div>
               <div>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Monto <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('amountLabel')} <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <input id="gasto-monto" className="input-dark" type="number" inputMode="decimal" min="0.01" max="99999" step="0.01" value={monto}
                   onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
                   onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) { setMonto(v); setError(''); } }}
                   placeholder="0.00" style={{ borderColor: monto && Number(monto) <= 0 ? 'var(--danger)' : undefined }} />
               </div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Descripción <span style={{ fontSize: 11, opacity: .6 }}>(opcional)</span></label><input id="gasto-descripcion" className="input-dark" type="text" value={descripcion} maxLength={200} onChange={e => setDescripcion(e.target.value.replace(/[<>"'`]/g, ''))} placeholder={`Ej: ${NOMBRE_CAT[categoria]} del mes`} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('descriptionLabel')} <span style={{ fontSize: 11, opacity: .6 }}>{t('descriptionOptional')}</span></label><input id="gasto-descripcion" className="input-dark" type="text" value={descripcion} maxLength={200} onChange={e => setDescripcion(e.target.value.replace(/[<>"'`]/g, ''))} placeholder={`Ej: ${NOMBRE_CAT[categoria]} del mes`} /></div>
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button id="btn-guardar-gasto" className="btn-gold" style={{ width: '100%' }} disabled={!monto || Number(monto) <= 0 || loading} onClick={guardar}>{loading ? 'Guardando...' : 'Guardar Gasto'}</button>
+              <button id="btn-guardar-gasto" className="btn-gold" style={{ width: '100%' }} disabled={!monto || Number(monto) <= 0 || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveExpenseBtn')}</button>
             </div>
           </>
         )}
@@ -1233,7 +1235,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
 
 // ─── MODAL ADELANTO ───────────────────────────────────────────────────────────
 function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[]; fechaInicial?: string; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const [destinatarioTipo, setDestinatarioTipo] = useState<'barbero' | 'socio' | 'devolucion_socio'>('barbero');
   const [barberoId, setBarberoId] = useState('');
   const [monto, setMonto] = useState('');
@@ -1337,25 +1339,25 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
-          <h2 className="section-title">{t('modals.advancePayment') || 'Adelanto / Pago'}</h2>
+          <h2 className="section-title">{t('advanceTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>¡Adelanto / Pago registrado!</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('advanceRegistered')}</p></div>
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Fecha</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
               {!barberoId && efectivoCaja !== null && (
                 <div className="card" style={{ padding: '10px 14px', background: efectivoCaja <= 0 ? 'rgba(224,82,82,0.08)' : 'rgba(76,175,130,0.06)', borderColor: efectivoCaja <= 0 ? 'rgba(224,82,82,0.3)' : 'rgba(76,175,130,0.2)' }}>
-                  <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 2 }}>💵 Efectivo disponible</p>
+                  <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 2 }}>💵 {t('availableCash')}</p>
                   <p style={{ fontSize: 20, fontWeight: 700, color: efectivoCaja <= 0 ? 'var(--danger)' : 'var(--success)' }}>{fc(efectivoCaja)}</p>
                 </div>
               )}
               <div>
-                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Tipo de Destinatario</label>
+                <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('recipientType')}</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                  {([['barbero', '💈 Barbero'] as const, ['socio', '🤝 Socio'] as const, ['devolucion_socio', 'Devolución'] as const]).map(([tipo, label]) => (
+                  {([['barbero', `💈 ${t('barberLabel')}`] as const, ['socio', `🤝 ${t('partnerLabel')}`] as const, ['devolucion_socio', t('returnLabel')] as const]).map(([tipo, label]) => (
                     <button key={tipo} type="button" className="btn-ghost" style={{ background: destinatarioTipo === tipo ? (tipo === 'devolucion_socio' ? 'rgba(76,175,130,0.1)' : 'rgba(212,175,55,0.1)') : 'transparent', borderColor: destinatarioTipo === tipo ? (tipo === 'devolucion_socio' ? 'var(--success)' : 'var(--gold)') : 'var(--black-border)', color: destinatarioTipo === tipo ? (tipo === 'devolucion_socio' ? 'var(--success)' : 'var(--gold)') : 'var(--gray-muted)', fontSize: 13 }}
                       onClick={() => { setDestinatarioTipo(tipo); setBarberoId(''); setSaldoBarbero(null); }}>
                       {label}
@@ -1365,7 +1367,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
               </div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
-                  {destinatarioTipo === 'barbero' ? 'Barbero' : destinatarioTipo === 'devolucion_socio' ? 'Socio que devuelve' : 'Socio / Dueño'}
+                  {destinatarioTipo === 'barbero' ? t('barberLabel') : destinatarioTipo === 'devolucion_socio' ? t('partnerReturning') : t('partnerOwner')}
                 </label>
                 {destinatarioTipo === 'barbero' ? (
                   <PersonSelect id="Adelanto-barbero" value={barberoId} onChange={setBarberoId}
@@ -1380,27 +1382,27 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
               </div>
               {destinatarioTipo === 'barbero' && barberoId && saldoBarbero !== null && (
                 <div className="card" style={{ padding: '12px 14px', background: saldoBarbero <= 0 ? 'rgba(224,82,82,0.07)' : 'rgba(212,175,55,0.06)', borderColor: saldoBarbero <= 0 ? 'rgba(224,82,82,0.35)' : 'rgba(212,175,55,0.3)' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💈 Saldo acumulado del mes</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>💈 {t('monthlyAccumulatedBalance')}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Generado:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc((saldoBarbero ?? 0) + (adelantadoSocio ?? 0))}</span></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Ya cobrado:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--warning)' }}>-{fc(adelantadoSocio ?? 0)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('generatedLabel')}:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc((saldoBarbero ?? 0) + (adelantadoSocio ?? 0))}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('alreadyCollectedLabel')}:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--warning)' }}>-{fc(adelantadoSocio ?? 0)}</span></div>
                     <div style={{ height: 1, background: 'var(--black-border)', margin: '4px 0' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Disponible:</span><span style={{ fontSize: 18, fontWeight: 800, color: saldoBarbero <= 0 ? 'var(--danger)' : 'var(--success)' }}>{fc(Math.max(0, saldoBarbero))}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('availableBalance')}:</span><span style={{ fontSize: 18, fontWeight: 800, color: saldoBarbero <= 0 ? 'var(--danger)' : 'var(--success)' }}>{fc(Math.max(0, saldoBarbero))}</span></div>
                   </div>
                 </div>
               )}
               {destinatarioTipo === 'socio' && barberoId && beneficioSocio !== null && (
                 <div className="card" style={{ padding: '12px 14px', borderColor: (saldoBarbero ?? 0) <= 0 ? 'rgba(224,82,82,0.35)' : 'rgba(212,175,55,0.3)', background: (saldoBarbero ?? 0) <= 0 ? 'rgba(224,82,82,0.07)' : 'rgba(212,175,55,0.05)' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🤝 Beneficio del mes</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--gold)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>🤝 {t('monthBenefit2')}</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Beneficio:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc(beneficioSocio)}</span></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Ya cobrado:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--warning)' }}>-{fc(adelantadoSocio ?? 0)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('benefit')}:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc(beneficioSocio)}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('alreadyCollectedLabel')}:</span><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--warning)' }}>-{fc(adelantadoSocio ?? 0)}</span></div>
                     <div style={{ height: 1, background: 'var(--black-border)', margin: '4px 0' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Pendiente:</span><span style={{ fontSize: 18, fontWeight: 800, color: (saldoBarbero ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fc(Math.max(0, saldoBarbero ?? 0))}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('pendingBalance')}:</span><span style={{ fontSize: 18, fontWeight: 800, color: (saldoBarbero ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>{fc(Math.max(0, saldoBarbero ?? 0))}</span></div>
                   </div>
                   {efectivoCaja !== null && (
                     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--black-border)', display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>💵 Efectivo en caja:</span>
+                      <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>💵 {t('cashInRegister')}:</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: efectivoCaja <= 0 ? 'var(--danger)' : 'var(--success)' }}>{fc(efectivoCaja)}</span>
                     </div>
                   )}
@@ -1408,17 +1410,17 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
               )}
               {destinatarioTipo === 'devolucion_socio' && barberoId && saldoBarbero !== null && (
                 <div className="card" style={{ padding: '12px 14px', borderColor: 'rgba(76,175,130,0.35)', background: 'rgba(76,175,130,0.06)' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>↩️ Devolución al local</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--success)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>↩️ {t('returnToShop')}</p>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>Debe devolver:</span>
+                    <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{t('mustReturn2')}:</span>
                     <span style={{ fontSize: 18, fontWeight: 800, color: deudaSocio > 0 ? 'var(--danger)' : 'var(--gray-muted)' }}>{fc(deudaSocio)}</span>
                   </div>
-                  {deudaSocio <= 0 && <p style={{ fontSize: 11, color: 'var(--success)', marginTop: 8 }}>Sin deuda este mes.</p>}
+                  {deudaSocio <= 0 && <p style={{ fontSize: 11, color: 'var(--success)', marginTop: 8 }}>{t('noDebtThisMonth')}</p>}
                 </div>
               )}
               <div>
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>
-                  {destinatarioTipo === 'devolucion_socio' ? 'Monto que ingresa' : 'Monto Entregado'}
+                  {destinatarioTipo === 'devolucion_socio' ? t('registerIncomeBtn') : t('amountToPay')}
                 </label>
                 {/* Campo monto con botón MAX + flechas +/- */}
                 {(() => {
@@ -1529,22 +1531,22 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
                       {/* Hint de máximo disponible */}
                       {barberoId && maxMonto > 0 && (
                         <p style={{ fontSize: 10, color: 'var(--gray-muted)', marginTop: 5, textAlign: 'right' }}>
-                          Máx. disponible: <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{fc(maxMonto)}</span>
+                          {t('maxAvailable')}: <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{fc(maxMonto)}</span>
                         </p>
                       )}
                     </div>
                   );
                 })()}
-                {excedeCaja && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, color: 'var(--danger)', fontSize: 12 }}><AlertCircle size={14} /> Excede efectivo en caja ({fc(efectivoCaja!)})</div>}
+                {excedeCaja && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, color: 'var(--danger)', fontSize: 12 }}><AlertCircle size={14} /> {t('exceedsCash')} ({fc(efectivoCaja!)})</div>}
               </div>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Motivo</label><input id="Adelanto-motivo" className="input-dark" type="text" value={motivo} maxLength={200} onChange={e => setMotivo(e.target.value.replace(/[<>"'`]/g, ''))} placeholder={destinatarioTipo === 'devolucion_socio' ? 'Ej: Devolución por adelanto de más' : 'Ej: Pago mensual'} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('reasonLabel')}</label><input id="Adelanto-motivo" className="input-dark" type="text" value={motivo} maxLength={200} onChange={e => setMotivo(e.target.value.replace(/[<>"'`]/g, ''))} placeholder={destinatarioTipo === 'devolucion_socio' ? t('reasonPlaceholderReturn') : t('reasonPlaceholderDefault')} /></div>
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', border: '1px solid rgba(224,82,82,0.3)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
               <button id="btn-guardar-Adelanto" className="btn-gold" style={{ width: '100%' }}
                 disabled={!barberoId || !monto || !motivo || excedeCaja || loading || (destinatarioTipo === 'barbero' && saldoBarbero !== null && saldoBarbero <= 0) || (destinatarioTipo === 'devolucion_socio' && (deudaSocio <= 0 || montoNum > deudaSocio))}
                 onClick={guardar}>
-                {loading ? 'Guardando...' : destinatarioTipo === 'devolucion_socio' ? 'Registrar Ingreso' : 'Confirmar Pago'}
+                {loading ? t('savingBtn') : destinatarioTipo === 'devolucion_socio' ? t('registerIncomeBtn') : t('confirmPaymentBtn')}
               </button>
             </div>
           </>
@@ -1556,7 +1558,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
 
 // ─── MODAL ARQUEO DE CAJA ─────────────────────────────────────────────────────
 function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
-  const { t } = useAppConfig();
+  const { t } = useLanguage();
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
   const [fecha, setFecha] = useState<string>(fechaInicial ?? (() => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`; })());
@@ -1600,43 +1602,43 @@ function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onC
       <div className="modal-sheet" onClick={e => e.stopPropagation()}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 className="section-title">📊 {tieneArqueo ? 'Actualizar Arqueo' : t('modals.cashAudit') || 'Arqueo de Caja'}</h2>
+          <h2 className="section-title">📊 {tieneArqueo ? t('updateAuditTitle') : t('cashAuditTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {tieneArqueo && !success && (
           <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)', fontSize: 12, color: 'var(--gold)' }}>
-            ✓ Ya existe un arqueo. Podés modificarlo y guardar.
+            {t('auditExistsNote')}
           </div>
         )}
         {success ? (
-          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{tieneArqueo ? '¡Arqueo actualizado!' : '¡Arqueo guardado!'}</p></div>
+          <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{tieneArqueo ? t('auditUpdated') : t('auditSaved')}</p></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> Fecha</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div className="stat-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}><span className="stat-label">Total Ventas</span><span className="stat-value gold" style={{ fontSize: 20 }}>{fc(totalVentas)}</span></div>
-              <div className="stat-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}><span className="stat-label">Fondo de Caja</span><span className="stat-value gold" style={{ fontSize: 20 }}>{fc(fondoCaja)}</span></div>
+              <div className="stat-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}><span className="stat-label">{t('totalSalesLabel')}</span><span className="stat-value gold" style={{ fontSize: 20 }}>{fc(totalVentas)}</span></div>
+              <div className="stat-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}><span className="stat-label">{t('cashFundLabel2')}</span><span className="stat-value gold" style={{ fontSize: 20 }}>{fc(fondoCaja)}</span></div>
             </div>
             <div>
-              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>💰 ¿Cuánto ingresó por Banco hoy?</label>
+              <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>💰 {t('bankEntryQuestion')}</label>
               <input id="arqueo-banco" className="input-dark" type="number" inputMode="decimal" min="0" max="99999" step="0.01" value={montoBanco}
                 onKeyDown={e => { if (['-', 'e', 'E', '+'].includes(e.key)) e.preventDefault(); }}
                 onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 99999)) setMontoBanco(v); }}
                 placeholder="0.00" style={{ borderColor: excedeBanco ? 'var(--danger)' : undefined }} />
-              {excedeBanco && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, color: 'var(--danger)', fontSize: 12 }}><AlertCircle size={14} /> El banco no puede superar las ventas totales.</div>}
+              {excedeBanco && <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, color: 'var(--danger)', fontSize: 12 }}><AlertCircle size={14} /> {t('bankExceedsError')}</div>}
             </div>
             <div className="card-gold pulse-gold" style={{ padding: '14px', borderRadius: 12, background: 'linear-gradient(135deg, rgba(212,175,55,0.15) 0%, rgba(0,0,0,0) 100%)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span style={{ fontSize: 13, color: 'var(--gray-muted)' }}>💵 Efectivo calculado:</span><span style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{fc(montoEfectivo)}</span></div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span style={{ fontSize: 13, color: 'var(--gray-muted)' }}>➕ Fondo de caja:</span><span style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{fc(fondoCaja)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span style={{ fontSize: 13, color: 'var(--gray-muted)' }}>💵 {t('cashCalculated')}:</span><span style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{fc(montoEfectivo)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}><span style={{ fontSize: 13, color: 'var(--gray-muted)' }}>➕ {t('cashFundPlus')}:</span><span style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{fc(fondoCaja)}</span></div>
               <hr style={{ borderColor: 'rgba(212,175,55,0.2)', margin: '8px 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>💰 DEBE QUEDAR EN CAJA:</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>💰 {t('shouldRemainInRegister')}:</span>
                 <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>{fc(debeQuedar)}</span>
               </div>
             </div>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>Notas (opcional)</label><input id="arqueo-notas" className="input-dark" type="text" value={notas} onChange={e => setNotas(e.target.value)} placeholder="Ej: Faltaron $5..." /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('notesLabel')}</label><input id="arqueo-notas" className="input-dark" type="text" value={notas} onChange={e => setNotas(e.target.value)} placeholder={t('notesPlaceholder')} /></div>
             <button id="btn-guardar-arqueo" className="btn-gold" style={{ marginTop: 8, width: '100%' }} disabled={loading || excedeBanco} onClick={guardar}>
-              {loading ? 'Guardando...' : tieneArqueo ? 'Actualizar Arqueo' : 'Confirmar y Cerrar Caja'}
+              {loading ? t('savingBtn') : tieneArqueo ? t('updateAuditBtn') : t('confirmCloseRegisterBtn')}
             </button>
           </div>
         )}

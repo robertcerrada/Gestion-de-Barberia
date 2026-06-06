@@ -615,31 +615,55 @@ body {
 
 .premium-nav-bar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--tab-bar-height);
+  bottom: max(env(safe-area-inset-bottom, 16px), 16px);
+  left: 16px;
+  right: 16px;
+  height: 70px;
   z-index: 100;
-  background: var(--black-card);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid var(--black-border);
+  background: rgba(20, 20, 20, 0.72);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 35px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-around;
-  padding-top: 8px;
+  padding: 0 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  /* Spring-like physics transition */
+  transition:
+    width 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+    left 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+    right 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+    border-radius 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+    background 0.3s ease,
+    box-shadow 0.3s ease;
+  overflow: hidden;
+  will-change: width, left, right;
+}
+
+/* Collapsed: shrinks to a 64px pill anchored to left */
+.premium-nav-bar--collapsed {
+  left: 16px;
+  right: auto;
+  width: 64px;
+  border-radius: 32px;
+  background: rgba(20, 20, 20, 0.85);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(212,175,55,0.15);
+  padding: 0;
+  justify-content: center;
 }
 
 .premium-nav-bg-curve {
   position: absolute;
-  bottom: 0;
-  height: 100%;
-  background: linear-gradient(180deg, rgba(212,175,55,0.15) 0%, rgba(212,175,55,0.05) 100%);
-  border-radius: 50% 50% 0 0 / 20% 20% 0 0;
+  top: 8px;
+  bottom: 8px;
+  background: rgba(212, 175, 55, 0.12);
+  border-radius: 28px;
   transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: none;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(212,175,55,0.25);
-  border-bottom: none;
+  border: 1px solid rgba(212, 175, 55, 0.25);
 }
 
 .premium-nav-items {
@@ -654,8 +678,10 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 0;
+  justify-content: center;
+  gap: 4px;
+  padding: 0;
+  height: 100%;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -681,19 +707,7 @@ body {
 }
 
 .premium-nav-ornament {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(212,175,55,0.2);
-  pointer-events: none;
-}
-
-.premium-nav-ornament--right {
-  left: auto;
-  right: 12px;
+  display: none;
 }
 
 .dropdown-backdrop-button {
