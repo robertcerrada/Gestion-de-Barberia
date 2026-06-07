@@ -1686,18 +1686,21 @@ function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
 function ModalFinanzas({ onClose }: { onClose: () => void }) {
   const { t } = useAppConfig();
   const [moneda, setMoneda] = useState('USD');
+  const [comisionBancaria, setComisionBancaria] = useState('0');
   const [comisionDefecto, setComisionDefecto] = useState('50');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     getConfig('moneda_codigo').then(v => { if (v) setMoneda(v); });
+    getConfig('porcentaje_comision_bancaria').then(v => { if (v) setComisionBancaria(String(parseFloat(v) || 0)); });
     getConfig('comision_defecto_barbero').then(v => { if (v) setComisionDefecto(String(Math.round(Number(v) * 100))); });
   }, []);
 
   async function guardar() {
     setSaving(true);
     await setConfig('moneda_codigo', moneda);
+    await setConfig('porcentaje_comision_bancaria', String(Number(comisionBancaria)));
     await setConfig('comision_defecto_barbero', String(Number(comisionDefecto) / 100));
     emitirCambioMoneda(moneda);
     setSaving(false);
@@ -1705,18 +1708,27 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
     setTimeout(() => { setSuccess(false); onClose(); }, 1200);
   }
 
+  const spinnerStyle = {
+    width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+    border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)',
+    color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation',
+  } as const;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('financesCommissionsTitle')}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* ── Sección: Moneda ── */}
           <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('mainCurrencyLabel')}</label>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>💱 {t('mainCurrencyLabel')}</p>
             <select className="input-dark" value={moneda} onChange={e => setMoneda(e.target.value)} style={{ width: '100%', cursor: 'pointer' }}>
               <option value="USD">{t('currencyUSD')} ($)</option>
               <option value="ARS">{t('currencyARS')} ($)</option>
@@ -1730,23 +1742,59 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
             </select>
           </div>
 
-          <div>
-            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')} ({t('newBarber')}): <strong style={{ color: 'var(--gold)' }}>{comisionDefecto}%</strong></label>
+          {/* ── Sección: Comisión Bancaria ── */}
+          <div style={{ borderTop: '1px solid var(--black-border)', paddingTop: 18 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>💸 {t('bankCommissionCardLabel')}</p>
+            <p style={{ fontSize: 11, color: 'var(--gray-muted)', lineHeight: 1.5, marginBottom: 10 }}>{t('bankCommissionCardDesc')}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setComisionBancaria(v => { const n = Math.max(0, parseFloat((Number(v) - 0.1).toFixed(2))); return String(n); }); }}
+                style={spinnerStyle}
+              >&#x2212;</button>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  className="input-dark"
+                  type="number" inputMode="decimal" min="0" max="100" step="0.1"
+                  value={comisionBancaria}
+                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0 && Number(v) <= 100)) setComisionBancaria(v); }}
+                  style={{ width: '100%', textAlign: 'center', fontWeight: 700, fontSize: 18, margin: 0 }}
+                />
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--gold)', fontWeight: 700, pointerEvents: 'none' }}>%</span>
+              </div>
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setComisionBancaria(v => { const n = Math.min(100, parseFloat((Number(v) + 0.1).toFixed(2))); return String(n); }); }}
+                style={spinnerStyle}
+              >+</button>
+            </div>
+            {Number(comisionBancaria) > 0 && (
+              <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 8, textAlign: 'center' }}>
+                💡 Por cada $100 en banco → se descuenta ${Number(comisionBancaria).toFixed(2)} de comisión
+              </p>
+            )}
+          </div>
+
+          {/* ── Sección: Comisión por defecto de Barberos ── */}
+          <div style={{ borderTop: '1px solid var(--black-border)', paddingTop: 18 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>✂️ {t('serviceCommission')} — {t('newBarber')}</p>
+            <p style={{ fontSize: 11, color: 'var(--gray-muted)', lineHeight: 1.5, marginBottom: 10, opacity: 0.7 }}>Porcentaje por defecto al crear un nuevo barbero (se puede cambiar individualmente).</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button type="button"
                 onPointerDown={e => { e.preventDefault(); setComisionDefecto(v => { const n = Math.max(0.1, parseFloat((Number(v) - 0.1).toFixed(1))); return String(n); }); }}
-                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+                style={spinnerStyle}
               >&#x2212;</button>
-              <input
-                className="input-dark"
-                type="number" inputMode="decimal" min="0.1" max="100" step="0.1"
-                value={comisionDefecto}
-                onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0.1 && Number(v) <= 100)) setComisionDefecto(v); }}
-                style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, margin: 0 }}
-              />
+              <div style={{ flex: 1, position: 'relative' }}>
+                <input
+                  className="input-dark"
+                  type="number" inputMode="decimal" min="0.1" max="100" step="0.1"
+                  value={comisionDefecto}
+                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0.1 && Number(v) <= 100)) setComisionDefecto(v); }}
+                  style={{ width: '100%', textAlign: 'center', fontWeight: 700, fontSize: 18, margin: 0 }}
+                />
+                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--gray-muted)', fontWeight: 700, pointerEvents: 'none' }}>%</span>
+              </div>
               <button type="button"
                 onPointerDown={e => { e.preventDefault(); setComisionDefecto(v => { const n = Math.min(100, parseFloat((Number(v) + 0.1).toFixed(1))); return String(n); }); }}
-                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+                style={spinnerStyle}
               >+</button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { db, getConfig } from './db';
+﻿import { db, getConfig } from './db';
 import type { Barbero, ServicioProducto, RegistroDiario, Adelanto, Socio } from './db';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { getMesAno } from '@/shared/utils/dates';
@@ -29,14 +29,26 @@ export async function calcularComisionBancaria(montoBanco: number): Promise<numb
 }
 
 export async function getMoneda(): Promise<string> {
-  return (await getConfig('moneda')) ?? '€';
+  const codigo = (await getConfig('moneda_codigo')) ?? 'USD';
+  const SIMBOLOS: Record<string, string> = {
+    USD: String.fromCharCode(36),
+    ARS: String.fromCharCode(36),
+    EUR: '\u20ac',
+    BRL: 'R' + String.fromCharCode(36),
+    COP: String.fromCharCode(36),
+    MXN: String.fromCharCode(36),
+    CLP: String.fromCharCode(36),
+    UYU: String.fromCharCode(36),
+    PEN: 'S/.',
+  };
+  return SIMBOLOS[codigo] ?? String.fromCharCode(36);
 }
 
 export async function getComisionBrutaMes(barberoId: number, mes: Date = new Date()): Promise<number> {
   const inicio = startOfMonth(mes);
   const fin = endOfMonth(mes);
 
-  // Usamos between() en lugar de .and() con comparación de fechas para evitar
+  // Usamos between() en lugar de .and() con comparaciÃ³n de fechas para evitar
   // inconsistencias cuando IndexedDB almacena fechas como strings vs Date objects.
   // Luego filtramos por barbero_id en memoria.
   const barbero = await db.barberos.get(barberoId);
@@ -72,9 +84,9 @@ export async function getAdelantosMes(barberoId: number, mes: Date = new Date())
 
   return Adelantos
     .filter(a => {
-      // Excluir pagos a socios/dueños
+      // Excluir pagos a socios/dueÃ±os
       if (a.destinatario_tipo === 'socio' || a.destinatario_tipo === 'devolucion_socio' || a.socio_id) return false;
-      // Excluir si el socioBárbero (cuando ID coincide con un socio) se llevó el adelanto
+      // Excluir si el socioBÃ¡rbero (cuando ID coincide con un socio) se llevÃ³ el adelanto
       if (socioMismoId && adelantoPerteneceASocio(a, socioMismoId, barberoMismoId)) return false;
       // Incluir solo adelantos a barberos (destinatario_tipo === 'barbero' o sin tipo definido para compatibilidad con registros viejos)
       return a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === '';
@@ -158,9 +170,9 @@ export async function getIngresosEfectivoMes(mes: Date = new Date()): Promise<nu
 }
 
 /**
- * Resumen de métodos de pago del mes.
+ * Resumen de mÃ©todos de pago del mes.
  * Banco = suma de monto_banco de los arqueos diarios (fuente principal, ingresada manualmente).
- *         Si un día no tiene arqueo, se toma la suma de registros con metodo_pago='banco' como fallback.
+ *         Si un dÃ­a no tiene arqueo, se toma la suma de registros con metodo_pago='banco' como fallback.
  * Efectivo = total del mes - banco.
  */
 export async function getMetodosPagoMes(mes: Date = new Date()): Promise<{
@@ -218,7 +230,7 @@ export async function getResumenMes(mes: Date = new Date()) {
   const comisionBancaria = metodos.comisionBancaria || 0;
   const utilidad_neta = ingresos - gastos - comisiones - comisionBancaria;
 
-  // Leer socios activos para calcular reparto dinámico
+  // Leer socios activos para calcular reparto dinÃ¡mico
   const socios = await db.socios.filter(s => s.activo).toArray();
   const totalPorcentaje = socios.reduce((sum, s) => sum + s.porcentaje_utilidad, 0);
 
@@ -238,7 +250,7 @@ export async function getResumenMes(mes: Date = new Date()) {
   }));
 
   // Compatibilidad con campos heredados pago_esposa / pago_socio
-  // Primer socio activo -> pago_esposa (id más bajo), segundo -> pago_socio
+  // Primer socio activo -> pago_esposa (id mÃ¡s bajo), segundo -> pago_socio
   const sorted = [...pagosPorSocio].sort((a, b) => a.id - b.id);
   const pago_esposa = sorted[0]?.monto ?? 0;
   const pago_socio = sorted[1]?.monto ?? 0;
@@ -260,7 +272,7 @@ export async function cerrarMes(mes: Date = new Date()): Promise<void> {
   const existente = await db.historico_cierres.where('mes_ano').equals(mesAno).first();
   if (existente?.bloqueado) throw new Error('Este mes ya fue cerrado y bloqueado.');
 
-  // ─ Validar que todos los barberos estén saldados ─
+  // â”€ Validar que todos los barberos estÃ©n saldados â”€
   const barberos = await db.barberos.filter(b => b.activo).toArray();
   const pendientesBarberos: string[] = [];
   for (const b of barberos) {
@@ -270,11 +282,11 @@ export async function cerrarMes(mes: Date = new Date()): Promise<void> {
   }
   if (pendientesBarberos.length > 0) {
     throw new Error(
-      `No se puede cerrar el mes. Los siguientes barberos tienen saldo pendiente:\n${pendientesBarberos.join('\n')}\n\nRegistá los pagos antes de cerrar.`
+      `No se puede cerrar el mes. Los siguientes barberos tienen saldo pendiente:\n${pendientesBarberos.join('\n')}\n\nRegistÃ¡ los pagos antes de cerrar.`
     );
   }
 
-  // ─ Validar que los socios estén saldados ─
+  // â”€ Validar que los socios estÃ©n saldados â”€
   const resumen = await getResumenMes(mes);
   const pendientesSocios: string[] = [];
   for (const socio of resumen.pagosPorSocio) {
@@ -282,12 +294,12 @@ export async function cerrarMes(mes: Date = new Date()): Promise<void> {
       pendientesSocios.push(`${socio.nombre}: falta pagar ${socio.saldoPendiente.toFixed(2)}`);
     }
     if (socio.saldoPendiente < -0.01) {
-      pendientesSocios.push(`${socio.nombre}: debe devolver ${Math.abs(socio.saldoPendiente).toFixed(2)} a la barbería`);
+      pendientesSocios.push(`${socio.nombre}: debe devolver ${Math.abs(socio.saldoPendiente).toFixed(2)} a la barberÃ­a`);
     }
   }
   if (pendientesSocios.length > 0) {
     throw new Error(
-      `No se puede cerrar el mes. Los siguientes socios tienen pago pendiente:\n${pendientesSocios.join('\n')}\n\nRegistá los pagos antes de cerrar.`
+      `No se puede cerrar el mes. Los siguientes socios tienen pago pendiente:\n${pendientesSocios.join('\n')}\n\nRegistÃ¡ los pagos antes de cerrar.`
     );
   }
 
@@ -354,7 +366,7 @@ export async function getEfectivoDisponibleCaja(mes: Date = new Date()): Promise
   const adelantosMes = await db.Adelantos
     .where('fecha').between(inicio, fin, true, true)
     .toArray();
-  // Los adelantos a barberos salen de su comisión y no del efectivo de la caja
+  // Los adelantos a barberos salen de su comisiÃ³n y no del efectivo de la caja
   const totalAdelantosMes = adelantosMes
     .filter(a => a.destinatario_tipo !== 'barbero')
     .reduce((sum, a) => sum + a.monto, 0);
@@ -383,7 +395,7 @@ export async function guardarArqueo(
   const monto_efectivo = Math.max(0, total_ventas - montoBanco);
   const debe_quedar = monto_efectivo + fondo_caja;
 
-  // Buscar si ya existe un arqueo para este día (upsert)
+  // Buscar si ya existe un arqueo para este dÃ­a (upsert)
   const inicioDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0);
   const finDia = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
   const existente = await db.arqueo_caja.where('fecha').between(inicioDia, finDia, true, true).first();
@@ -396,9 +408,9 @@ export async function guardarArqueo(
     await db.arqueo_caja.add(datos);
   }
 
-  // Registrar comisión bancaria como gasto_fijo
+  // Registrar comisiÃ³n bancaria como gasto_fijo
   const comision = await calcularComisionBancaria(montoBanco);
-  // Usar between en lugar de equals para evitar fallos de comparación exacta de milisegundos en IndexedDB
+  // Usar between en lugar de equals para evitar fallos de comparaciÃ³n exacta de milisegundos en IndexedDB
   const inicioDiaG = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0);
   const finDiaG = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
   const gastosComisionExistentes = await db.gastos_fijos
@@ -412,7 +424,7 @@ export async function guardarArqueo(
       fecha: fechaGasto,
       categoria: 'comision_bancaria',
       monto: comision,
-      descripcion: 'Comisión bancaria (Arqueo)',
+      descripcion: 'ComisiÃ³n bancaria (Arqueo)',
     });
   }
 
@@ -454,14 +466,14 @@ for (const c of cierres) {
   let anio = primerFecha.getFullYear();
   let mes = primerFecha.getMonth();
 
-  // Solo iterar hasta el mes ANTERIOR al actual (el mes en curso no se cierra aún)
+  // Solo iterar hasta el mes ANTERIOR al actual (el mes en curso no se cierra aÃºn)
   while (
     anio < hoy.getFullYear() ||
     (anio === hoy.getFullYear() && mes < hoy.getMonth())
   ) {
     const mesAno = `${String(mes + 1).padStart(2, '0')}-${anio}`;
 
-    // Solo mostrar si NO está cerrado/bloqueado
+    // Solo mostrar si NO estÃ¡ cerrado/bloqueado
     if (!mesesCerradosSet.has(mesAno)) {
       const fechaMes = new Date(anio, mes, 1, 12, 0, 0);
       const inicio = startOfMonth(fechaMes);
@@ -495,18 +507,18 @@ for (const c of cierres) {
     if (mes > 11) { mes = 0; anio++; }
   }
 
-  // Más reciente primero
+  // MÃ¡s reciente primero
   return resultado.sort((a, b) => b.mesAno.localeCompare(a.mesAno));
 }
 
-// ─── BACKUP VERSION ────────────────────────────────────────────────────────
+// â”€â”€â”€ BACKUP VERSION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
- * Returns a list of dates (YYYY-MM-DD) for which a cash‑record (arqueo) exists.
- * Used by the cash‑reconciliation modal date picker to enable only dates with records.
+ * Returns a list of dates (YYYY-MM-DD) for which a cashâ€‘record (arqueo) exists.
+ * Used by the cashâ€‘reconciliation modal date picker to enable only dates with records.
  */
 export async function getCashRecordDates(): Promise<string[]> {
-  // Fetch all cash‑record entries
+  // Fetch all cashâ€‘record entries
   const arqueos = await db.arqueo_caja.toArray();
   const fechasSet = new Set<string>();
   arqueos.forEach(a => {
@@ -552,7 +564,7 @@ export async function exportarTodosLosDatos() {
   const payload = {
     version: BACKUP_VERSION,
     fecha_exportacion: new Date().toISOString(),
-    db_version: 7,           // versión actual del schema de Dexie
+    db_version: 7,           // versiÃ³n actual del schema de Dexie
     barberos:              serializarFechas(barberos),
     servicios_productos:   serializarFechas(servicios),
     registros_diarios:     serializarFechas(registros),
@@ -569,33 +581,33 @@ export async function exportarTodosLosDatos() {
   return JSON.stringify(payload, null, 2);
 }
 
-// Sanitización movida a @/shared/utils/sanitize.ts
+// SanitizaciÃ³n movida a @/shared/utils/sanitize.ts
 // Las funciones sanitizeText, sanitizeNumber, sanitizeMimeType, isValidBase64, toDate, serializarFechas
 // se importan desde arriba.
 
 export async function restaurarDesdeDatos(jsonStr: string) {
-  // ─ Validaciones básicas ─
+  // â”€ Validaciones bÃ¡sicas â”€
   if (!jsonStr || typeof jsonStr !== 'string' || jsonStr.length > 100 * 1024 * 1024) {
-    throw new Error('Archivo inválido o demasiado grande (máx. 100 MB).');
+    throw new Error('Archivo invÃ¡lido o demasiado grande (mÃ¡x. 100 MB).');
   }
   let datos: any;
   try {
     datos = JSON.parse(jsonStr);
   } catch {
-    throw new Error('El archivo no tiene formato JSON válido.');
+    throw new Error('El archivo no tiene formato JSON vÃ¡lido.');
   }
-  if (!datos || typeof datos !== 'object') throw new Error('Formato de backup inválido.');
+  if (!datos || typeof datos !== 'object') throw new Error('Formato de backup invÃ¡lido.');
 
-  // Advertir si el backup viene de una versión futura del schema
+  // Advertir si el backup viene de una versiÃ³n futura del schema
   const DB_VERSION_ACTUAL = 7;
   if (typeof datos.db_version === 'number' && datos.db_version > DB_VERSION_ACTUAL) {
     throw new Error(
-      `Este backup fue creado con una versión más nueva de la app (schema v${datos.db_version}). ` +
-      `Actualizá la app antes de restaurar para no perder datos.`
+      `Este backup fue creado con una versiÃ³n mÃ¡s nueva de la app (schema v${datos.db_version}). ` +
+      `ActualizÃ¡ la app antes de restaurar para no perder datos.`
     );
   }
 
-  // toDate se importa desde @/shared/utils/sanitize.ts — no redefinir localmente.
+  // toDate se importa desde @/shared/utils/sanitize.ts â€” no redefinir localmente.
 
   const categoriasValidas = ['internet','alquiler','limpieza','insumos','impuestos','camaras','seguro','luz','agua','gestoria','comision_bancaria','otro'];
 
@@ -627,7 +639,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       db.documentos_barbero.clear(),
     ]);
 
-    // ─ Barberos ─
+    // â”€ Barberos â”€
     if (Array.isArray(datos.barberos) && datos.barberos.length) {
       const clean = datos.barberos.map((b: any) => ({
         ...(Number.isInteger(b.id) && b.id > 0 ? { id: b.id } : {}),
@@ -638,7 +650,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.barberos.bulkAdd(clean);
     }
 
-    // ─ Servicios y productos ─
+    // â”€ Servicios y productos â”€
     if (Array.isArray(datos.servicios_productos) && datos.servicios_productos.length) {
       const clean = datos.servicios_productos.map((s: any) => ({
         ...(Number.isInteger(s.id) && s.id > 0 ? { id: s.id } : {}),
@@ -655,7 +667,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.servicios_productos.bulkAdd(clean as any);
     }
 
-    // ─ Registros diarios ─
+    // â”€ Registros diarios â”€
     if (Array.isArray(datos.registros_diarios) && datos.registros_diarios.length) {
       const clean = datos.registros_diarios.map((r: any) => ({
         ...(Number.isInteger(r.id) && r.id > 0 ? { id: r.id } : {}),
@@ -668,7 +680,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.registros_diarios.bulkAdd(clean);
     }
 
-    // ─ Adelantos ─
+    // â”€ Adelantos â”€
     if (Array.isArray(datos.Adelantos) && datos.Adelantos.length) {
       const clean = datos.Adelantos.map((a: any) => ({
         ...(Number.isInteger(a.id) && a.id > 0 ? { id: a.id } : {}),
@@ -684,7 +696,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.Adelantos.bulkAdd(clean);
     }
 
-    // ─ Gastos fijos ─
+    // â”€ Gastos fijos â”€
     if (Array.isArray(datos.gastos_fijos) && datos.gastos_fijos.length) {
       const clean = datos.gastos_fijos.map((g: any) => ({
         ...(Number.isInteger(g.id) && g.id > 0 ? { id: g.id } : {}),
@@ -696,7 +708,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.gastos_fijos.bulkAdd(clean);
     }
 
-    // ─ Histórico cierres ─
+    // â”€ HistÃ³rico cierres â”€
     if (Array.isArray(datos.historico_cierres) && datos.historico_cierres.length) {
       const clean = datos.historico_cierres.map((h: any) => ({
         ...(Number.isInteger(h.id) && h.id > 0 ? { id: h.id } : {}),
@@ -713,7 +725,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.historico_cierres.bulkAdd(clean);
     }
 
-    // ─ Fondo de caja ─
+    // â”€ Fondo de caja â”€
     if (Array.isArray(datos.fondo_caja) && datos.fondo_caja.length) {
       const clean = datos.fondo_caja.map((f: any) => ({
         ...(Number.isInteger(f.id) && f.id > 0 ? { id: f.id } : {}),
@@ -725,7 +737,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.fondo_caja.bulkAdd(clean);
     }
 
-    // ─ Arqueos de caja (nuevo en v3) ─
+    // â”€ Arqueos de caja (nuevo en v3) â”€
     if (Array.isArray(datos.arqueo_caja) && datos.arqueo_caja.length) {
       const clean = datos.arqueo_caja.map((a: any) => ({
         ...(Number.isInteger(a.id) && a.id > 0 ? { id: a.id } : {}),
@@ -740,7 +752,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       await db.arqueo_caja.bulkAdd(clean);
     }
 
-    // ─ Configuración de la barbería (nuevo en v3) ─
+    // â”€ ConfiguraciÃ³n de la barberÃ­a (nuevo en v3) â”€
     if (Array.isArray(datos.config_barberia) && datos.config_barberia.length) {
       const clavesPermitidas = [
         'nombre_barberia', 'logo_data', 'emails_autorizados',
@@ -755,7 +767,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
       if (clean.length) await db.config_barberia.bulkAdd(clean);
     }
 
-    // ─ Documentos de barberos (nuevo en v3) ─
+    // â”€ Documentos de barberos (nuevo en v3) â”€
     if (Array.isArray(datos.documentos_barbero) && datos.documentos_barbero.length) {
       const tiposValidos = ['dni','contrato','alquiler_silla','certificado','foto_perfil','otro'];
       const clean = datos.documentos_barbero
@@ -777,14 +789,14 @@ export async function restaurarDesdeDatos(jsonStr: string) {
           mime_type: sanitizeMimeType(d.mime_type),
           data: d.data,
           fecha_subida: toDate(d.fecha_subida),
-          tamano_bytes: sanitizeNumber(d.tamano_bytes, 0, 100 * 1024 * 1024), // máx 100 MB
+          tamano_bytes: sanitizeNumber(d.tamano_bytes, 0, 100 * 1024 * 1024), // mÃ¡x 100 MB
         }));
       if (clean.length) {
         await db.documentos_barbero.bulkAdd(clean as any);
       }
     }
 
-    // ─ Socios (nuevo en v3) ─
+    // â”€ Socios (nuevo en v3) â”€
     if (Array.isArray(datos.socios) && datos.socios.length) {
       const clean = datos.socios.map((s: any) => ({
         ...(Number.isInteger(s.id) && s.id > 0 ? { id: s.id } : {}),
@@ -801,7 +813,7 @@ export async function restaurarDesdeDatos(jsonStr: string) {
 export async function reabrirMes(mes: Date): Promise<void> {
   const mesAno = getMesAno(mes);
   const cierre = await db.historico_cierres.where('mes_ano').equals(mesAno).first();
-  if (!cierre?.id) throw new Error('No se encontró un cierre para este mes.');
+  if (!cierre?.id) throw new Error('No se encontrÃ³ un cierre para este mes.');
   await db.historico_cierres.update(cierre.id, { bloqueado: false });
 }
 
@@ -893,7 +905,7 @@ export async function getIngresosDiariosConGastosMes(mes: Date = new Date()) {
 
   const dias: { dia: string; ingresos: number; gastos: number }[] = [];
   for (let d = 1; d <= diasEnMes; d++) {
-    // Usar timestamps numéricos para comparación robusta (evita bugs de Date vs string)
+    // Usar timestamps numÃ©ricos para comparaciÃ³n robusta (evita bugs de Date vs string)
     const tInicio = new Date(mes.getFullYear(), mes.getMonth(), d, 0, 0, 0).getTime();
     const tFin    = new Date(mes.getFullYear(), mes.getMonth(), d, 23, 59, 59).getTime();
     const ingresos = registros
@@ -978,7 +990,7 @@ export async function getMesesPendientes(): Promise<MesPendiente[]> {
       const barberosPendientes: { id: number; nombre: string; saldo: number }[] = [];
       for (const b of barberos) {
         if (!b.id) continue;
-        // Calcular comisión del mes con datos ya en memoria
+        // Calcular comisiÃ³n del mes con datos ya en memoria
         const comision = registrosMes
           .filter(r => r.barbero_id === b.id)
           .filter(r => itemMap.get(r.item_id)?.tipo === 'servicio')
