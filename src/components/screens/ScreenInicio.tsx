@@ -201,7 +201,7 @@ export default function ScreenInicio() {
   })();
 
   return (
-    <div style={{ padding: '16px 16px 0' }}>
+    <div style={{ padding: '16px 16px 0', overflowX: 'hidden' }}>
       {/* Filtro de fecha */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '8px 12px', borderRadius: 12, background: 'var(--black-card)', border: '1px solid var(--black-border)' }}>
         <Calendar size={15} color="var(--gold)" style={{ flexShrink: 0 }} />
