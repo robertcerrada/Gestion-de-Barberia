@@ -6,9 +6,10 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { exportarAGoogleDrive, restaurarDesdeGoogleDrive, setAccessToken, clearAccessToken, DRIVE_SCOPE, getLastBackupInfo, isDriveConnected } from '@/lib/drive';
 import { exportarTodosLosDatos, getSaldoFondoCaja } from '@/lib/business';
 import { getGoogleUser, verifyPin, savePin, isPinConfigured, logoutAll } from '@/lib/auth';
-import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, Sun, Moon, Globe, RefreshCw } from 'lucide-react';
+import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, Sun, Moon, Globe, RefreshCw, FileText, FileUp, Eye, Trash2, File } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, getConfig, setConfig, type Socio, type Adelanto } from '@/lib/db';
+import type { DocumentoBarbero, TipoDocumento } from '@/domain/types';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useAppConfig, type Lang } from '@/lib/useAppConfig';
 import { useMoneda, emitirCambioMoneda } from '@/lib/useMoneda';
@@ -155,6 +156,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
   const { t } = useAppConfig();
   const [showAdd, setShowAdd] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
+  const [verDocumentos, setVerDocumentos] = useState<any | null>(null);
   const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const barberos = useLiveQuery(() => db.barberos.orderBy('nombre').toArray(), []);
@@ -216,7 +218,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
           )}
           {barberos?.map(b => (
             <div key={b.id} className="card" style={{ padding: '12px 14px', opacity: b.activo ? 1 : 0.6 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                     <p style={{ fontWeight: 600, fontSize: 14 }}>{b.nombre}</p>
@@ -224,10 +226,20 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
                   </div>
                   <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(b.porcentaje_comision * 100).toFixed(0)}%</span>
                 </div>
-                <div style={{ display: 'flex', gap: 5, marginLeft: 8 }}>
-                  <button onClick={() => setEditando(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
-                  <button onClick={() => toggleActivo(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: b.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: b.activo ? 'var(--danger)' : 'var(--success)' }}>{b.activo ? t('pause') : t('activate')}</button>
-                  <button onClick={() => eliminar(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button onClick={() => setEditando(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
+                    <button onClick={() => toggleActivo(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: b.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: b.activo ? 'var(--danger)' : 'var(--success)' }}>{b.activo ? t('pause') : t('activate')}</button>
+                    <button onClick={() => eliminar(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
+                  </div>
+                  {/* Botón documentos */}
+                  <button
+                    onClick={() => setVerDocumentos(b)}
+                    className="btn-ghost"
+                    style={{ minHeight: 28, padding: '3px 10px', fontSize: 11, color: 'var(--gray-muted)', borderColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <FileText size={11} /> {t('manageDocumentsBtn')}
+                  </button>
                 </div>
               </div>
             </div>
@@ -236,6 +248,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
 
         {showAdd && <ModalAddBarbero onClose={() => setShowAdd(false)} />}
         {editando && <ModalEditarBarbero barbero={editando} onClose={() => setEditando(null)} />}
+        {verDocumentos && <ModalDocumentosBarbero barbero={verDocumentos} onClose={() => setVerDocumentos(null)} />}
       </div>
     </div>
   );
@@ -274,7 +287,23 @@ function ModalAddBarbero({ onClose }: { onClose: () => void }) {
             <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} placeholder="Ej: Juan Pérez" /></div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{comision}%</strong></label>
-              <input type="range" min="5" max="100" step="5" value={comision} onChange={e => setComision(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button type="button"
+                  onPointerDown={e => { e.preventDefault(); setComision(v => String(Math.max(1, Number(v) - 1))); }}
+                  style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+                >−</button>
+                <input
+                  className="input-dark"
+                  type="number" inputMode="decimal" min="1" max="100" step="1"
+                  value={comision}
+                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 1 && Number(v) <= 100)) setComision(v); }}
+                  style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, margin: 0 }}
+                />
+                <button type="button"
+                  onPointerDown={e => { e.preventDefault(); setComision(v => String(Math.min(100, Number(v) + 1))); }}
+                  style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+                >+</button>
+              </div>
             </div>
             <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('addBarber')}</button>
           </div>
@@ -317,11 +346,363 @@ function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () =>
             <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('fullName')}</label><input className="input-dark" type="text" value={nombre} maxLength={100} autoComplete="off" onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))} /></div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')}: <strong style={{ color: 'var(--gold)' }}>{comision}%</strong></label>
-              <input type="range" min="5" max="100" step="5" value={comision} onChange={e => setComision(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button type="button"
+                  onPointerDown={e => { e.preventDefault(); setComision(v => String(Math.max(1, Number(v) - 1))); }}
+                  style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+                >−</button>
+                <input
+                  className="input-dark"
+                  type="number" inputMode="decimal" min="1" max="100" step="1"
+                  value={comision}
+                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 1 && Number(v) <= 100)) setComision(v); }}
+                  style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, margin: 0 }}
+                />
+                <button type="button"
+                  onPointerDown={e => { e.preventDefault(); setComision(v => String(Math.min(100, Number(v) + 1))); }}
+                  style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+                >+</button>
+              </div>
             </div>
             <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── MODAL DOCUMENTOS DE BARBERO ────────────────────────────────────────────────
+
+const TIPO_DOC_LABELS: Record<TipoDocumento, string> = {
+  dni: 'docTypeDni',
+  contrato: 'docTypeContrato',
+  alquiler_silla: 'docTypeAlquilerSilla',
+  certificado: 'docTypeCertificado',
+  foto_perfil: 'docTypeFotoPerfil',
+  otro: 'docTypeOtro',
+};
+
+const TIPO_DOC_ICONS: Record<TipoDocumento, string> = {
+  dni: '💼',
+  contrato: '📝',
+  alquiler_silla: '💈',
+  certificado: '🏅',
+  foto_perfil: '📷',
+  otro: '📄',
+};
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+function ModalDocumentosBarbero({ barbero, onClose }: { barbero: any; onClose: () => void }) {
+  const { t } = useAppConfig();
+  const [showAdd, setShowAdd] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const documentos = useLiveQuery(
+    () => db.documentos_barbero.where('barbero_id').equals(barbero.id).reverse().sortBy('fecha_subida'),
+    [barbero.id]
+  );
+
+  function mostrarMsg(text: string, type: 'success' | 'error') {
+    setMsg({ text, type });
+    setTimeout(() => setMsg(null), 4000);
+  }
+
+  async function eliminarDoc(doc: DocumentoBarbero) {
+    if (!doc.id) return;
+    if (!confirm(t('docDeleteConfirm').replace('{ name }', doc.nombre))) return;
+    await db.documentos_barbero.delete(doc.id);
+    mostrarMsg(t('docDeleted'), 'success');
+  }
+
+  function verDoc(doc: DocumentoBarbero) {
+    // Abre en ventana nueva usando data URL
+    const win = window.open();
+    if (!win) return;
+    if (doc.mime_type.startsWith('image/')) {
+      win.document.write(`<html><body style="margin:0;background:#000"><img src="${doc.data}" style="max-width:100%;height:auto" /></body></html>`);
+    } else {
+      win.location.href = doc.data;
+    }
+  }
+
+  function descargarDoc(doc: DocumentoBarbero) {
+    const a = document.createElement('a');
+    a.href = doc.data;
+    a.download = doc.nombre;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function formatBytes(bytes: number) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal-sheet" style={{ display: 'flex', flexDirection: 'column', maxHeight: '92dvh' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 className="section-title" style={{ fontSize: 16 }}>{t('barbersDocumentsTitle').replace('{name}', barbero.nombre)}</h2>
+            <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>
+              {documentos?.length ?? 0} doc{documentos?.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', flexShrink: 0 }}><X size={22} /></button>
+        </div>
+
+        {msg && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 12, fontSize: 13, flexShrink: 0, background: msg.type === 'success' ? 'rgba(76,175,130,0.12)' : 'rgba(224,82,82,0.12)', border: `1px solid ${msg.type === 'success' ? 'rgba(76,175,130,0.3)' : 'rgba(224,82,82,0.3)'}`, color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)' }}>
+            {msg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+            {msg.text}
+          </div>
+        )}
+
+        <button className="btn-gold" style={{ width: '100%', marginBottom: 16, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
+          <FileUp size={16} /> {t('addDocument')}
+        </button>
+
+        {/* Lista de documentos */}
+        <div className="modal-body">
+          {(!documentos || documentos.length === 0) ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--gray-muted)' }}>
+              <File size={44} style={{ margin: '0 auto 12px', opacity: 0.2 }} />
+              <p style={{ fontSize: 14 }}>{t('noDocuments')}</p>
+              <p style={{ fontSize: 12, marginTop: 6, opacity: 0.7 }}>DNI, contratos, fotos...</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {documentos.map(doc => (
+                <div key={doc.id} className="card" style={{ padding: '12px 14px' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    {/* Miniatura o icono */}
+                    <div style={{ width: 44, height: 44, borderRadius: 10, overflow: 'hidden', flexShrink: 0, background: 'var(--black-surface)', border: '1px solid var(--black-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {doc.mime_type.startsWith('image/') ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={doc.data} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontSize: 20 }}>{TIPO_DOC_ICONS[doc.tipo]}</span>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre}</p>
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span className="badge badge-gold" style={{ fontSize: 10 }}>{TIPO_DOC_ICONS[doc.tipo]} {t(TIPO_DOC_LABELS[doc.tipo])}</span>
+                        <span style={{ fontSize: 10, color: 'var(--gray-muted)' }}>{formatBytes(doc.tamano_bytes)}</span>
+                        <span style={{ fontSize: 10, color: 'var(--gray-muted)' }}>{new Date(doc.fecha_subida).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>
+                      </div>
+                      {doc.descripcion && (
+                        <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.descripcion}</p>
+                      )}
+                    </div>
+
+                    {/* Acciones */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                      <button onClick={() => verDoc(doc)} className="btn-ghost" style={{ minHeight: 28, padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Eye size={10} /> {t('docView')}
+                      </button>
+                      <button onClick={() => descargarDoc(doc)} className="btn-ghost" style={{ minHeight: 28, padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Download size={10} /> {t('docDownload')}
+                      </button>
+                      <button onClick={() => eliminarDoc(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '3px 6px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showAdd && (
+          <ModalAddDocumento
+            barberoId={barbero.id}
+            onClose={() => setShowAdd(false)}
+            onSuccess={() => { setShowAdd(false); mostrarMsg(t('docAdded'), 'success'); }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalAddDocumento({
+  barberoId,
+  onClose,
+  onSuccess,
+}: {
+  barberoId: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { t } = useAppConfig();
+  const [tipo, setTipo] = useState<TipoDocumento>('otro');
+  const [nombre, setNombre] = useState('');
+  const [descripcion, setDescripcion] = useState('');
+  const [fileData, setFileData] = useState<{ data: string; mime: string; size: number; name: string } | null>(null);
+  const [fileError, setFileError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const TIPOS: TipoDocumento[] = ['dni', 'contrato', 'alquiler_silla', 'certificado', 'foto_perfil', 'otro'];
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    setFileError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      setFileError(t('docFileTypeError'));
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError(t('docFileSizeError'));
+      return;
+    }
+
+    // Auto-completar nombre si está vacío
+    if (!nombre) setNombre(file.name.replace(/\.[^.]+$/, ''));
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const data = ev.target?.result as string;
+      setFileData({ data, mime: file.type, size: file.size, name: file.name });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function guardar() {
+    if (!fileData || !nombre.trim()) return;
+    setLoading(true);
+    await db.documentos_barbero.add({
+      barbero_id: barberoId,
+      tipo,
+      nombre: nombre.trim(),
+      descripcion: descripcion.trim() || undefined,
+      mime_type: fileData.mime,
+      data: fileData.data,
+      fecha_subida: new Date(),
+      tamano_bytes: fileData.size,
+    });
+    setLoading(false);
+    onSuccess();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1200 }}>
+      <div className="modal-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-handle" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 className="section-title">{t('addDocument')}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Tipo de documento */}
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 8 }}>{t('docType')}</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+              {TIPOS.map(tp => (
+                <button
+                  key={tp}
+                  type="button"
+                  onClick={() => setTipo(tp)}
+                  style={{
+                    padding: '8px 6px', borderRadius: 10, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    border: `2px solid ${tipo === tp ? 'var(--gold)' : 'var(--black-border)'}`,
+                    background: tipo === tp ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)',
+                    color: tipo === tp ? 'var(--gold)' : 'var(--gray-muted)',
+                    fontFamily: 'var(--font-body)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{TIPO_DOC_ICONS[tp]}</span>
+                  <span style={{ fontSize: 9, textAlign: 'center', lineHeight: 1.2 }}>{t(TIPO_DOC_LABELS[tp])}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Archivo */}
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('docFile')}</label>
+            <label
+              htmlFor="doc-file-input"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                borderRadius: 12, cursor: 'pointer',
+                border: `2px dashed ${fileData ? 'var(--gold)' : 'var(--black-border)'}`,
+                background: fileData ? 'rgba(212,175,55,0.04)' : 'var(--black-surface)',
+                transition: 'border-color 0.2s',
+              }}
+            >
+              {fileData ? (
+                <>
+                  <CheckCircle2 size={18} color="var(--gold)" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--gold)' }}>{fileData.name}</p>
+                    <p style={{ fontSize: 10, color: 'var(--gray-muted)' }}>{(fileData.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                  <FileText size={16} color="var(--gold)" style={{ flexShrink: 0 }} />
+                </>
+              ) : (
+                <>
+                  <FileUp size={18} color="var(--gray-muted)" />
+                  <p style={{ fontSize: 13, color: 'var(--gray-muted)' }}>PDF, imagen, Word... (máx. 5 MB)</p>
+                </>
+              )}
+            </label>
+            <input id="doc-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style={{ display: 'none' }} onChange={handleFile} />
+            {fileError && <p style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6 }}>{fileError}</p>}
+          </div>
+
+          {/* Nombre */}
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('docName')}</label>
+            <input
+              className="input-dark"
+              type="text"
+              value={nombre}
+              maxLength={100}
+              placeholder="Ej: DNI Frente"
+              onChange={e => setNombre(e.target.value.replace(/[<>"'`]/g, ''))}
+            />
+          </div>
+
+          {/* Descripción opcional */}
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('docDescription')}</label>
+            <input
+              className="input-dark"
+              type="text"
+              value={descripcion}
+              maxLength={200}
+              placeholder="Ej: Vigente hasta diciembre 2025"
+              onChange={e => setDescripcion(e.target.value)}
+            />
+          </div>
+
+          <button
+            className="btn-gold"
+            disabled={!fileData || !nombre.trim() || loading}
+            onClick={guardar}
+          >
+            <FileUp size={16} /> {loading ? t('saving') : t('addDocument')}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -781,7 +1162,23 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('profitPercentageLabel')}: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
-            <input type="range" min="1" max="100" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setPorcentaje(v => String(Math.max(1, Number(v) - 1))); }}
+                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >−</button>
+              <input
+                className="input-dark"
+                type="number" inputMode="decimal" min="1" max="100" step="1"
+                value={porcentaje}
+                onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 1 && Number(v) <= 100)) setPorcentaje(v); }}
+                style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, margin: 0 }}
+              />
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setPorcentaje(v => String(Math.min(100, Number(v) + 1))); }}
+                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >+</button>
+            </div>
           </div>
           <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('addPartnerBtnText')}</button>
         </div>
@@ -828,7 +1225,23 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
           </div>
           <div>
             <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('profitPercentageLabel')}: <strong style={{ color: 'var(--gold)' }}>{porcentaje}%</strong></label>
-            <input type="range" min="1" max="100" value={porcentaje} onChange={e => setPorcentaje(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setPorcentaje(v => String(Math.max(1, Number(v) - 1))); }}
+                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >−</button>
+              <input
+                className="input-dark"
+                type="number" inputMode="decimal" min="1" max="100" step="1"
+                value={porcentaje}
+                onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 1 && Number(v) <= 100)) setPorcentaje(v); }}
+                style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, margin: 0 }}
+              />
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setPorcentaje(v => String(Math.min(100, Number(v) + 1))); }}
+                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >+</button>
+            </div>
           </div>
           <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('saveChangesBtn')}</button>
         </div>
@@ -1319,7 +1732,23 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
 
           <div>
             <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('serviceCommission')} ({t('newBarber')}): <strong style={{ color: 'var(--gold)' }}>{comisionDefecto}%</strong></label>
-            <input type="range" min="5" max="100" step="5" value={comisionDefecto} onChange={e => setComisionDefecto(e.target.value)} style={{ width: '100%', accentColor: 'var(--gold)', height: 6, cursor: 'pointer' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setComisionDefecto(v => { const n = Math.max(0.1, parseFloat((Number(v) - 0.1).toFixed(1))); return String(n); }); }}
+                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >&#x2212;</button>
+              <input
+                className="input-dark"
+                type="number" inputMode="decimal" min="0.1" max="100" step="0.1"
+                value={comisionDefecto}
+                onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0.1 && Number(v) <= 100)) setComisionDefecto(v); }}
+                style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 16, margin: 0 }}
+              />
+              <button type="button"
+                onPointerDown={e => { e.preventDefault(); setComisionDefecto(v => { const n = Math.min(100, parseFloat((Number(v) + 0.1).toFixed(1))); return String(n); }); }}
+                style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, border: '1px solid var(--black-border)', background: 'rgba(255,255,255,0.04)', color: 'var(--white-soft)', fontSize: 20, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'manipulation' }}
+              >+</button>
+            </div>
           </div>
 
           <button className="btn-gold" disabled={saving} onClick={guardar}>

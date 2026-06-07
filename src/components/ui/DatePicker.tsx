@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createPortal } from 'react-dom';
 
 interface DatePickerProps {
   value: string; // 'YYYY-MM-DD'
@@ -105,87 +104,8 @@ export function DatePicker({
     setIsOpen(false);
   }, [onChange]);
 
-  const calendar = isOpen && typeof document !== 'undefined' && createPortal(
-    <div
-      className="datepicker-overlay"
-      role="button"
-      tabIndex={0}
-      onClick={() => setIsOpen(false)}
-      onKeyDown={e => { if (e.key === 'Escape') setIsOpen(false); }}
-      style={{ background: 'transparent', border: 'none', padding: 0, margin: 0 }}
-    >
-      <div className="card datepicker-card" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="datepicker-header">
-          <button type="button" onClick={prevMonth} className="btn-ghost datepicker-nav-button">
-            <ChevronLeft size={20} />
-          </button>
-          <span className="datepicker-month-label">
-            {MONTH_NAMES_ES[viewMonth]} {viewYear}
-          </span>
-          <button type="button" onClick={nextMonth} className="btn-ghost datepicker-nav-button">
-            <ChevronRight size={20} />
-          </button>
-        </div>
-
-        {/* Días de la semana */}
-        <div className="datepicker-weekdays">
-          {WEEK_DAYS.map(d => (
-            <span key={d} className="datepicker-weekday">{d}</span>
-          ))}
-        </div>
-
-        {/* Días del mes */}
-        <div className="datepicker-grid">
-          {calendarDays.map(day => {
-            const dayStr = toYMD(day);
-            const isSelected = dayStr === value;
-            const isCurrentMonth = day.getMonth() === viewMonth;
-            const isToday = dayStr === todayStr;
-            const isMarked = markedSet.has(dayStr);
-
-            let cls = 'datepicker-day-btn';
-            if (isSelected) cls += ' dp-day--selected';
-            else if (isToday) cls += ' dp-day--today';
-            else if (isMarked) cls += ' dp-day--marked';
-            if (!isCurrentMonth) cls += ' dp-day--other-month';
-
-            return (
-              <button
-                key={dayStr}
-                type="button"
-                className={cls}
-                onPointerDown={e => {
-                  e.preventDefault();
-                  handleDaySelect(dayStr);
-                }}
-                style={{ touchAction: 'manipulation' }}
-              >
-                {day.getDate()}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="datepicker-footer">
-          <button type="button" className="btn-ghost datepicker-footer-button" onClick={() => setIsOpen(false)}>
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className="btn-gold datepicker-footer-button"
-            onClick={() => { onChange(todayStr); setIsOpen(false); }}
-          >
-            Hoy
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-
   return (
-    <>
+    <div style={{ position: 'relative', display: 'block', width: '100%' }}>
       <button
         type="button"
         className={`input-dark datepicker-trigger ${className}`}
@@ -194,7 +114,10 @@ export function DatePicker({
           minHeight: compact ? 34 : 48,
           color: selectedDate ? 'var(--white-soft)' : 'var(--gray-muted)',
         }}
-        onClick={handleOpen}
+        onPointerDown={(e) => {
+          e.preventDefault();
+          handleOpen();
+        }}
       >
         <CalendarIcon size={compact ? 14 : 18} color="var(--gold)" />
         <span className="datepicker-trigger-text" style={{ fontSize: compact ? '13px' : '15px' }}>
@@ -202,7 +125,103 @@ export function DatePicker({
         </span>
       </button>
 
-      {calendar}
-    </>
+      {/* Overlay transparente para cerrar al tocar fuera */}
+      {isOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999,
+            background: 'transparent',
+          }}
+          onPointerDown={() => setIsOpen(false)}
+        />
+      )}
+
+      <div
+        style={{
+          position: 'absolute',
+          top: 'calc(100% + 4px)',
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          opacity: isOpen ? 1 : 0,
+          pointerEvents: isOpen ? 'auto' : 'none',
+          transform: isOpen ? 'translateY(0)' : 'translateY(-4px)',
+          transition: 'opacity 0.12s ease-out, transform 0.12s ease-out',
+        }}
+      >
+        <div 
+          className="card datepicker-card" 
+          onClick={e => e.stopPropagation()}
+          style={{ willChange: 'transform', contain: 'layout' }}
+        >
+          {/* Header */}
+          <div className="datepicker-header">
+            <button type="button" onClick={prevMonth} className="btn-ghost datepicker-nav-button">
+              <ChevronLeft size={20} />
+            </button>
+            <span className="datepicker-month-label">
+              {MONTH_NAMES_ES[viewMonth]} {viewYear}
+            </span>
+            <button type="button" onClick={nextMonth} className="btn-ghost datepicker-nav-button">
+              <ChevronRight size={20} />
+            </button>
+          </div>
+
+          {/* Días de la semana */}
+          <div className="datepicker-weekdays">
+            {WEEK_DAYS.map(d => (
+              <span key={d} className="datepicker-weekday">{d}</span>
+            ))}
+          </div>
+
+          {/* Días del mes */}
+          <div className="datepicker-grid">
+            {calendarDays.map(day => {
+              const dayStr = toYMD(day);
+              const isSelected = dayStr === value;
+              const isCurrentMonth = day.getMonth() === viewMonth;
+              const isToday = dayStr === todayStr;
+              const isMarked = markedSet.has(dayStr);
+
+              let cls = 'datepicker-day-btn';
+              if (isSelected) cls += ' dp-day--selected';
+              else if (isToday) cls += ' dp-day--today';
+              else if (isMarked) cls += ' dp-day--marked';
+              if (!isCurrentMonth) cls += ' dp-day--other-month';
+
+              return (
+                <button
+                  key={dayStr}
+                  type="button"
+                  className={cls}
+                  onPointerDown={e => {
+                    e.preventDefault();
+                    handleDaySelect(dayStr);
+                  }}
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="datepicker-footer">
+            <button type="button" className="btn-ghost datepicker-footer-button" onClick={() => setIsOpen(false)}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn-gold datepicker-footer-button"
+              onClick={() => { onChange(todayStr); setIsOpen(false); }}
+            >
+              Hoy
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

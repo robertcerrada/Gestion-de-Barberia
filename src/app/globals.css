@@ -259,26 +259,15 @@ body {
   transform: scale(0.98);
 }
 
-.datepicker-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-}
-
 .datepicker-card {
-  width: 90%;
-  max-width: 340px;
+  min-width: 280px;
   background: var(--black-card);
   border: 1px solid rgba(212,175,55,0.3);
   box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 0 1px var(--black-border);
-  /* animación más rápida para apertura instantánea en móvil */
-  animation: dpFadeIn 0.12s ease-out;
   padding: 20px;
   border-radius: 18px;
+  /* contain prevents layout shifts from parent scroll */
+  contain: layout style;
 }
 
 .datepicker-header {
@@ -613,102 +602,190 @@ body {
   box-shadow: 0 2px 6px rgba(212,175,55,0.35);
 }
 
-.premium-nav-bar {
+/* ─── PremiumNavBar (pnb) ────────────────────────────────────────────────
+   Floating pill nav — siempre visible, se oculta suavemente al hacer
+   scroll hacia abajo y reaparece al detenerse o subir.
+────────────────────────────────────────────────────────────────────────── */
+
+.pnb {
+  /* Posición: flotando sobre safe-area del dispositivo */
   position: fixed;
-  bottom: max(env(safe-area-inset-bottom, 16px), 16px);
-  left: 16px;
-  right: 16px;
-  height: 70px;
+  left: 12px;
+  right: 12px;
+  /* bottom respeta el notch/home-indicator en iOS y Android */
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  height: 64px;
   z-index: 100;
-  background: rgba(20, 20, 20, 0.72);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-  border-radius: 35px;
+
+  /* Contenedor flex para los items */
   display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 0 8px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  /* Spring-like physics transition */
+  align-items: stretch;
+  padding: 6px 6px;
+
+  /* Fondo glass */
+  background: rgba(18, 18, 18, 0.78);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+
+  /* Borde y forma */
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 22px;
+
+  /* Sombra premium */
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.15),
+    0 10px 30px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* Animación de ocultamiento: sólo translateY + opacity, SIN layout shift */
   transition:
-    width 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
-    left 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
-    right 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
-    border-radius 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
-    background 0.3s ease,
-    box-shadow 0.3s ease;
-  overflow: hidden;
-  will-change: width, left, right;
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity   0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+
+  /* Evita que el overflow de indicadores se salga */
+  overflow: visible;
 }
 
-/* Collapsed: shrinks to a 64px pill anchored to left */
-.premium-nav-bar--collapsed {
-  left: 16px;
-  right: auto;
-  width: 64px;
-  border-radius: 32px;
-  background: rgba(20, 20, 20, 0.85);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(212,175,55,0.15);
-  padding: 0;
-  justify-content: center;
-}
-
-.premium-nav-bg-curve {
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  background: rgba(212, 175, 55, 0.12);
-  border-radius: 28px;
-  transition: left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* Estado oculto: se desliza hacia abajo fuera de pantalla */
+.pnb--hidden {
+  transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px) + 16px));
+  opacity: 0;
   pointer-events: none;
-  border: 1px solid rgba(212, 175, 55, 0.25);
 }
 
-.premium-nav-items {
-  display: flex;
-  width: 100%;
-  position: relative;
-  z-index: 10;
+/* Pill indicador del tab activo (se mueve con CSS transition) */
+.pnb__indicator {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  background: rgba(212, 175, 55, 0.13);
+  border: 1px solid rgba(212, 175, 55, 0.22);
+  border-radius: 16px;
+  /* Transición suave tipo spring al cambiar de tab */
+  transition: left 0.38s cubic-bezier(0.34, 1.3, 0.64, 1), width 0.38s cubic-bezier(0.34, 1.3, 0.64, 1);
+  pointer-events: none;
+  z-index: 0;
 }
 
-.premium-nav-item {
+/* Cada botón de tab */
+.pnb__item {
   flex: 1;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 0;
-  height: 100%;
-  background: transparent;
+  gap: 3px;
+  padding: 0 4px;
+  min-width: 0;            /* impide overflow en pantallas muy estrechas */
   border: none;
+  background: transparent;
   cursor: pointer;
   font-family: var(--font-body);
   -webkit-tap-highlight-color: transparent;
+  /* Feedback táctil suave */
+  transition: transform 0.18s ease;
+  border-radius: 16px;
 }
 
-.premium-nav-item:hover {
-  transform: translateY(-1px);
+/* Feedback táctil en touch */
+@media (hover: none) and (pointer: coarse) {
+  .pnb__item:active {
+    transform: scale(0.90);
+  }
 }
 
-.premium-nav-item-icon {
+/* Hover en desktop */
+@media (hover: hover) {
+  .pnb__item:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* Wrap del icono — contiene el glow */
+.pnb__icon-wrap {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
 }
 
-.premium-nav-label {
-  font-size: 12px;
-  letter-spacing: 0.01em;
-  transition: color 0.3s ease, transform 0.3s ease;
+/* El icono SVG en sí */
+.pnb__icon {
+  color: var(--gray-muted);
+  transition: color 0.25s ease, filter 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
+  display: block;
 }
 
-.premium-nav-ornament {
-  display: none;
+/* Etiqueta de texto */
+.pnb__label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--gray-muted);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  transition: color 0.25s ease, font-weight 0.25s ease;
 }
+
+/* ── Estado ACTIVO ── */
+.pnb__item--active .pnb__icon {
+  color: var(--gold);
+  filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.45));
+  transform: translateY(-1px);
+}
+
+.pnb__item--active .pnb__label {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+/* Punto dorado debajo del icono activo */
+.pnb__item--active .pnb__icon-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.7);
+  animation: pnb-dot-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes pnb-dot-in {
+  from { opacity: 0; transform: translateX(-50%) scale(0); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+/* Pantallas muy pequeñas (iPhone SE 1gen, Galaxy A03 core: 360px) */
+@media (max-width: 360px) {
+  .pnb {
+    left: 8px;
+    right: 8px;
+    height: 60px;
+    padding: 5px 4px;
+  }
+  .pnb__label {
+    font-size: 9px;
+  }
+  .pnb__icon-wrap {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Compat: mantener las clases legacy por si algo aún las referencia */
+.premium-nav-bar { display: none !important; }
+.premium-nav-ornament { display: none; }
 
 .dropdown-backdrop-button {
   position: fixed;
@@ -975,7 +1052,8 @@ input[type="date"].input-dark:valid::before {
 
 /* Content area with bottom padding for tab bar */
 .content-area {
-  padding-bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + 16px);
+  /* 64px altura pnb + safe-area + margen de aire */
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 24px);
   min-height: 100dvh;
 }
 
