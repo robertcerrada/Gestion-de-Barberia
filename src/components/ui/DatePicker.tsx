@@ -60,12 +60,12 @@ export function DatePicker({
   const [viewYear, setViewYear]   = useState(() => selectedDate?.getFullYear() ?? new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(() => selectedDate?.getMonth() ?? new Date().getMonth());
   const [dropPos, setDropPos]     = useState<{ top: number; left: number } | null>(null);
-  const [mounted, setMounted]     = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropRef    = useRef<HTMLDivElement>(null);
-  const rafRef     = useRef<number>(0);
+  const [mounted, setMounted] = useState(false);
+  const triggerRef  = useRef<HTMLButtonElement>(null);
+  const dropRef     = useRef<HTMLDivElement>(null);
+  const rafRef      = useRef<number>(0);
 
-  // Necesario para createPortal (solo en cliente)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
 
   const markedSet    = useMemo(() => new Set(markedDates), [markedDates]);
@@ -97,7 +97,12 @@ export function DatePicker({
   }, []);
 
   useEffect(() => {
-    if (!isOpen) { setDropPos(null); return; }
+    if (!isOpen) {
+      // Resetear posición fuera del render cycle
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => setDropPos(null));
+      return;
+    }
     recalcPos();
     window.addEventListener('scroll', recalcPos, { passive: true, capture: true });
     window.addEventListener('resize', recalcPos, { passive: true });
@@ -211,7 +216,7 @@ export function DatePicker({
           minHeight: compact ? 34 : 48,
           color: selectedDate ? 'var(--white-soft)' : 'var(--gray-muted)',
         }}
-        onPointerDown={e => { e.preventDefault(); isOpen ? setIsOpen(false) : handleOpen(); }}
+        onPointerDown={e => { e.preventDefault(); if (isOpen) { setIsOpen(false); } else { handleOpen(); } }}
       >
         <CalendarIcon size={compact ? 14 : 18} color="var(--gold)" />
         <span className="datepicker-trigger-text" style={{ fontSize: compact ? '13px' : '15px' }}>

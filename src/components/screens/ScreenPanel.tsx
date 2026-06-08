@@ -1820,7 +1820,7 @@ function ModalLiquidacionRapida({
       setCargando(false);
     }
     cargar();
-  }, [mesAno, mesLabel, fechaMes]);
+  }, [mesAno, mesLabel, fechaMes, t]);
 
   async function pagarBarbero(b: any) {
     const key = `b-${b.barberoId}`;

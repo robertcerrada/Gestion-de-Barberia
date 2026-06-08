@@ -1829,7 +1829,7 @@ function AjustesGenerales() {
       
       <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={async () => {
         if (!confirm(t('clearCacheConfirm'))) return;
-        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert(t('cacheClearedSuccess')); window.location.reload(); } catch (err) { alert(t('cacheClearError')); }
+        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert(t('cacheClearedSuccess')); window.location.reload(); } catch (_err) { alert(t('cacheClearError')); }
       }}>
         <RefreshCw size={16} /> {t('clearCacheBtnText')}
       </button>
