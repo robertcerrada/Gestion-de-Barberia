@@ -936,13 +936,13 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
           </p>
         </div>
 
-        <div className="card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
+        <div className="card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0, overflow: 'visible', transform: 'none' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <button onClick={() => setTipo('ingreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'transparent', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-muted)' }}>{t('addFundBtn')}</button>
             <button onClick={() => setTipo('egreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'transparent', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-muted)' }}>{t('withdrawFundBtn')}</button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
               <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('amountLabelSymbol')}</label>
               <input className="input-dark" type="number" placeholder="0.00" value={monto} onChange={e => setMonto(e.target.value)} />
@@ -951,15 +951,15 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
               <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('dateLabel')}</label>
               <DatePicker value={fecha} onChange={setFecha} />
             </div>
-          </div>
 
-          <div>
-            <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('reasonConceptLabel')}</label>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input className="input-dark" type="text" placeholder={t('reasonPlaceholderDefault')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ flex: 1 }} />
-              <button className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>
-                {success ? t('registeredBadge') : tipo === 'ingreso' ? t('addFondoBtnText') : t('withdrawFondoBtnText')}
-              </button>
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('reasonConceptLabel')}</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="input-dark" type="text" placeholder={t('reasonPlaceholderDefault')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ flex: 1 }} />
+                <button className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>
+                  {success ? t('registeredBadge') : tipo === 'ingreso' ? t('addFondoBtnText') : t('withdrawFondoBtnText')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1687,21 +1687,18 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
   const { t } = useAppConfig();
   const [moneda, setMoneda] = useState('USD');
   const [comisionBancaria, setComisionBancaria] = useState('0');
-  const [comisionDefecto, setComisionDefecto] = useState('50');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     getConfig('moneda_codigo').then(v => { if (v) setMoneda(v); });
     getConfig('porcentaje_comision_bancaria').then(v => { if (v) setComisionBancaria(String(parseFloat(v) || 0)); });
-    getConfig('comision_defecto_barbero').then(v => { if (v) setComisionDefecto(String(Math.round(Number(v) * 100))); });
   }, []);
 
   async function guardar() {
     setSaving(true);
     await setConfig('moneda_codigo', moneda);
     await setConfig('porcentaje_comision_bancaria', String(Number(comisionBancaria)));
-    await setConfig('comision_defecto_barbero', String(Number(comisionDefecto) / 100));
     emitirCambioMoneda(moneda);
     setSaving(false);
     setSuccess(true);
@@ -1771,32 +1768,6 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
                 💡 Por cada $100 en banco → se descuenta ${Number(comisionBancaria).toFixed(2)} de comisión
               </p>
             )}
-          </div>
-
-          {/* ── Sección: Comisión por defecto de Barberos ── */}
-          <div style={{ borderTop: '1px solid var(--black-border)', paddingTop: 18 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--gray-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>✂️ {t('serviceCommission')} — {t('newBarber')}</p>
-            <p style={{ fontSize: 11, color: 'var(--gray-muted)', lineHeight: 1.5, marginBottom: 10, opacity: 0.7 }}>Porcentaje por defecto al crear un nuevo barbero (se puede cambiar individualmente).</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button type="button"
-                onPointerDown={e => { e.preventDefault(); setComisionDefecto(v => { const n = Math.max(0.1, parseFloat((Number(v) - 0.1).toFixed(1))); return String(n); }); }}
-                style={spinnerStyle}
-              >&#x2212;</button>
-              <div style={{ flex: 1, position: 'relative' }}>
-                <input
-                  className="input-dark"
-                  type="number" inputMode="decimal" min="0.1" max="100" step="0.1"
-                  value={comisionDefecto}
-                  onChange={e => { const v = e.target.value; if (v === '' || (Number(v) >= 0.1 && Number(v) <= 100)) setComisionDefecto(v); }}
-                  style={{ width: '100%', textAlign: 'center', fontWeight: 700, fontSize: 18, margin: 0 }}
-                />
-                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 16, color: 'var(--gray-muted)', fontWeight: 700, pointerEvents: 'none' }}>%</span>
-              </div>
-              <button type="button"
-                onPointerDown={e => { e.preventDefault(); setComisionDefecto(v => { const n = Math.min(100, parseFloat((Number(v) + 0.1).toFixed(1))); return String(n); }); }}
-                style={spinnerStyle}
-              >+</button>
-            </div>
           </div>
 
           <button className="btn-gold" disabled={saving} onClick={guardar}>

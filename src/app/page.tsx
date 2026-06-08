@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Home, BarChart3, Settings, Sun, Moon } from 'lucide-react';
 import { seedInitialData, getConfig } from '@/lib/db';
 import { getAppToken, setAppToken } from '@/lib/auth';
@@ -131,9 +131,10 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-noise-texture relative overflow-hidden"
       style={{ background: 'var(--black-deep)' }}>
-      
+
       {/* Estilos locales para las animaciones premium */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes premiumShimmer {
           0% { transform: translateX(-150%); }
           50% { transform: translateX(100%); }
@@ -153,12 +154,12 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
       <div className="ambient-glow" style={{ zIndex: 0 }} />
 
       {/* Contenido principal con animación de entrada */}
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        gap: 24, 
-        padding: '0 24px', 
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 24,
+        padding: '0 24px',
         textAlign: 'center',
         zIndex: 10,
         animation: 'fadeInCascade 1s cubic-bezier(0.16, 1, 0.3, 1) forwards'
@@ -185,11 +186,11 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
             border: '1px dashed rgba(212, 175, 55, 0.35)',
             opacity: 0.8,
           }} />
-          
+
           <div style={{
-            width: 80, 
-            height: 80, 
-            borderRadius: '50%', 
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
             overflow: 'hidden',
             border: '2px solid var(--gold)',
             position: 'relative',
@@ -202,17 +203,17 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
         {/* Bloque de texto */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div>
-            <h1 className="text-gradient-gold" style={{ 
-              fontFamily: 'var(--font-display)', 
-              fontSize: 34, 
-              fontWeight: 700, 
+            <h1 className="text-gradient-gold" style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 34,
+              fontWeight: 700,
               letterSpacing: '-0.02em',
               lineHeight: 1.2,
               marginBottom: 4
             }}>
               {nombreBarberia}
             </h1>
-            
+
             {/* Ornamentación clásica */}
             <div className="ornament-separator" style={{ width: 140, margin: '8px auto 0', opacity: 0.5 }}>
               <span style={{ fontSize: 8 }}>♦</span>
@@ -242,13 +243,13 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, marginTop: 12 }}>
               {/* Barra de progreso de lujo */}
-              <div style={{ 
-                width: 120, 
-                height: 2, 
-                background: 'rgba(255, 255, 255, 0.05)', 
-                borderRadius: 1, 
-                overflow: 'hidden', 
-                position: 'relative' 
+              <div style={{
+                width: 120,
+                height: 2,
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: 1,
+                overflow: 'hidden',
+                position: 'relative'
               }}>
                 <div style={{
                   position: 'absolute',
@@ -260,10 +261,10 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
                   animation: 'premiumShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite'
                 }} />
               </div>
-              <p style={{ 
-                fontSize: 10, 
-                color: 'var(--gray-muted)', 
-                letterSpacing: '0.15em', 
+              <p style={{
+                fontSize: 10,
+                color: 'var(--gray-muted)',
+                letterSpacing: '0.15em',
                 textTransform: 'uppercase',
                 fontWeight: 600
               }}>
@@ -282,6 +283,7 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<Tab>('inicio');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { t, theme, setTheme } = useAppConfig();
+  const mainRef = useRef<HTMLElement>(null);
 
   const { ready, errorCarga, nombreBarberia, setNombreBarberia, logoSrc } = useAppLoader();
 
@@ -293,24 +295,24 @@ export default function Page() {
     { id: 'ajustes' as Tab, label: t('navSettings'), icon: Settings },
   ];
 
-    useEffect(() => {
-      const cancelled = { current: false };
-      const t = setTimeout(() => {
-        if (cancelled.current) return;
-        const token = getAppToken();
-        if (token) {
-          // Defer actual setState to next frame and use functional updater to avoid unnecessary renders
-          console.log('[auth] token found, scheduling auth');
-          requestAnimationFrame(() => {
-            if (!cancelled.current) setIsAuthenticated(prev => prev || true);
-          });
-        }
-      }, 0);
-      return () => { 
-        cancelled.current = true; 
-        clearTimeout(t); 
-      };
-    }, []);
+  useEffect(() => {
+    const cancelled = { current: false };
+    const t = setTimeout(() => {
+      if (cancelled.current) return;
+      const token = getAppToken();
+      if (token) {
+        // Defer actual setState to next frame and use functional updater to avoid unnecessary renders
+        console.log('[auth] token found, scheduling auth');
+        requestAnimationFrame(() => {
+          if (!cancelled.current) setIsAuthenticated(prev => prev || true);
+        });
+      }
+    }, 0);
+    return () => {
+      cancelled.current = true;
+      clearTimeout(t);
+    };
+  }, []);
 
   if (!ready) {
     return <SplashScreen nombreBarberia={nombreBarberia} logoSrc={logoSrc} errorCarga={errorCarga} />;
@@ -330,33 +332,87 @@ export default function Page() {
   }
 
   return (
-    <div style={{ position: 'relative', zIndex: 1, minHeight: '100dvh' }}>
-      {/* Header */}
+    <div style={{
+      position: 'relative',
+      zIndex: 1,
+      height: '100dvh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      backgroundColor: 'var(--black-deep)'
+    }}>
+      {/* Header Premium y Sólido (No se transparenta el scroll por detrás) */}
       <header style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        background: 'rgba(10,10,10,0.95)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid var(--black-border)',
-        padding: '12px 20px',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'relative',
+        zIndex: 50,
+        background: 'var(--black-card)',
+        borderBottom: '1.5px solid var(--black-border)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.02)',
+        padding: '14px 20px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+        borderBottomLeftRadius: '18px',
+        borderBottomRightRadius: '18px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AppLogo size={34} src={logoSrc} />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--gold)', fontWeight: 600 }}>
-            {nombreBarberia}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Logo con un marco squircle (superelipse) premium en lugar de círculo simple */}
+          <div style={{
+            width: 38,
+            height: 38,
+            borderRadius: '12px',
+            overflow: 'hidden',
+            border: '1.5px solid var(--gold)',
+            boxShadow: '0 2px 8px rgba(212, 175, 55, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.2)'
+          }}>
+            <AppLogo size={36} src={logoSrc} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 17,
+              color: 'var(--gold)',
+              fontWeight: 700,
+              letterSpacing: '0.01em',
+              lineHeight: 1.2
+            }}>
+              {nombreBarberia}
+            </span>
+
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 11, color: 'var(--gray-muted)' }}>
+          <span style={{
+            fontSize: 11,
+            color: 'var(--gray-text)',
+            fontWeight: 500,
+            background: 'rgba(255, 255, 255, 0.03)',
+            padding: '5px 10px',
+            borderRadius: '20px',
+            border: '1px solid var(--black-border)'
+          }}>
             {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
           </span>
-          <button 
+          <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             style={{
-              background: 'transparent', border: '1px solid var(--black-border)',
-              borderRadius: '50%', width: 32, height: 32,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--gold)', cursor: 'pointer', transition: 'all 0.2s'
+              background: 'rgba(212, 175, 55, 0.05)',
+              border: '1.5px solid rgba(212, 175, 55, 0.25)',
+              borderRadius: '10px',
+              width: 34,
+              height: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--gold)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
             }}
             aria-label="Toggle Theme"
           >
@@ -365,12 +421,22 @@ export default function Page() {
         </div>
       </header>
 
-      {/* Screen Content */}
-      <main className="content-area">
-        {activeTab === 'inicio'   && <ScreenInicio />}
+      {/* Área de contenido scrolleable independiente (estilo chats de WhatsApp) */}
+      <main
+        ref={mainRef}
+        className="content-area"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          position: 'relative',
+          paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        {activeTab === 'inicio' && <ScreenInicio />}
         {activeTab === 'barberos' && <ScreenBarberos />}
-        {activeTab === 'panel'    && <ScreenPanel />}
-        {activeTab === 'ajustes'  && <ScreenAjustes onNombreChange={setNombreBarberia} />}
+        {activeTab === 'panel' && <ScreenPanel />}
+        {activeTab === 'ajustes' && <ScreenAjustes onNombreChange={setNombreBarberia} />}
       </main>
 
       {/* Tab Bar */}
@@ -378,6 +444,7 @@ export default function Page() {
         activeTab={activeTab}
         onTabChange={(tabId) => setActiveTab(tabId as Tab)}
         items={TABS}
+        scrollContainerRef={mainRef}
       />
     </div>
   );
