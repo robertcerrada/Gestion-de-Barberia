@@ -12,8 +12,10 @@ import ScreenPanel from '@/components/screens/ScreenPanel';
 import ScreenAjustes from '@/components/screens/ScreenAjustes';
 import ScreenLogin from '@/components/screens/ScreenLogin';
 import PremiumNavBar from '@/components/PremiumNavBar';
+import LanguageSelector from '@/shared/i18n/LanguageSelector';
 
 type Tab = 'inicio' | 'barberos' | 'panel' | 'ajustes';
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
 // ── Ícono máquina cortadora de pelo (clipper) ──
 function ClipperIcon({ size = 22, style, className }: { size?: number; style?: React.CSSProperties; className?: string }) {
@@ -63,13 +65,21 @@ function useAppLoader() {
 
     const iniciar = async () => {
       try {
-        console.log('[loader] iniciando seedInitialData...');
+        if (IS_DEV) console.log('[loader] iniciando seedInitialData...');
         await seedInitialData();
-        console.log('[loader] seedInitialData completado');
+        if (IS_DEV) console.log('[loader] seedInitialData completado');
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error('[loader] Error en seedInitialData:', msg);
-        if (msg.includes('VersionError') || msg.includes('blocked') || msg.includes('version')) {
+        const err = e instanceof Error ? e : { name: '', message: String(e) };
+        if (IS_DEV) console.error('[loader] Error en seedInitialData:', err);
+        // Detectar errores de Dexie por nombre (preciso) y por substring (red de seguridad).
+        // Antes el check era solo por substring incluyendo 'blocked', demasiado laxo.
+        const isDexieConflict =
+          err.name === 'VersionError' ||
+          err.name === 'OpenFailedError' ||
+          err.name === 'DatabaseClosedError' ||
+          err.name === 'AbortError' ||
+          /blocked|database opened in (another|other) tab|another version|upgrade transaction/i.test(err.message);
+        if (isDexieConflict) {
           safeSetErrorCarga('Hubo un conflicto en la base de datos. Recargá la página o limpiá el caché del navegador.');
           clearTimeout(timeout);
           safeSetReady(true);
@@ -78,18 +88,18 @@ function useAppLoader() {
       }
 
       try {
-        console.log('[loader] cargando config...');
+        if (IS_DEV) console.log('[loader] cargando config...');
         const [nombre, logo] = await Promise.all([
           getConfig('nombre_barberia'),
           getConfig('logo_data'),
         ]);
-        console.log('[loader] config cargada:', { nombre, logo: logo ? 'present' : 'null' });
+        if (IS_DEV) console.log('[loader] config cargada:', { nombre, logo: logo ? 'present' : 'null' });
         if (nombre) setNombreBarberia(nombre);
         if (logo) setLogoSrc(logo);
       } catch (e) {
-        console.error('[loader] Error cargando configuración:', e);
+        if (IS_DEV) console.error('[loader] Error cargando configuración:', e);
       } finally {
-        console.log('[loader] inicializacion completada, setReady(true)');
+        if (IS_DEV) console.log('[loader] inicializacion completada, setReady(true)');
         clearTimeout(timeout);
         safeSetReady(true);
       }
@@ -97,7 +107,7 @@ function useAppLoader() {
 
     iniciar().catch((error) => {
       if (!cancelled.current) {
-        console.error('[loader] Error no capturado en inicializacion:', error);
+        if (IS_DEV) console.error('[loader] Error no capturado en inicializacion:', error);
         safeSetErrorCarga('Ocurrió un error inesperado al iniciar la app. Recargá la página.');
         safeSetReady(true);
       }
@@ -131,25 +141,6 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-noise-texture relative overflow-hidden"
       style={{ background: 'var(--black-deep)' }}>
-
-      {/* Estilos locales para las animaciones premium */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @keyframes premiumShimmer {
-          0% { transform: translateX(-150%); }
-          50% { transform: translateX(100%); }
-          100% { transform: translateX(150%); }
-        }
-        @keyframes luxuryScale {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(212,175,55,0.25)); }
-          50% { transform: scale(1.03); filter: drop-shadow(0 0 35px rgba(212,175,55,0.4)); }
-        }
-        @keyframes fadeInCascade {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}} />
-
       {/* Luces de fondo ambientales */}
       <div className="ambient-glow" style={{ zIndex: 0 }} />
 
@@ -227,7 +218,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
               <p style={{ fontSize: 13, color: '#E05252', maxWidth: 280, lineHeight: 1.5, margin: '0 auto 12px' }}>
                 ⚠️ {errorCarga}
               </p>
-              <button
+              <button type="button"
                 onClick={() => window.location.reload()}
                 className="btn-gold"
                 style={{
@@ -302,7 +293,7 @@ export default function Page() {
       const token = getAppToken();
       if (token) {
         // Defer actual setState to next frame and use functional updater to avoid unnecessary renders
-        console.log('[auth] token found, scheduling auth');
+        if (IS_DEV) console.log('[auth] token found, scheduling auth');
         requestAnimationFrame(() => {
           if (!cancelled.current) setIsAuthenticated(prev => prev || true);
         });
@@ -387,7 +378,7 @@ export default function Page() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{
+          <span suppressHydrationWarning style={{
             fontSize: 11,
             color: 'var(--gray-text)',
             fontWeight: 500,
@@ -398,7 +389,8 @@ export default function Page() {
           }}>
             {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
           </span>
-          <button
+          <LanguageSelector />
+          <button type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             style={{
               background: 'rgba(212, 175, 55, 0.05)',

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useGoogleLogin } from '@react-oauth/google';
 import { exportarAGoogleDrive, restaurarDesdeGoogleDrive, setAccessToken, clearAccessToken, DRIVE_SCOPE, getLastBackupInfo, isDriveConnected } from '@/lib/drive';
-import { exportarTodosLosDatos, getSaldoFondoCaja } from '@/lib/business';
+import { exportarTodosLosDatos, getSaldoFondoCaja, restaurarDesdeDatos } from '@/lib/business';
 import { getGoogleUser, verifyPin, savePin, isPinConfigured, logoutAll } from '@/lib/auth';
 import { Cloud, CloudDownload, LogIn, LogOut, Shield, Download, CheckCircle2, AlertCircle, Scissors, Database, Users, Plus, Wallet, Package, X, Store, UserCog, Percent, Edit2, KeyRound, Mail, Sun, Moon, Globe, RefreshCw, FileText, FileUp, Eye, Trash2, File } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -96,19 +96,19 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
           <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{t('myBarberShopSection')}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn-gold" style={{ width: '100%' }} onClick={() => setShowConfigBarberia(true)}>
+          <button type="button" className="btn-gold" style={{ width: '100%' }} onClick={() => setShowConfigBarberia(true)}>
             <Edit2 size={18} /> {t('configNameLogoBtn')}
           </button>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowApariencia(true)}>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowApariencia(true)}>
             <Sun size={18} /> {t('appearance')}
           </button>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowSocios(true)}>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowSocios(true)}>
             <UserCog size={18} /> {t('manageSociosBtn')}
           </button>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowSeguridad(true)}>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowSeguridad(true)}>
             <Shield size={18} /> {t('securityAccessBtn')}
           </button>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowFinanzas(true)}>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowFinanzas(true)}>
             <Percent size={18} /> {t('currencyCommissionBtn')}
           </button>
         </div>
@@ -122,13 +122,13 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
           <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)' }}>{t('administrationSection')}</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn-gold" style={{ width: '100%' }} onClick={() => setShowBarberos(true)}>
+          <button type="button" className="btn-gold" style={{ width: '100%' }} onClick={() => setShowBarberos(true)}>
             <Users size={18} /> {t('manageBarbersBtn')}
           </button>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowServicios(true)}>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowServicios(true)}>
             <Package size={18} /> {t('manageServicesBtn')}
           </button>
-          <button className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowFondo(true)}>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} onClick={() => setShowFondo(true)}>
             <Wallet size={18} /> {t('cashFundBtn')}
           </button>
         </div>
@@ -195,7 +195,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 className="section-title">{t('manageBarbersBtn')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         {msg && (
@@ -205,7 +205,7 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <button className="btn-gold" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAdd(true)}>
+        <button type="button" className="btn-gold" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAdd(true)}>
           <Plus size={18} /> {t('newBarber')}
         </button>
 
@@ -228,12 +228,12 @@ export function ModalGestionBarberos({ onClose }: { onClose: () => void }) {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
                   <div style={{ display: 'flex', gap: 5 }}>
-                    <button onClick={() => setEditando(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
-                    <button onClick={() => toggleActivo(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: b.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: b.activo ? 'var(--danger)' : 'var(--success)' }}>{b.activo ? t('pause') : t('activate')}</button>
-                    <button onClick={() => eliminar(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
+                    <button type="button" onClick={() => setEditando(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
+                    <button type="button" onClick={() => toggleActivo(b)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: b.activo ? 'rgba(224,82,82,0.4)' : 'rgba(76,175,130,0.4)', color: b.activo ? 'var(--danger)' : 'var(--success)' }}>{b.activo ? t('pause') : t('activate')}</button>
+                    <button type="button" onClick={() => eliminar(b)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
                   </div>
                   {/* Botón documentos */}
-                  <button
+                  <button type="button"
                     onClick={() => setVerDocumentos(b)}
                     className="btn-ghost"
                     style={{ minHeight: 28, padding: '3px 10px', fontSize: 11, color: 'var(--gray-muted)', borderColor: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 5 }}
@@ -278,7 +278,7 @@ function ModalAddBarbero({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('newBarber')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('barberAdded')}</p></div>
@@ -305,7 +305,7 @@ function ModalAddBarbero({ onClose }: { onClose: () => void }) {
                 >+</button>
               </div>
             </div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('addBarber')}</button>
+            <button type="button" className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('addBarber')}</button>
           </div>
         )}
       </div>
@@ -337,7 +337,7 @@ function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () =>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('editBarberTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('barberUpdated')}</p></div>
@@ -364,7 +364,7 @@ function ModalEditarBarbero({ barbero, onClose }: { barbero: any; onClose: () =>
                 >+</button>
               </div>
             </div>
-            <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
+            <button type="button" className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
           </div>
         )}
       </div>
@@ -399,6 +399,16 @@ const ALLOWED_MIME_TYPES = [
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
+const PREVIEWABLE_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+function dataUrlToBlob(dataUrl: string, expectedMime: string): Blob | null {
+  const match = /^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match || match[1] !== expectedMime) return null;
+  const binary = atob(match[2]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: expectedMime });
+}
 
 function ModalDocumentosBarbero({ barbero, onClose }: { barbero: any; onClose: () => void }) {
   const { t } = useAppConfig();
@@ -423,14 +433,19 @@ function ModalDocumentosBarbero({ barbero, onClose }: { barbero: any; onClose: (
   }
 
   function verDoc(doc: DocumentoBarbero) {
-    // Abre en ventana nueva usando data URL
-    const win = window.open();
-    if (!win) return;
-    if (doc.mime_type.startsWith('image/')) {
-      win.document.write(`<html><body style="margin:0;background:#000"><img src="${doc.data}" style="max-width:100%;height:auto" /></body></html>`);
-    } else {
-      win.location.href = doc.data;
+    if (!PREVIEWABLE_MIME_TYPES.includes(doc.mime_type)) {
+      mostrarMsg('Vista previa no disponible para este tipo de archivo. Descargalo para verlo.', 'error');
+      return;
     }
+    const blob = dataUrlToBlob(doc.data, doc.mime_type);
+    if (!blob) {
+      mostrarMsg('El archivo guardado no se pudo validar para vista previa.', 'error');
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    if (!win) mostrarMsg('No se pudo abrir la vista previa. Revisa el bloqueador de ventanas.', 'error');
   }
 
   function descargarDoc(doc: DocumentoBarbero) {
@@ -459,7 +474,7 @@ function ModalDocumentosBarbero({ barbero, onClose }: { barbero: any; onClose: (
               {documentos?.length ?? 0} doc{documentos?.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', flexShrink: 0 }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', flexShrink: 0 }}><X size={22} /></button>
         </div>
 
         {msg && (
@@ -469,7 +484,7 @@ function ModalDocumentosBarbero({ barbero, onClose }: { barbero: any; onClose: (
           </div>
         )}
 
-        <button className="btn-gold" style={{ width: '100%', marginBottom: 16, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
+        <button type="button" className="btn-gold" style={{ width: '100%', marginBottom: 16, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
           <FileUp size={16} /> {t('addDocument')}
         </button>
 
@@ -511,13 +526,13 @@ function ModalDocumentosBarbero({ barbero, onClose }: { barbero: any; onClose: (
 
                     {/* Acciones */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                      <button onClick={() => verDoc(doc)} className="btn-ghost" style={{ minHeight: 28, padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button type="button" onClick={() => verDoc(doc)} className="btn-ghost" style={{ minHeight: 28, padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Eye size={10} /> {t('docView')}
                       </button>
-                      <button onClick={() => descargarDoc(doc)} className="btn-ghost" style={{ minHeight: 28, padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <button type="button" onClick={() => descargarDoc(doc)} className="btn-ghost" style={{ minHeight: 28, padding: '3px 8px', fontSize: 10, display: 'flex', alignItems: 'center', gap: 4 }}>
                         <Download size={10} /> {t('docDownload')}
                       </button>
-                      <button onClick={() => eliminarDoc(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '3px 6px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
+                      <button type="button" onClick={() => eliminarDoc(doc)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '3px 6px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10 }}>
                         <Trash2 size={10} />
                       </button>
                     </div>
@@ -607,7 +622,7 @@ function ModalAddDocumento({
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('addDocument')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -695,7 +710,7 @@ function ModalAddDocumento({
             />
           </div>
 
-          <button
+          <button type="button"
             className="btn-gold"
             disabled={!fileData || !nombre.trim() || loading}
             onClick={guardar}
@@ -736,12 +751,12 @@ export function ModalGestionServicios({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 className="section-title">{t('servicesProducts')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
           {(['servicios', 'productos'] as const).map(opt => (
-            <button key={opt} onClick={() => setTab(opt)} style={{ padding: '10px', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', border: `2px solid ${tab === opt ? 'var(--gold)' : 'var(--black-border)'}`, background: tab === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: tab === opt ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}>
+            <button type="button" key={opt} onClick={() => setTab(opt)} style={{ padding: '10px', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer', border: `2px solid ${tab === opt ? 'var(--gold)' : 'var(--black-border)'}`, background: tab === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: tab === opt ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', transition: 'all 0.2s' }}>
               {opt === 'servicios' ? `✂️ ${t('services')}` : `📦 ${t('productos')}`}
             </button>
           ))}
@@ -754,7 +769,7 @@ export function ModalGestionServicios({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <button className="btn-gold" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAdd(true)}>
+        <button type="button" className="btn-gold" style={{ width: '100%', marginBottom: 12 }} onClick={() => setShowAdd(true)}>
           <Plus size={18} /> {tab === 'servicios' ? t('addService') : t('addProduct')}
         </button>
 
@@ -780,8 +795,8 @@ export function ModalGestionServicios({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, marginLeft: 8 }}>
-                  <button onClick={() => setEditando(item)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
-                  <button onClick={() => eliminar(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
+                  <button type="button" onClick={() => setEditando(item)} className="btn-ghost" style={{ minHeight: 32, padding: '4px 10px', fontSize: 11, borderColor: 'rgba(212,175,55,0.4)', color: 'var(--gold)' }}><Edit2 size={12} /> {t('edit')}</button>
+                  <button type="button" onClick={() => eliminar(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px 6px' }}><X size={16} /></button>
                 </div>
               </div>
             </div>
@@ -821,7 +836,7 @@ function ModalAddItem({ tipo, onClose }: { tipo: 'servicio' | 'producto'; onClos
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{tipo === 'servicio' ? t('addService') : t('addProduct')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('added')}</p></div>
@@ -835,7 +850,7 @@ function ModalAddItem({ tipo, onClose }: { tipo: 'servicio' | 'producto'; onClos
                 <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('minStock')}</label><input className="input-dark" type="number" min="0" value={stockMin} onChange={e => setStockMin(e.target.value)} /></div>
               </div>
             )}
-            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? t('saving') : t('add')}</button>
+            <button type="button" className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? t('saving') : t('add')}</button>
           </div>
         )}
       </div>
@@ -869,7 +884,7 @@ function ModalEditarItem({ item, onClose }: { item: any; onClose: () => void }) 
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('edit')} {item.tipo === 'servicio' ? t('servicio') : t('producto')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('updated')}</p></div>
@@ -883,7 +898,7 @@ function ModalEditarItem({ item, onClose }: { item: any; onClose: () => void }) 
                 <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('minStock')}</label><input className="input-dark" type="number" min="0" value={stockMin} onChange={e => setStockMin(e.target.value)} /></div>
               </div>
             )}
-            <button className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
+            <button type="button" className="btn-gold" disabled={!nombre.trim() || !precio || loading} onClick={guardar}>{loading ? t('saving') : t('saveChanges')}</button>
           </div>
         )}
       </div>
@@ -926,7 +941,7 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">{t('cashFundChicaTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div className="card" style={{ padding: '14px 16px', marginBottom: 16, textAlign: 'center', borderColor: 'rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.03)', flexShrink: 0 }}>
@@ -938,8 +953,8 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
 
         <div className="card" style={{ padding: 14, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0, overflow: 'visible', transform: 'none' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button onClick={() => setTipo('ingreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'transparent', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-muted)' }}>{t('addFundBtn')}</button>
-            <button onClick={() => setTipo('egreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'transparent', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-muted)' }}>{t('withdrawFundBtn')}</button>
+            <button type="button" onClick={() => setTipo('ingreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'ingreso' ? 'var(--success)' : 'var(--black-border)'}`, background: tipo === 'ingreso' ? 'rgba(76,175,130,0.1)' : 'transparent', color: tipo === 'ingreso' ? 'var(--success)' : 'var(--gray-muted)' }}>{t('addFundBtn')}</button>
+            <button type="button" onClick={() => setTipo('egreso')} style={{ padding: 10, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `2px solid ${tipo === 'egreso' ? 'var(--danger)' : 'var(--black-border)'}`, background: tipo === 'egreso' ? 'rgba(224,82,82,0.1)' : 'transparent', color: tipo === 'egreso' ? 'var(--danger)' : 'var(--gray-muted)' }}>{t('withdrawFundBtn')}</button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -956,7 +971,7 @@ function ModalFondoCaja({ onClose }: { onClose: () => void }) {
               <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 4 }}>{t('reasonConceptLabel')}</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input className="input-dark" type="text" placeholder={t('reasonPlaceholderDefault')} value={motivo} onChange={e => setMotivo(e.target.value)} style={{ flex: 1 }} />
-                <button className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>
+                <button type="button" className="btn-gold" style={{ minHeight: 40 }} disabled={!monto || !motivo || !fecha || loading} onClick={guardar}>
                   {success ? t('registeredBadge') : tipo === 'ingreso' ? t('addFondoBtnText') : t('withdrawFondoBtnText')}
                 </button>
               </div>
@@ -1047,7 +1062,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">{t('manageSociosTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div className="card" style={{
@@ -1076,7 +1091,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <button className="btn-gold" style={{ width: '100%', marginBottom: 10, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
+        <button type="button" className="btn-gold" style={{ width: '100%', marginBottom: 10, flexShrink: 0 }} onClick={() => setShowAdd(true)}>
           <Plus size={18} /> {t('addNewPartnerBtn')}
         </button>
 
@@ -1098,9 +1113,9 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
                   <span className="badge badge-gold" style={{ fontSize: 11 }}><Percent size={9} /> {(s.porcentaje_utilidad * 100).toFixed(0)}% {t('ofEarningsLabel')}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: 'var(--gold)' }} onClick={() => setEditando(s)}>{t('edit')}</button>
-                  <button className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: s.activo ? 'var(--danger)' : 'var(--success)' }} onClick={() => toggleActivo(s)}>{s.activo ? t('pause') : t('activate')}</button>
-                  <button style={{ background: 'none', border: 'none', color: 'var(--danger)', padding: '0 4px', cursor: 'pointer' }} onClick={() => eliminar(s)}><X size={16} /></button>
+                  <button type="button" className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: 'var(--gold)' }} onClick={() => setEditando(s)}>{t('edit')}</button>
+                  <button type="button" className="btn-ghost" style={{ minHeight: 30, padding: '0 8px', fontSize: 11, color: s.activo ? 'var(--danger)' : 'var(--success)' }} onClick={() => toggleActivo(s)}>{s.activo ? t('pause') : t('activate')}</button>
+                  <button type="button" style={{ background: 'none', border: 'none', color: 'var(--danger)', padding: '0 4px', cursor: 'pointer' }} onClick={() => eliminar(s)}><X size={16} /></button>
                 </div>
               </div>
             </div>
@@ -1109,7 +1124,7 @@ function ModalGestionSocios({ onClose }: { onClose: () => void }) {
 
         {totalInactivos > 0 && (
           <div style={{ marginTop: 12, textAlign: 'center', flexShrink: 0 }}>
-            <button className="btn-ghost" style={{ border: 'none', fontSize: 11, minHeight: 24, padding: '4px 12px' }} onClick={() => setMostrarInactivos(!mostrarInactivos)}>
+            <button type="button" className="btn-ghost" style={{ border: 'none', fontSize: 11, minHeight: 24, padding: '4px 12px' }} onClick={() => setMostrarInactivos(!mostrarInactivos)}>
               {mostrarInactivos ? t('hideInactivePartners') : t('showInactivePartners').replace('{count}', String(totalInactivos))}
             </button>
           </div>
@@ -1153,7 +1168,7 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <h2 className="section-title">{t('newPartnerTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
@@ -1180,7 +1195,7 @@ function ModalAddSocio({ onClose, mostrarMensaje }: { onClose: () => void; mostr
               >+</button>
             </div>
           </div>
-          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('addPartnerBtnText')}</button>
+          <button type="button" className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('addPartnerBtnText')}</button>
         </div>
       </div>
     </div>
@@ -1216,7 +1231,7 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
           <h2 className="section-title">{t('editPartnerTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
@@ -1243,7 +1258,7 @@ function ModalEditarSocio({ socio, onClose, mostrarMensaje }: { socio: Socio; on
               >+</button>
             </div>
           </div>
-          <button className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('saveChangesBtn')}</button>
+          <button type="button" className="btn-gold" disabled={!nombre.trim() || loading} onClick={guardar}>{t('saveChangesBtn')}</button>
         </div>
       </div>
     </div>
@@ -1316,7 +1331,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('configureBarbershopTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20, gap: 10 }}>
@@ -1334,7 +1349,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
             </div>
           </div>
           <input id="logo-file-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
-          <button className="btn-ghost" style={{ fontSize: 12, padding: '6px 16px', minHeight: 32 }} onClick={() => document.getElementById('logo-file-input')?.click()}>{t('selectLogoDevice')}</button>
+          <button type="button" className="btn-ghost" style={{ fontSize: 12, padding: '6px 16px', minHeight: 32 }} onClick={() => document.getElementById('logo-file-input')?.click()}>{t('selectLogoDevice')}</button>
           {logoMsg && (
             <p style={{ fontSize: 12, color: logoMsg.startsWith('✓') || logoMsg.startsWith('Saved') || logoMsg.includes('correctamente') ? 'var(--success)' : 'var(--danger)', textAlign: 'center' }}>{logoMsg}</p>
           )}
@@ -1345,7 +1360,7 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
             <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('barbershopNameLabel')}</label>
             <input className="input-dark" type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Royal Cuts Barber Shop" />
           </div>
-          <button className="btn-gold" disabled={!nombre.trim() || saving} onClick={guardar}>
+          <button type="button" className="btn-gold" disabled={!nombre.trim() || saving} onClick={guardar}>
             {success ? t('savedBadge') : saving ? t('saving') : t('saveChangesBtn')}
           </button>
         </div>
@@ -1364,12 +1379,12 @@ function ModalSeguridad({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 className="section-title">{t('securityAccessTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 20 }}>
           {([['emails', t('emailsTab')], ['pin', t('pinTab')], ['drive', t('driveTab')]] as const).map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
+            <button type="button" key={id} onClick={() => setTab(id)} style={{
               padding: '9px 4px', borderRadius: 10, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${tab === id ? 'var(--gold)' : 'var(--black-border)'}`,
               background: tab === id ? 'rgba(212,175,55,0.1)' : 'transparent',
@@ -1443,7 +1458,7 @@ function TabEmails() {
 
       <div style={{ display: 'flex', gap: 8 }}>
         <input className="input-dark" type="email" placeholder="email@gmail.com" value={nuevo} onChange={e => { setNuevo(e.target.value); setMsg(''); }} onKeyDown={e => { if (e.key === 'Enter') agregar(); }} style={{ flex: 1 }} />
-        <button className="btn-gold" style={{ padding: '0 16px', minHeight: 44, minWidth: 80 }} disabled={saving} onClick={agregar}><Plus size={16} /> {t('add')}</button>
+        <button type="button" className="btn-gold" style={{ padding: '0 16px', minHeight: 44, minWidth: 80 }} disabled={saving} onClick={agregar}><Plus size={16} /> {t('add')}</button>
       </div>
 
       {msg && <p style={{ fontSize: 12, color: msg.startsWith('✓') || msg.startsWith('Email') || msg.startsWith('Added') ? 'var(--success)' : 'var(--danger)' }}>{msg}</p>}
@@ -1460,7 +1475,7 @@ function TabEmails() {
               <Mail size={14} color="var(--gold)" />
               <span style={{ fontSize: 13 }}>{email}</span>
             </div>
-            <button onClick={() => eliminar(email)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px' }}><X size={16} /></button>
+            <button type="button" onClick={() => eliminar(email)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '4px' }}><X size={16} /></button>
           </div>
         ))}
       </div>
@@ -1526,7 +1541,7 @@ function TabPin() {
       })}
 
       {error && <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>}
-      <button className="btn-gold" onClick={cambiarPin} disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}><KeyRound size={16} /> {hasPin ? t('changePinBtnText') : t('configurePinBtnText')}</button>
+      <button type="button" className="btn-gold" onClick={cambiarPin} disabled={(hasPin && !pinActual) || !pinNuevo || !pinConfirm}><KeyRound size={16} /> {hasPin ? t('changePinBtnText') : t('configurePinBtnText')}</button>
     </div>
   );
 }
@@ -1621,7 +1636,7 @@ function TabDriveEnabled() {
       {!loggedIn ? (
         <>
           <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.2)', fontSize: 12, color: 'var(--gray-muted)', lineHeight: 1.6 }}>{t('driveHelpText')}</div>
-          <button className="btn-gold" style={{ width: '100%' }} onClick={() => login()}><LogIn size={18} /> {t('connectGoogleDriveBtn')}</button>
+          <button type="button" className="btn-gold" style={{ width: '100%' }} onClick={() => login()}><LogIn size={18} /> {t('connectGoogleDriveBtn')}</button>
         </>
       ) : (
         <>
@@ -1632,9 +1647,9 @@ function TabDriveEnabled() {
               {lastBackup && <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginTop: 2 }}>{t('lastBackupLabel').replace('{date}', lastBackup.date).replace('{size}', String(lastBackup.size))}</p>}
             </div>
           </div>
-          <button className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}><Cloud size={18} /> {loading === 'exportar' ? t('saving') : t('backupNowBtnText')}</button>
-          <button className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}><CloudDownload size={18} /> {loading === 'restaurar' ? t('saving') : t('restoreFromDriveBtnText')}</button>
-          <button className="btn-danger" style={{ width: '100%' }} onClick={() => { clearAccessToken(); setLoggedIn(false); }}><LogOut size={16} /> {t('disconnectDriveBtnText')}</button>
+          <button type="button" className="btn-gold" style={{ width: '100%' }} disabled={loading === 'exportar'} onClick={exportar}><Cloud size={18} /> {loading === 'exportar' ? t('saving') : t('backupNowBtnText')}</button>
+          <button type="button" className="btn-ghost" style={{ width: '100%' }} disabled={loading === 'restaurar'} onClick={restaurar}><CloudDownload size={18} /> {loading === 'restaurar' ? t('saving') : t('restoreFromDriveBtnText')}</button>
+          <button type="button" className="btn-danger" style={{ width: '100%' }} onClick={() => { clearAccessToken(); setLoggedIn(false); }}><LogOut size={16} /> {t('disconnectDriveBtnText')}</button>
         </>
       )}
     </div>
@@ -1650,7 +1665,7 @@ function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2 className="section-title">{t('appearance')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'grid', gap: 20 }}>
@@ -1658,7 +1673,7 @@ function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
             <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t('theme')}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {(['dark', 'light'] as const).map(opt => (
-                <button key={opt} onClick={() => setTheme(opt)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 14, cursor: 'pointer', border: `2px solid ${theme === opt ? 'var(--gold)' : 'var(--black-border)'}`, background: theme === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: theme === opt ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, transition: 'all 0.2s' }}>
+                <button type="button" key={opt} onClick={() => setTheme(opt)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px', borderRadius: 14, cursor: 'pointer', border: `2px solid ${theme === opt ? 'var(--gold)' : 'var(--black-border)'}`, background: theme === opt ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: theme === opt ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 14, transition: 'all 0.2s' }}>
                   {opt === 'dark' ? <Moon size={18} /> : <Sun size={18} />}
                   {opt === 'dark' ? t('darkMode') : t('lightMode')}
                 </button>
@@ -1670,7 +1685,7 @@ function ModalAparienciaIdioma({ onClose }: { onClose: () => void }) {
             <p style={{ marginBottom: 10, fontSize: 13, color: 'var(--gray-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 6 }}><Globe size={14} /> {t('language')}</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: 10 }}>
               {IDIOMAS.map(({ code, label, flag }) => (
-                <button key={code} onClick={() => setLang(code)} style={{ padding: '12px 10px', borderRadius: 14, cursor: 'pointer', border: `2px solid ${lang === code ? 'var(--gold)' : 'var(--black-border)'}`, background: lang === code ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: lang === code ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <button type="button" key={code} onClick={() => setLang(code)} style={{ padding: '12px 10px', borderRadius: 14, cursor: 'pointer', border: `2px solid ${lang === code ? 'var(--gold)' : 'var(--black-border)'}`, background: lang === code ? 'rgba(212,175,55,0.1)' : 'var(--black-surface)', color: lang === code ? 'var(--gold)' : 'var(--gray-muted)', fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 13, transition: 'all 0.2s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                   <span style={{ fontSize: 20 }}>{flag}</span>
                   <span>{label}</span>
                 </button>
@@ -1718,7 +1733,7 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">{t('financesCommissionsTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1770,7 +1785,7 @@ function ModalFinanzas({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          <button className="btn-gold" disabled={saving} onClick={guardar}>
+          <button type="button" className="btn-gold" disabled={saving} onClick={guardar}>
             {success ? t('savedCorrectly') : saving ? t('saving') : t('updateConfigBtnText')}
           </button>
         </div>
@@ -1821,20 +1836,54 @@ function AjustesGenerales() {
     }
   }
 
+  async function handleImportJSON(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const confirmRestore = confirm(t('restoreManualConfirm'));
+    if (!confirmRestore) {
+      e.target.value = '';
+      return;
+    }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const jsonStr = evt.target?.result;
+        if (typeof jsonStr !== 'string') throw new Error(t('importLocalError'));
+        await restaurarDesdeDatos(jsonStr);
+        alert(t('restoreSuccess'));
+        window.location.reload();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : t('importLocalError'));
+      } finally {
+        setLoading(false);
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
   return (
     <div style={{ marginBottom: 16 }}>
-      <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={handleExportJSON} disabled={loading}>
+      <button type="button" className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={handleExportJSON} disabled={loading}>
         <Download size={16} /> {loading ? t('exporting') : t('exportManualBackupBtnText')}
       </button>
+
+      <button type="button" className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={() => document.getElementById('import-json-input')?.click()} disabled={loading}>
+        <FileUp size={16} /> {loading ? t('loading') : t('importManualBackupBtnText')}
+      </button>
+      <input id="import-json-input" type="file" accept=".json" style={{ display: 'none' }} onChange={handleImportJSON} />
       
-      <button className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={async () => {
+      <button type="button" className="btn-ghost" style={{ width: '100%', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--gray-muted)', marginBottom: 8 }} onClick={async () => {
         if (!confirm(t('clearCacheConfirm'))) return;
-        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert(t('cacheClearedSuccess')); window.location.reload(); } catch (_err) { alert(t('cacheClearError')); }
+        try { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); alert(t('cacheClearedSuccess')); window.location.reload(); } catch { alert(t('cacheClearError')); }
       }}>
         <RefreshCw size={16} /> {t('clearCacheBtnText')}
       </button>
 
-      <button className="btn-danger" style={{ width: '100%' }} onClick={() => {
+      <button type="button" className="btn-danger" style={{ width: '100%' }} onClick={() => {
         if (!confirm(t('logoutDeviceConfirm'))) return;
         logoutAll();
         window.location.reload();

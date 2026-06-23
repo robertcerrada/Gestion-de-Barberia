@@ -12,10 +12,14 @@ import { STORAGE_KEYS, SECURITY } from '../constants';
 
 export class LanguageStorageManager {
   private static isStorageAvailable(): boolean {
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return false;
+    }
+
     try {
       const test = '__storage_test__';
-      localStorage.setItem(test, test);
-      localStorage.removeItem(test);
+      window.localStorage.setItem(test, test);
+      window.localStorage.removeItem(test);
       return true;
     } catch {
       return false;
@@ -28,16 +32,15 @@ export class LanguageStorageManager {
    */
   static loadLocale(): Locale | null {
     if (!this.isStorageAvailable()) {
-      console.debug('[i18n] localStorage no disponible');
       return null;
     }
 
     try {
-      let saved = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
+      let saved = window.localStorage.getItem(STORAGE_KEYS.LANGUAGE);
       
       // Fallback a la clave legacy de useAppConfig
       if (!saved) {
-        saved = localStorage.getItem('barberia_lang');
+        saved = window.localStorage.getItem('barberia_lang');
       }
 
       // SEGURIDAD: Validar tipo y longitud
@@ -67,7 +70,7 @@ export class LanguageStorageManager {
     }
 
     try {
-      localStorage.setItem(STORAGE_KEYS.LANGUAGE, locale);
+      window.localStorage.setItem(STORAGE_KEYS.LANGUAGE, locale);
     } catch (error) {
       console.warn('[i18n] Error al guardar en localStorage:', error);
       // Silencioso: no romper la app si localStorage no funciona
@@ -81,7 +84,7 @@ export class LanguageStorageManager {
     if (!this.isStorageAvailable()) return;
 
     try {
-      localStorage.removeItem(STORAGE_KEYS.LANGUAGE);
+      window.localStorage.removeItem(STORAGE_KEYS.LANGUAGE);
     } catch (error) {
       console.warn('[i18n] Error al limpiar localStorage:', error);
     }

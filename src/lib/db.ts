@@ -21,6 +21,8 @@ import type {
   DocumentoBarbero,
 } from '@/domain/types';
 
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
 // Re-exportar desde domain para compatibilidad con imports existentes.
 // Los screens deben migrar gradualmente a importar desde @/domain directamente.
 export type {
@@ -119,58 +121,61 @@ export async function setConfig(clave: string, valor: string): Promise<void> {
 export const db = new BarberiaDexie();
 
 export async function seedInitialData() {
-  console.log('[db] seedInitialData started');
+  if (IS_DEV) console.log('[db] seedInitialData started');
   try {
     const count = await db.barberos.count();
-    console.log('[db] barberos count:', count);
+    if (IS_DEV) console.log('[db] barberos count:', count);
     if (count === 0) {
-      console.log('[db] seeding barberos...');
-      await db.barberos.bulkAdd([
-        { nombre: 'Barbero 1', porcentaje_comision: 0.5, activo: true },
-        { nombre: 'Barbero 2', porcentaje_comision: 0.4, activo: true },
-      ]);
-      console.log('[db] barberos seeded');
-      console.log('[db] seeding servicios...');
-      await db.servicios_productos.bulkAdd([
-        { nombre: 'Corte Clásico', tipo: 'servicio', precio: 12 },
-        { nombre: 'Corte + Barba', tipo: 'servicio', precio: 20 },
-        { nombre: 'Corte + Barba + Ceja', tipo: 'servicio', precio: 24 },
-        { nombre: 'Barba', tipo: 'servicio', precio: 8 },
-        { nombre: 'Ceja', tipo: 'servicio', precio: 4 },
-        { nombre: 'Barba + Ceja', tipo: 'servicio', precio: 12 },
-        { nombre: 'Tinte', tipo: 'servicio', precio: 35 },
-        { nombre: 'Champú', tipo: 'producto', precio: 18, stock_actual: 20, stock_minimo: 5 },
-        { nombre: 'Cera para Cabello', tipo: 'producto', precio: 12, stock_actual: 15, stock_minimo: 3 },
-      ]);
-      console.log('[db] servicios seeded');
+      if (IS_DEV) console.log('[db] seeding barberos + servicios...');
+      // Transacción atómica: si falla entre barberos y servicios, no queda
+      // un seed a medio poblar que se salta en próximos arranques.
+      await db.transaction('rw', [db.barberos, db.servicios_productos], async () => {
+        await db.barberos.bulkAdd([
+          { nombre: 'Barbero 1', porcentaje_comision: 0.5, activo: true },
+          { nombre: 'Barbero 2', porcentaje_comision: 0.4, activo: true },
+        ]);
+        if (IS_DEV) console.log('[db] barberos seeded');
+        await db.servicios_productos.bulkAdd([
+          { nombre: 'Corte Clásico', tipo: 'servicio', precio: 12 },
+          { nombre: 'Corte + Barba', tipo: 'servicio', precio: 20 },
+          { nombre: 'Corte + Barba + Ceja', tipo: 'servicio', precio: 24 },
+          { nombre: 'Barba', tipo: 'servicio', precio: 8 },
+          { nombre: 'Ceja', tipo: 'servicio', precio: 4 },
+          { nombre: 'Barba + Ceja', tipo: 'servicio', precio: 12 },
+          { nombre: 'Tinte', tipo: 'servicio', precio: 35 },
+          { nombre: 'Champú', tipo: 'producto', precio: 18, stock_actual: 20, stock_minimo: 5 },
+          { nombre: 'Cera para Cabello', tipo: 'producto', precio: 12, stock_actual: 15, stock_minimo: 3 },
+        ]);
+        if (IS_DEV) console.log('[db] servicios seeded');
+      });
     }
 
     const countFondo = await db.fondo_caja.count();
-    console.log('[db] fondo_caja count:', countFondo);
+    if (IS_DEV) console.log('[db] fondo_caja count:', countFondo);
     if (countFondo === 0) {
-      console.log('[db] seeding fondo_caja...');
+      if (IS_DEV) console.log('[db] seeding fondo_caja...');
       await db.fondo_caja.add({
         fecha: new Date(),
         monto: 0,
         tipo: 'ingreso',
         motivo: 'Fondo de caja inicial'
       });
-      console.log('[db] fondo_caja seeded');
+      if (IS_DEV) console.log('[db] fondo_caja seeded');
     }
 
     const countSocios = await db.socios.count();
-    console.log('[db] socios count:', countSocios);
+    if (IS_DEV) console.log('[db] socios count:', countSocios);
     if (countSocios === 0) {
-      console.log('[db] seeding socios...');
+      if (IS_DEV) console.log('[db] seeding socios...');
       await db.socios.bulkAdd([
         { nombre: 'Socio 1', porcentaje_utilidad: 0.5, activo: true, rol: 'Dueño' },
         { nombre: 'Socio 2', porcentaje_utilidad: 0.5, activo: true, rol: 'Socio' },
       ]);
-      console.log('[db] socios seeded');
+      if (IS_DEV) console.log('[db] socios seeded');
     }
-    console.log('[db] seedInitialData completed');
+    if (IS_DEV) console.log('[db] seedInitialData completed');
   } catch (e) {
-    console.error('[db] error in seedInitialData:', e);
+    if (IS_DEV) console.error('[db] error in seedInitialData:', e);
     throw e;
   }
 }

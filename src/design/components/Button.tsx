@@ -43,7 +43,7 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   return (
-    <button
+    <button type="button"
       ref={btnRef}
       onClick={onClick}
       disabled={disabled}

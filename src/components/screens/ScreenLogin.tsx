@@ -4,10 +4,10 @@
 import { useState, useEffect, useReducer } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Lock, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
-import { getConfig } from '@/lib/db';
-import { setGoogleToken, setGoogleUser, verifyPin } from '@/lib/auth';
+import { createAppSessionToken, getAuthorizedEmails, isPinConfigured, savePin, setGoogleToken, setGoogleUser, verifyPin } from '@/lib/auth';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
+const PIN_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', null, '0', 'backspace'] as const;
 
 interface ScreenLoginProps {
   nombreBarberia?: string;
@@ -43,6 +43,8 @@ async function verifyGoogleIdToken(token: string): Promise<{ email?: string; nam
 export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', logoSrc, onLoginSuccess }: ScreenLoginProps) {
   const [googleActivo, setGoogleActivo] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
+  const [pinConfigurado, setPinConfigurado] = useState(() => isPinConfigured());
+  const [pinInicial, setPinInicial] = useState<string | null>(null);
 
   type FormState = { pin: string; error: string; mostrar: boolean; cargando: boolean };
   type FormAction =
@@ -79,7 +81,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
   useEffect(() => {
     const cancelled = { current: false };
     const t = setTimeout(() => {
-      if (!cancelled.current && googleConfigurado) {
+      if (!cancelled.current && googleConfigurado && pinConfigurado) {
         requestAnimationFrame(() => {
           if (!cancelled.current) setGoogleActivo(true);
         });
@@ -89,7 +91,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
       cancelled.current = true; 
       clearTimeout(t); 
     };
-  }, [googleConfigurado]);
+  }, [googleConfigurado, pinConfigurado]);
 
   async function handleGoogleSuccess(credentialResponse: { credential?: string }) {
     const token = credentialResponse.credential;
@@ -99,10 +101,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
     const payload = await verifyGoogleIdToken(token);
     const email = payload?.email?.toLowerCase() || '';
 
-    const emailsConfig = await getConfig('emails_autorizados');
-    const emailsAutorizados = emailsConfig
-      ? emailsConfig.split(',').flatMap(e => { const v = e.trim().toLowerCase(); return v ? [v] : []; })
-      : [];
+    const emailsAutorizados = await getAuthorizedEmails();
 
     if (!payload || !email) {
       dispatch({ type: 'stopCargando' });
@@ -110,7 +109,13 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
       return;
     }
 
-    if (emailsAutorizados.length > 0 && !emailsAutorizados.includes(email)) {
+    if (emailsAutorizados.length === 0) {
+      dispatch({ type: 'stopCargando' });
+      dispatch({ type: 'setError', error: 'No hay emails autorizados configurados. Entra con PIN y agrega al menos un email en Ajustes.' });
+      return;
+    }
+
+    if (!emailsAutorizados.includes(email)) {
       dispatch({ type: 'stopCargando' });
       dispatch({ type: 'setError', error: `❌ El email ${email} no tiene acceso. Contactá al administrador.` });
       return;
@@ -126,16 +131,61 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
 
     setGoogleToken(token);
     dispatch({ type: 'stopCargando' });
-    onLoginSuccess(token, email);
+    onLoginSuccess(createAppSessionToken('google'), email);
+  }
+
+  async function configurarPinInicial() {
+    if (pin.length < 4) {
+      dispatch({ type: 'setError', error: 'El PIN debe tener al menos 4 digitos.' });
+      return;
+    }
+
+    if (!pinInicial) {
+      setPinInicial(pin);
+      dispatch({ type: 'clearPin' });
+      dispatch({ type: 'setError', error: '' });
+      return;
+    }
+
+    if (pin !== pinInicial) {
+      setPinInicial(null);
+      dispatch({ type: 'clearPin' });
+      dispatch({ type: 'setError', error: 'Los PIN no coinciden. Crea el PIN inicial de nuevo.' });
+      return;
+    }
+
+    dispatch({ type: 'startCargando' });
+    try {
+      await savePin(pin);
+      setPinConfigurado(true);
+      dispatch({ type: 'stopCargando' });
+      onLoginSuccess(createAppSessionToken('pin'));
+    } catch {
+      dispatch({ type: 'stopCargando' });
+      dispatch({ type: 'setError', error: 'No se pudo guardar el PIN inicial. Intenta de nuevo.' });
+    }
   }
 
   async function verificarPin() {
+    if (!pinConfigurado) {
+      await configurarPinInicial();
+      return;
+    }
+
     dispatch({ type: 'startCargando' });
-    const correcto = await verifyPin(pin);
+    let correcto = false;
+    try {
+      correcto = await verifyPin(pin);
+    } catch (err) {
+      dispatch({ type: 'stopCargando' });
+      dispatch({ type: 'setError', error: err instanceof Error ? err.message : 'PIN bloqueado temporalmente.' });
+      dispatch({ type: 'clearPin' });
+      return;
+    }
     dispatch({ type: 'stopCargando' });
 
     if (correcto) {
-      onLoginSuccess('pin_auth_token');
+      onLoginSuccess(createAppSessionToken('pin'));
     } else {
       dispatch({ type: 'setError', error: 'PIN incorrecto. Intentá de nuevo.' });
       dispatch({ type: 'clearPin' });
@@ -175,16 +225,16 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
       <div className="card" style={{ width: '100%', maxWidth: 340, padding: 24 }}>
 
         {/* Tabs Google / PIN — solo si Google está configurado */}
-        {googleConfigurado && (
+        {googleConfigurado && pinConfigurado && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 22 }}>
-            <button onClick={() => { setGoogleActivo(true); dispatch({ type: 'setError', error: '' }); }} style={{
+            <button type="button" onClick={() => { setGoogleActivo(true); dispatch({ type: 'setError', error: '' }); }} style={{
               padding: '9px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${googleActivo ? 'var(--gold)' : 'var(--black-border)'}`,
               background: googleActivo ? 'rgba(212,175,55,0.1)' : 'transparent',
               color: googleActivo ? 'var(--gold)' : 'var(--gray-muted)',
               fontFamily: 'var(--font-body)',
             }}>🔐 Google</button>
-            <button onClick={() => { setGoogleActivo(false); dispatch({ type: 'setError', error: '' }); }} style={{
+            <button type="button" onClick={() => { setGoogleActivo(false); dispatch({ type: 'setError', error: '' }); }} style={{
               padding: '9px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
               border: `2px solid ${!googleActivo ? 'rgba(255,255,255,0.2)' : 'var(--black-border)'}`,
               background: !googleActivo ? 'rgba(255,255,255,0.04)' : 'transparent',
@@ -256,14 +306,14 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
             <div style={{ width: '100%', position: 'relative' }}>
               <input className="input-dark"
                 type={mostrar ? 'text' : 'password'}
+                aria-label="PIN de acceso"
                 inputMode="numeric" maxLength={8} value={pin}
                 onChange={e => { dispatch({ type: 'setPinChar', char: e.target.value.replace(/\D/g, '').slice(-1) }); }}
                 onKeyDown={e => { if (e.key === 'Enter') verificarPin(); }}
                 placeholder="••••"
                 style={{ textAlign: 'center', fontSize: 26, letterSpacing: 10, paddingRight: 44 }}
-                autoFocus
               />
-              <button onClick={() => dispatch({ type: 'toggleMostrar' })} aria-label={mostrar ? 'Ocultar PIN' : 'Mostrar PIN'} style={{
+              <button type="button" onClick={() => dispatch({ type: 'toggleMostrar' })} aria-label={mostrar ? 'Ocultar PIN' : 'Mostrar PIN'} style={{
                 position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', display: 'flex',
               }}>
@@ -272,29 +322,48 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, width: '100%' }}>
-              {[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map((n, i) => (
-                <button key={i} onClick={() => {
-                  if (n === '⌫') { dispatch({ type: 'backspace' }); }
-                  else if (n !== '') { dispatch({ type: 'setPinChar', char: String(n) }); }
-                }} style={{
-                  padding: '13px 0', borderRadius: 12, fontSize: 20, fontWeight: 600,
-                  background: n === '' ? 'transparent' : 'rgba(255,255,255,0.04)',
-                  border: n === '' ? 'none' : '1px solid rgba(255,255,255,0.07)',
-                  color: n === '⌫' ? 'var(--danger)' : 'var(--white-soft)',
-                  cursor: n === '' ? 'default' : 'pointer',
-                  fontFamily: 'var(--font-body)',
-                }}>{n}</button>
-              ))}
+              {PIN_KEYS.map((key) => {
+                if (key === null) {
+                  return <span key="pin-spacer" aria-hidden="true" />;
+                }
+
+                const isBackspace = key === 'backspace';
+                return (
+                  <button type="button" key={key} aria-label={isBackspace ? 'Borrar numero del PIN' : `Numero ${key}`} onClick={() => {
+                    if (isBackspace) { dispatch({ type: 'backspace' }); }
+                    else { dispatch({ type: 'setPinChar', char: key }); }
+                  }} style={{
+                    padding: '13px 0', borderRadius: 12, fontSize: 20, fontWeight: 600,
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    color: isBackspace ? 'var(--danger)' : 'var(--white-soft)',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-body)',
+                  }}>{isBackspace ? 'Del' : key}</button>
+                );
+              })}
             </div>
 
             {error && <p style={{ fontSize: 13, color: 'var(--danger)', textAlign: 'center' }}>{error}</p>}
 
-            <button className="btn-gold" style={{ width: '100%', fontSize: 15 }}
-              disabled={pin.length < 1} onClick={verificarPin}>
-              Entrar
+            <button type="button" className="btn-gold" style={{ width: '100%', fontSize: 15 }}
+              disabled={pin.length < (pinConfigurado ? 1 : 4) || cargando} onClick={verificarPin}>
+              {cargando
+                ? 'Guardando...'
+                : pinConfigurado
+                  ? 'Entrar'
+                  : pinInicial
+                    ? 'Confirmar PIN'
+                    : 'Crear PIN'}
             </button>
 
-            {!googleConfigurado && (
+            {!pinConfigurado && (
+              <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center', lineHeight: 1.5 }}>
+                Este PIN abre la app por primera vez. Despues agrega los emails autorizados en Ajustes para habilitar Google.
+              </p>
+            )}
+
+            {pinConfigurado && !googleConfigurado && (
               <p style={{ fontSize: 11, color: 'var(--gray-muted)', textAlign: 'center' }}>
                 Configurá tu PIN desde Ajustes antes de usar la app
               </p>

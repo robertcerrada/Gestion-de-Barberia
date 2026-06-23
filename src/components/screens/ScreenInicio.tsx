@@ -208,7 +208,7 @@ export default function ScreenInicio() {
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--white-soft)', flexShrink: 0 }}>{t('filterDate')}:</span>
         <DatePicker compact value={fechaFiltro} onChange={setFechaFiltro} markedDates={fechasConRegistroRaw ?? []} />
         {fechaFiltro !== hoyStr && (
-          <button onClick={() => setFechaFiltro(hoyStr)} style={{ border: 'none', cursor: 'pointer', color: 'var(--gold)', fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6, background: 'rgba(212,175,55,0.1)', flexShrink: 0, fontFamily: 'var(--font-body)' }}>
+          <button type="button" onClick={() => setFechaFiltro(hoyStr)} style={{ border: 'none', cursor: 'pointer', color: 'var(--gold)', fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 6, background: 'rgba(212,175,55,0.1)', flexShrink: 0, fontFamily: 'var(--font-body)' }}>
             {t('today')}
           </button>
         )}
@@ -299,26 +299,26 @@ export default function ScreenInicio() {
       {/* Acciones rápidas */}
       <p className="section-title" style={{ marginBottom: 12 }}>{t('quickRegisterTitle') || 'Registro Rápido'}</p>
       {mesFiltroActivo && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.35)', fontSize: 12, color: 'var(--danger)' }}
-          dangerouslySetInnerHTML={{ __html: '🔒 ' + t('monthlyClosed') }}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, marginBottom: 10, background: 'rgba(224,82,82,0.08)', border: '1px solid rgba(224,82,82,0.35)', fontSize: 12, color: 'var(--danger)' }}>
+          Cerrado: {t('monthlyClosed')}
+        </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-        <button id="btn-registrar-venta" className="btn-gold" style={{ width: '100%', fontSize: 15, padding: '10px', opacity: mesFiltroActivo ? 0.45 : 1 }}
+        <button type="button" id="btn-registrar-venta" className="btn-gold" style={{ width: '100%', fontSize: 15, padding: '10px', opacity: mesFiltroActivo ? 0.45 : 1 }}
           onClick={() => { if (mesFiltroActivo) { alert(t('monthClosedAlert')); return; } setShowVentaModal(true); }}>
           <Plus size={18} /> {t('registerSaleBtn')}
         </button>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <button id="btn-registrar-gasto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
+          <button type="button" id="btn-registrar-gasto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
             onClick={() => { if (mesFiltroActivo) { alert(t('monthClosedAlert')); return; } setShowGastoModal(true); }}>
             <TrendingDown size={16} /> {t('expensesLabel2')}
           </button>
-          <button id="btn-registrar-Adelanto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
+          <button type="button" id="btn-registrar-Adelanto" className="btn-ghost" style={{ padding: '8px', fontSize: 13, opacity: mesFiltroActivo ? 0.45 : 1 }}
             onClick={() => { if (mesFiltroActivo) { alert(t('monthClosedAlert')); return; } setShowAdelantoModal(true); }}>
             <Wallet size={16} /> {t('advancePayment')}
           </button>
         </div>
-        <button id="btn-cerrar-caja" className="btn-ghost" style={{ width: '100%', padding: '8px', fontSize: 13, borderColor: 'rgba(212,175,55,0.5)', color: 'var(--gold)' }}
+        <button type="button" id="btn-cerrar-caja" className="btn-ghost" style={{ width: '100%', padding: '8px', fontSize: 13, borderColor: 'rgba(212,175,55,0.5)', color: 'var(--gold)' }}
           onClick={() => setShowArqueoModal(true)}>
           {t('cashAuditBtn')}
         </button>
@@ -522,11 +522,11 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--white-soft)' }}>{fc(r.monto_total)}</span>
                                       <div style={{ display: 'flex', gap: 2 }}>
-                                        <button className="btn-ghost" aria-label="Editar venta" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
+                                        <button type="button" className="btn-ghost" aria-label="Editar venta" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
                                           onClick={() => { if (gb.barberoInactivo) { alert('Activá el barbero primero.'); return; } onEdit(r); }}>
                                           <Edit3 size={13} color="var(--gold)" />
                                         </button>
-                                        <button className="btn-ghost" aria-label="Eliminar venta" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
+                                        <button type="button" className="btn-ghost" aria-label="Eliminar venta" style={{ padding: '5px', minWidth: 'auto', border: 'none', background: 'transparent', opacity: gb.barberoInactivo ? 0.35 : 1 }}
                                           onClick={() => { if (gb.barberoInactivo) { alert('Activá el barbero primero.'); return; } onDelete(r.id!); }}>
                                           <Trash2 size={13} color="var(--danger)" />
                                         </button>
@@ -574,8 +574,8 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                       <p style={{ fontSize: 16, fontWeight: 700, color: esComisionBancaria ? 'var(--gold)' : 'var(--danger)' }}>{fc(g.monto)}</p>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn-ghost" aria-label="Editar gasto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setGastoEditando(g)}><Edit3 size={14} color="var(--gold)" /></button>
-                        <button className="btn-ghost" aria-label="Eliminar gasto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarGasto(g.id!, new Date(g.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
+                        <button type="button" className="btn-ghost" aria-label="Editar gasto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setGastoEditando(g)}><Edit3 size={14} color="var(--gold)" /></button>
+                        <button type="button" className="btn-ghost" aria-label="Eliminar gasto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarGasto(g.id!, new Date(g.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
                       </div>
                     </div>
                   </div>
@@ -611,8 +611,8 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
                       <span className="text-hint">{esDevolucion ? t('fund') : esSocio ? t('partnerOwner') : t('barberLabel')}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="btn-ghost" aria-label="Editar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setAdelantoEditando(a)}><Edit3 size={14} color="var(--gold)" /></button>
-                      <button className="btn-ghost" aria-label="Eliminar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarAdelanto(a, new Date(a.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
+                      <button type="button" className="btn-ghost" aria-label="Editar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => setAdelantoEditando(a)}><Edit3 size={14} color="var(--gold)" /></button>
+                      <button type="button" className="btn-ghost" aria-label="Eliminar adelanto" style={{ padding: '6px', minWidth: 'auto', border: 'none', background: 'rgba(255,255,255,0.03)' }} onClick={() => handleEliminarAdelanto(a, new Date(a.fecha))}><Trash2 size={14} color="var(--danger)" /></button>
                     </div>
                   </div>
                 </div>
@@ -676,7 +676,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">✏️ {t('editExpenseTitle')}</h2>
-          <button aria-label="Cerrar" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" aria-label="Cerrar" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('expenseUpdated')}</p></div>
@@ -707,7 +707,7 @@ function ModalEditarGasto({ gasto, onClose }: { gasto: any; onClose: () => void 
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button className="btn-gold" style={{ width: '100%' }} disabled={!monto || !descripcion || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
+              <button type="button" className="btn-gold" style={{ width: '100%' }} disabled={!monto || !descripcion || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
             </div>
           </>
         )}
@@ -747,7 +747,7 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">✏️ {t('editAdvanceTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('advanceUpdated')}</p></div>
@@ -763,7 +763,7 @@ function ModalEditarAdelanto({ adelanto, barberos, socios, onClose }: { adelanto
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button className="btn-gold" style={{ width: '100%' }} disabled={!monto || !motivo || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
+              <button type="button" className="btn-gold" style={{ width: '100%' }} disabled={!monto || !motivo || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
             </div>
           </>
         )}
@@ -831,7 +831,7 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">✏️ {t('editSaleTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('saleUpdated')}</p></div>
@@ -874,7 +874,7 @@ function ModalEditarVenta({ registro, barberos, servicios, onClose }: { registro
               )}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button id="btn-guardar-edit" className="btn-gold" style={{ width: '100%' }} disabled={(!esProducto && !barberoId) || !itemId || !monto || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
+              <button type="button" id="btn-guardar-edit" className="btn-gold" style={{ width: '100%' }} disabled={(!esProducto && !barberoId) || !itemId || !monto || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveChangesBtn')}</button>
             </div>
           </>
         )}
@@ -989,7 +989,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">{t('registerSaleTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 
         {success ? (
@@ -1146,7 +1146,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
                   <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--success)', fontFamily: 'var(--font-display)' }}>{fc(totalGeneral)}</span>
                 </div>
               )}
-              <button id="btn-guardar-venta" className="btn-gold" style={{ width: '100%' }}
+              <button type="button" id="btn-guardar-venta" className="btn-gold" style={{ width: '100%' }}
                 disabled={!puedeGuardar}
                 onClick={guardar}>
                 {loading ? t('savingBtn') : `${t('save')} ${lineasValidas.length > 1 ? `${lineasValidas.reduce((s,l)=>s+l.cantidad,0)} ${t('savedRecords')}` : t('registerSale')}`}
@@ -1204,7 +1204,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">{t('registerExpenseTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('expenseRegistered')}</p></div>
@@ -1224,7 +1224,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button id="btn-guardar-gasto" className="btn-gold" style={{ width: '100%' }} disabled={!monto || Number(monto) <= 0 || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveExpenseBtn')}</button>
+              <button type="button" id="btn-guardar-gasto" className="btn-gold" style={{ width: '100%' }} disabled={!monto || Number(monto) <= 0 || loading} onClick={guardar}>{loading ? t('savingBtn') : t('saveExpenseBtn')}</button>
             </div>
           </>
         )}
@@ -1340,7 +1340,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
         <div className="modal-handle" style={{ flexShrink: 0 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <h2 className="section-title">{t('advanceTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {success ? (
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{t('advanceRegistered')}</p></div>
@@ -1543,7 +1543,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
               {error && <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(224,82,82,0.1)', border: '1px solid rgba(224,82,82,0.3)', color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
-              <button id="btn-guardar-Adelanto" className="btn-gold" style={{ width: '100%' }}
+              <button type="button" id="btn-guardar-Adelanto" className="btn-gold" style={{ width: '100%' }}
                 disabled={!barberoId || !monto || !motivo || excedeCaja || loading || (destinatarioTipo === 'barbero' && saldoBarbero !== null && saldoBarbero <= 0) || (destinatarioTipo === 'devolucion_socio' && (deudaSocio <= 0 || montoNum > deudaSocio))}
                 onClick={guardar}>
                 {loading ? t('savingBtn') : destinatarioTipo === 'devolucion_socio' ? t('registerIncomeBtn') : t('confirmPaymentBtn')}
@@ -1603,7 +1603,7 @@ function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onC
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 className="section-title">📊 {tieneArqueo ? t('updateAuditTitle') : t('cashAuditTitle')}</h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
         {tieneArqueo && !success && (
           <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.25)', fontSize: 12, color: 'var(--gold)' }}>
@@ -1637,7 +1637,7 @@ function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onC
               </div>
             </div>
             <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('notesLabel')}</label><input id="arqueo-notas" className="input-dark" type="text" value={notas} onChange={e => setNotas(e.target.value)} placeholder={t('notesPlaceholder')} /></div>
-            <button id="btn-guardar-arqueo" className="btn-gold" style={{ marginTop: 8, width: '100%' }} disabled={loading || excedeBanco} onClick={guardar}>
+            <button type="button" id="btn-guardar-arqueo" className="btn-gold" style={{ marginTop: 8, width: '100%' }} disabled={loading || excedeBanco} onClick={guardar}>
               {loading ? t('savingBtn') : tieneArqueo ? t('updateAuditBtn') : t('confirmCloseRegisterBtn')}
             </button>
           </div>

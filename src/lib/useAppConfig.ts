@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback, createContext, use, type React
 import { useLanguage } from '@/shared/i18n/LanguageContext';
 
 
-// Removed stray i18n integration; using internal translations
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export type Theme = 'dark' | 'light';
 export type Lang = 'es' | 'en' | 'pt' | 'de' | 'fr' | 'ar';
@@ -51,14 +50,19 @@ export function AppConfigProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Defaults seguros si el hook se usa fuera del Provider (no debería ocurrir,
+// pero degradamos elegantemente en vez de tirar la app entera).
+const DEFAULT_CONFIG: AppConfigValue = {
+  theme: 'dark',
+  lang: 'es',
+  setTheme: () => {},
+  setLang: () => {},
+  t: (key: string) => key,
+};
+
 // ─── Hook para consumir el contexto global ────────────────────────────────────
 // USAR ESTE HOOK en todos los componentes (no useAppConfig directamente)
 export function useAppConfig() {
-  const ctx = use(AppConfigContext);
-  if (!ctx) {
-    // Fallback si se usa fuera del Provider (no debería ocurrir)
-    throw new Error('useAppConfig debe usarse dentro de AppConfigProvider');
-  }
-  return ctx;
+  return use(AppConfigContext) ?? DEFAULT_CONFIG;
 }
 

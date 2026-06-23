@@ -149,28 +149,32 @@ export function PersonSelect({
 
   // Compute positioning after render when ref is available
   useEffect(() => {
-    if (!posRef.current) return;
+    if (!open || !posRef.current) return;
 
-    // Dynamic height calculations
-    const listHeight = Math.min(MAX_VISIBLE, filtered.length) * OPTION_H;
-    const totalContentH = PLACEHOLDER_H + 1 + listHeight + (showSearch ? SEARCH_H : 0) + 12;
-    const maxDropdownH = Math.min(
-      totalContentH,
-      Math.max(posRef.current.spaceBelow, posRef.current.bottom) - 16
-    );
-    setMaxDropdownHeight(maxDropdownH);
+    const pos = posRef.current;
 
-    const shouldOpenUpward = posRef.current.spaceBelow < Math.min(totalContentH, 280);
+    // Decide direction first
+    const idealContentH = PLACEHOLDER_H + 1 +
+      Math.min(MAX_VISIBLE, filtered.length) * OPTION_H +
+      (showSearch ? SEARCH_H : 0) + 12;
+
+    const MIN_BELOW_THRESHOLD = Math.min(idealContentH, 280);
+    const shouldOpenUpward = pos.spaceBelow < MIN_BELOW_THRESHOLD && pos.bottom > pos.spaceBelow;
     setOpenUpward(shouldOpenUpward);
+
+    // Cap to available space in the chosen direction, with a comfortable margin
+    const availableSpace = shouldOpenUpward ? pos.bottom : pos.spaceBelow;
+    const maxDropdownH = Math.min(idealContentH, availableSpace - 12);
+    setMaxDropdownHeight(Math.max(maxDropdownH, 120)); // always show at least a couple rows
 
     const style: React.CSSProperties = {
       position: 'fixed',
-      left: posRef.current.left,
-      width: posRef.current.width,
+      left: pos.left,
+      width: pos.width,
       zIndex: 99999,
       ...(shouldOpenUpward
-        ? { bottom: posRef.current.bottom, top: 'unset' }
-        : { top: posRef.current.top })
+        ? { bottom: pos.bottom, top: 'unset' }
+        : { top: pos.top })
     };
     setDropdownPositionStyle(style);
   }, [open, filtered.length, showSearch]);

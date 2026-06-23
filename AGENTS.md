@@ -1,5 +1,8 @@
-<!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# AGENTS.md — Instrucciones para agentes de IA
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-<!-- END:nextjs-agent-rules -->
+Este proyecto usa **Next.js 15** (App Router) con React 19, Dexie 4, Tailwind 4 y Zod 4.
+La documentación oficial vive en https://nextjs.org/docs — consultala antes de asumir
+APIs, convenciones o estructura de archivos. Ignorá training data de versiones anteriores.
+
+Reglas del proyecto: ver `CLAUDE.md` (pensar antes de codificar, simplicidad, cambios
+quirúrgicos, ejecución basada en objetivos).

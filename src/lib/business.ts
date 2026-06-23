@@ -1,9 +1,10 @@
 ﻿import { db, getConfig } from './db';
-import type { Barbero, ServicioProducto, RegistroDiario, Adelanto, Socio } from './db';
+import type { Barbero, ServicioProducto, RegistroDiario, Adelanto, Socio } from '@/domain/types';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { getMesAno } from '@/shared/utils/dates';
 export { getMesAno };
 import { sanitizeText, sanitizeNumber, sanitizeMimeType, isValidBase64, toDate, serializarFechas } from '@/shared/utils/sanitize';
+import { BackupDataSchema } from '@/shared/validation/backupSchema';
 
 function adelantoPerteneceASocio(adelanto: Adelanto, socio: Socio, barberoMismoId?: Barbero) {
   if (!socio.id || adelanto.barbero_id !== socio.id) return false;
@@ -596,7 +597,9 @@ export async function restaurarDesdeDatos(jsonStr: string) {
   } catch {
     throw new Error('El archivo no tiene formato JSON vÃ¡lido.');
   }
-  if (!datos || typeof datos !== 'object') throw new Error('Formato de backup invÃ¡lido.');
+  const parsedBackup = BackupDataSchema.safeParse(datos);
+  if (!parsedBackup.success) throw new Error('Formato de backup invÃ¡lido.');
+  datos = parsedBackup.data;
 
   // Advertir si el backup viene de una versiÃ³n futura del schema
   const DB_VERSION_ACTUAL = 7;
@@ -755,8 +758,8 @@ export async function restaurarDesdeDatos(jsonStr: string) {
     // â”€ ConfiguraciÃ³n de la barberÃ­a (nuevo en v3) â”€
     if (Array.isArray(datos.config_barberia) && datos.config_barberia.length) {
       const clavesPermitidas = [
-        'nombre_barberia', 'logo_data', 'emails_autorizados',
-        'pin_hash', 'pin_salt', 'porcentaje_comision_bancaria', 'moneda',
+        'nombre_barberia', 'logo_data', 'emails_autorizados', 'authorized_emails',
+        'pin_hash', 'pin_salt', 'porcentaje_comision_bancaria', 'moneda', 'moneda_codigo',
       ];
       const clean = datos.config_barberia
         .filter((c: any) => typeof c.clave === 'string' && clavesPermitidas.includes(c.clave))

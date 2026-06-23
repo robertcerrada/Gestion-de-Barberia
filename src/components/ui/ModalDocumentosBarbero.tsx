@@ -66,7 +66,7 @@ export function ModalDocumentosBarbero({ barberoId, barberoNombre, onClose }: Mo
     }
 
     const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
-    if (!tiposPermitidos.includes(file.type) && !file.type.startsWith('image/')) {
+    if (!tiposPermitidos.includes(file.type)) {
       setError('Solo se admiten imágenes (JPG, PNG, WEBP) o archivos PDF.');
       return;
     }
@@ -143,7 +143,7 @@ export function ModalDocumentosBarbero({ barberoId, barberoNombre, onClose }: Mo
                   {formatBytes(totalSize)} usados
                 </span>
               )}
-              <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}>
+              <button type="button" aria-label="Cerrar documentos" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}>
                 <X size={22} />
               </button>
             </div>
@@ -176,9 +176,11 @@ export function ModalDocumentosBarbero({ barberoId, barberoNombre, onClose }: Mo
                 JPG · PNG · WEBP · PDF — máx. {MAX_SIZE_MB} MB
               </p>
               <input
+                id="documento-barbero-upload"
                 ref={fileInputRef}
                 type="file"
                 accept="image/*,application/pdf"
+                aria-label="Subir documento del barbero"
                 style={{ display: 'none' }}
                 onChange={e => { const f = e.target.files?.[0]; if (f) procesarArchivo(f); }}
               />
@@ -193,10 +195,10 @@ export function ModalDocumentosBarbero({ barberoId, barberoNombre, onClose }: Mo
             {/* Selector de tipo + descripción */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Tipo de documento
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                </span>
+                <div role="group" aria-label="Tipo de documento" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   {TIPOS_DOC.map(t => (
                     <button
                       key={t.value}
@@ -221,10 +223,11 @@ export function ModalDocumentosBarbero({ barberoId, barberoNombre, onClose }: Mo
               </div>
 
               <div>
-                <label style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <label htmlFor="documento-barbero-descripcion" style={{ fontSize: 11, color: 'var(--gray-muted)', display: 'block', marginBottom: 5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Descripción <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
                 </label>
                 <input
+                  id="documento-barbero-descripcion"
                   className="input-dark"
                   type="text"
                   value={descripcion}
@@ -311,7 +314,9 @@ function DocCard({ doc, color, onDelete, onDownload, onPreview }: {
       }}
     >
       {/* Thumbnail o ícono PDF */}
-      <div
+      <button
+        type="button"
+        aria-label={`Vista previa de ${doc.nombre}`}
         onClick={onPreview}
         style={{
           width: 42, height: 42, borderRadius: 8, overflow: 'hidden', flexShrink: 0,
@@ -319,6 +324,7 @@ function DocCard({ doc, color, onDelete, onDownload, onPreview }: {
           border: `1px solid ${color}33`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer',
+          padding: 0,
         }}
       >
         {esImg ? (
@@ -332,7 +338,7 @@ function DocCard({ doc, color, onDelete, onDownload, onPreview }: {
         ) : (
           <FileText size={20} color={esPdf ? '#E05252' : color} />
         )}
-      </div>
+      </button>
 
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -370,6 +376,7 @@ function ActionBtn({ onClick, title, color, children }: { onClick: () => void; t
     <button
       type="button"
       title={title}
+      aria-label={title}
       onClick={onClick}
       style={{
         width: 30, height: 30, borderRadius: 8, border: 'none',
@@ -436,7 +443,7 @@ function ModalVistaPrevia({ doc, onClose, onDownload, onDelete }: {
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', flexShrink: 0, marginLeft: 8 }}>
+          <button type="button" aria-label="Cerrar vista previa" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)', flexShrink: 0, marginLeft: 8 }}>
             <X size={20} />
           </button>
         </div>
@@ -455,6 +462,8 @@ function ModalVistaPrevia({ doc, onClose, onDownload, onDelete }: {
           {esPdf && (
             <iframe
               src={dataUrl}
+              sandbox="allow-downloads"
+              referrerPolicy="no-referrer"
               style={{ width: '100%', height: '60vh', border: 'none' }}
               title={doc.nombre}
             />
@@ -478,7 +487,7 @@ function ModalVistaPrevia({ doc, onClose, onDownload, onDelete }: {
 
         {/* Acciones */}
         <div style={{ display: 'flex', gap: 8, padding: '12px 16px', borderTop: '1px solid var(--black-border)', flexShrink: 0 }}>
-          <button className="btn-gold" style={{ flex: 1, minHeight: 38, fontSize: 13 }} onClick={onDownload}>
+          <button type="button" className="btn-gold" style={{ flex: 1, minHeight: 38, fontSize: 13 }} onClick={onDownload}>
             <Download size={15} /> Descargar
           </button>
           <button

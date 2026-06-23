@@ -1124,44 +1124,146 @@ export default function ScreenPanel() {
           </div>
 
           {/* Reporte de Servicios */}
-          {serviciosTotalesBarberia.length > 0 && (
-            <>
-              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10, marginTop: 10 }}>✂️ {t('totalServices')}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                {/* Total Barbería */}
-                <div className="card" style={{ padding: '12px 14px', borderColor: 'rgba(212,175,55,0.3)', background: 'rgba(212,175,55,0.04)' }}>
-                  <div style={{ marginBottom: 10 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--gold)' }}>{t('totalLabel')}</span>
+          {serviciosTotalesBarberia.length > 0 && (() => {
+            const totalTrabajosBarberia = serviciosTotalesBarberia.reduce((acc, curr) => acc + curr[1], 0);
+            return (
+              <>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--white-soft)', marginBottom: 10, marginTop: 10 }}>✂️ {t('totalServices')}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+                  {/* Total Barbería */}
+                  <div className="card" style={{
+                    padding: '16px 18px',
+                    borderColor: 'rgba(212,175,55,0.25)',
+                    background: 'linear-gradient(135deg, rgba(212,175,55,0.06) 0%, rgba(212,175,55,0.01) 100%)',
+                    boxShadow: 'inset 0 0 12px rgba(212,175,55,0.05), 0 4px 20px rgba(0,0,0,0.15)',
+                    borderRadius: 16
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--gold)', letterSpacing: '0.01em', fontFamily: 'var(--font-display)' }}>
+                        {t('totalLabel')}
+                      </span>
+                      <span style={{
+                        fontSize: 11,
+                        color: 'var(--gold)',
+                        background: 'rgba(212,175,55,0.12)',
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        border: '1px solid rgba(212,175,55,0.3)',
+                        fontWeight: 700,
+                        letterSpacing: '0.02em',
+                        fontVariantNumeric: 'tabular-nums'
+                      }}>
+                        {totalTrabajosBarberia} {totalTrabajosBarberia === 1 ? t('servicio').toLowerCase() : t('services_label').toLowerCase()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                      {serviciosTotalesBarberia.map(([nombre, cant]) => {
+                        const pct = totalTrabajosBarberia > 0 ? (cant / totalTrabajosBarberia) * 100 : 0;
+                        return (
+                          <div key={nombre} style={{
+                            position: 'relative',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '8px 12px',
+                            borderRadius: 10,
+                            background: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            overflow: 'hidden',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                          }}>
+                            {/* Visual Progress Bar inside */}
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              bottom: 0,
+                              width: `${pct}%`,
+                              background: 'rgba(212,175,55,0.08)',
+                              zIndex: 0,
+                              transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+                            }} />
+                            <span style={{ fontSize: 12, color: 'var(--gray-text)', zIndex: 1, fontWeight: 500 }}>{nombre}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, zIndex: 1 }}>
+                              <span style={{ fontSize: 10, color: 'var(--gray-muted)', opacity: 0.8 }}>{pct.toFixed(0)}%</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--white-soft)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{cant}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 6 }}>
-                    {serviciosTotalesBarberia.map(([nombre, cant]) => (
-                      <div key={nombre} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{nombre}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--white-soft)' }}>{cant}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Por Barbero */}
-                {ventasBarbero.filter(vb => vb.detalleServicios && Object.keys(vb.detalleServicios).length > 0).map(vb => (
-                  <div key={`serv-${vb.barberoId}`} className="card" style={{ padding: '12px 14px' }}>
-                    <div style={{ marginBottom: 10 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--white-soft)' }}>{vb.nombre}</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 6 }}>
-                      {Object.entries(vb.detalleServicios).sort((a, b) => b[1] - a[1]).map(([nombre, cant]) => (
-                        <div key={nombre} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                          <span style={{ fontSize: 12, color: 'var(--gray-muted)' }}>{nombre}</span>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--white-soft)' }}>{cant}</span>
+                  {/* Por Barbero */}
+                  {ventasBarbero.filter(vb => vb.detalleServicios && Object.keys(vb.detalleServicios).length > 0).map(vb => {
+                    const totalTrabajosBarbero = Object.values(vb.detalleServicios).reduce((acc, curr) => acc + curr, 0);
+                    return (
+                      <div key={`serv-${vb.barberoId}`} className="card" style={{
+                        padding: '16px 18px',
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.005) 100%)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                        borderRadius: 16,
+                        borderColor: 'rgba(255, 255, 255, 0.05)'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                          <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--white-soft)', letterSpacing: '0.01em', fontFamily: 'var(--font-display)' }}>
+                            {vb.nombre}
+                          </span>
+                          <span style={{
+                            fontSize: 11,
+                            color: 'var(--gray-text)',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            padding: '4px 10px',
+                            borderRadius: 20,
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            fontWeight: 600,
+                            fontVariantNumeric: 'tabular-nums'
+                          }}>
+                            {totalTrabajosBarbero} {totalTrabajosBarbero === 1 ? t('servicio').toLowerCase() : t('services_label').toLowerCase()}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                          {Object.entries(vb.detalleServicios).sort((a, b) => b[1] - a[1]).map(([nombre, cant]) => {
+                            const pct = totalTrabajosBarbero > 0 ? (cant / totalTrabajosBarbero) * 100 : 0;
+                            return (
+                              <div key={nombre} style={{
+                                position: 'relative',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '8px 12px',
+                                borderRadius: 10,
+                                background: 'rgba(255,255,255,0.015)',
+                                border: '1px solid rgba(255,255,255,0.035)',
+                                overflow: 'hidden',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
+                              }}>
+                                <div style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  bottom: 0,
+                                  width: `${pct}%`,
+                                  background: 'rgba(255, 255, 255, 0.035)',
+                                  zIndex: 0,
+                                  transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+                                }} />
+                                <span style={{ fontSize: 12, color: 'var(--gray-muted)', zIndex: 1, fontWeight: 500 }}>{nombre}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, zIndex: 1 }}>
+                                  <span style={{ fontSize: 10, color: 'var(--gray-muted)', opacity: 0.6 }}>{pct.toFixed(0)}%</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--white-soft)', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{cant}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
 
           {/* Torta barberos */}
           {ventasBarbero.filter(vb => vb.totalServicios > 0).length > 0 && (

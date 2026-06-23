@@ -134,6 +134,12 @@ export function setAppToken(token: string): void {
   setStoredValue(AUTH_TOKEN_KEY, token);
 }
 
+export function createAppSessionToken(source: 'pin' | 'google'): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const random = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return `${source}_${Date.now().toString(36)}_${random}`;
+}
+
 export function clearAppToken(): void {
   removeStoredValue(AUTH_TOKEN_KEY);
 }

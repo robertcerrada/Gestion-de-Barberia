@@ -36,6 +36,10 @@
   ],
   "exclude": [
     "node_modules",
-    "superpowers"
+    "superpowers",
+    "*_old.tsx",
+    "temp_*.tsx",
+    "temp_*.ts",
+    "temp_*.js"
   ]
 }

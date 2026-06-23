@@ -43,6 +43,17 @@ next-env.d.ts
 # Archivos de diagnóstico y scripts de desarrollo
 # NUNCA subir al repositorio: pueden exponer rutas internas, variables de entorno
 # o datos de configuración del entorno de desarrollo.
+.opencode/
+.unlighthouse/
+skills/
+superpowers
+merge-dicts.js
 *.ipynb
 syntax_check.py
 install_icons.py
+react_doctor_report.json
+*.rar
+*_old.tsx
+temp_*
+build.log
+build2.log
