@@ -73,6 +73,8 @@ export async function getMetodosPagoMes(mes: Date = new Date()): Promise<Metodos
   return { efectivo, banco, bancoNeto, comisionBancaria, total };
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 export async function getResumenMes(mes: Date = new Date()): Promise<ResumenMes> {
   const [ingresos, gastos, comisiones, metodos] = await Promise.all([
     getIngresosTotalesMes(mes),
@@ -81,8 +83,8 @@ export async function getResumenMes(mes: Date = new Date()): Promise<ResumenMes>
     getMetodosPagoMes(mes),
   ]);
 
-  const comisionBancaria = metodos.comisionBancaria;
-  const utilidad_neta = ingresos - gastos - comisiones - comisionBancaria;
+  const comisionBancaria = round2(metodos.comisionBancaria);
+  const utilidad_neta = round2(ingresos - gastos - comisiones - comisionBancaria);
 
   const socios = await sociosRepository.getActivos();
   const totalPorcentaje = socios.reduce((sum, s) => sum + s.porcentaje_utilidad, 0);
@@ -90,10 +92,10 @@ export async function getResumenMes(mes: Date = new Date()): Promise<ResumenMes>
   const pagosPorSocio = await Promise.all(
     socios.map(async s => {
       const monto = totalPorcentaje > 0
-        ? utilidad_neta * (s.porcentaje_utilidad / totalPorcentaje)
+        ? round2(utilidad_neta * (s.porcentaje_utilidad / totalPorcentaje))
         : 0;
       const pagado = s.id ? await getPagosSocioMes(s.id, mes) : 0;
-      const saldoPendiente = monto - pagado;
+      const saldoPendiente = round2(monto - pagado);
       return {
         id: s.id!,
         nombre: s.nombre,
@@ -109,13 +111,13 @@ export async function getResumenMes(mes: Date = new Date()): Promise<ResumenMes>
   const sorted = [...pagosPorSocio].sort((a, b) => a.id - b.id);
 
   return {
-    ingresos,
-    gastos,
-    comisiones,
+    ingresos: round2(ingresos),
+    gastos: round2(gastos),
+    comisiones: round2(comisiones),
     comision_bancaria: comisionBancaria,
     utilidad_neta,
-    pago_esposa: sorted[0]?.monto ?? 0,
-    pago_socio:  sorted[1]?.monto ?? 0,
+    pago_esposa: round2(sorted[0]?.monto ?? 0),
+    pago_socio:  round2(sorted[1]?.monto ?? 0),
     pagosPorSocio,
   };
 }

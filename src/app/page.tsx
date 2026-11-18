@@ -5,6 +5,7 @@ import { Home, BarChart3, Settings, Sun, Moon } from 'lucide-react';
 import { seedInitialData, getConfig } from '@/lib/db';
 import { getAppToken, setAppToken } from '@/lib/auth';
 import { useAppConfig } from '@/lib/useAppConfig';
+import '@/lib/autoBackup';
 import AppLogo from '@/shared/components/AppLogo';
 import ScreenInicio from '@/components/screens/ScreenInicio';
 import ScreenBarberos from '@/components/screens/ScreenBarberos';
@@ -59,7 +60,7 @@ function useAppLoader() {
     };
 
     const timeout = setTimeout(() => {
-      safeSetErrorCarga('La base de datos tardó demasiado en cargar. Intentá recargar la página.');
+      safeSetErrorCarga('errors.dbTimeout');
       safeSetReady(true);
     }, 10000);
 
@@ -80,7 +81,7 @@ function useAppLoader() {
           err.name === 'AbortError' ||
           /blocked|database opened in (another|other) tab|another version|upgrade transaction/i.test(err.message);
         if (isDexieConflict) {
-          safeSetErrorCarga('Hubo un conflicto en la base de datos. Recargá la página o limpiá el caché del navegador.');
+          safeSetErrorCarga('errors.dbConflict');
           clearTimeout(timeout);
           safeSetReady(true);
           return;
@@ -108,7 +109,7 @@ function useAppLoader() {
     iniciar().catch((error) => {
       if (!cancelled.current) {
         if (IS_DEV) console.error('[loader] Error no capturado en inicializacion:', error);
-        safeSetErrorCarga('Ocurrió un error inesperado al iniciar la app. Recargá la página.');
+        safeSetErrorCarga('errors.initUnexpected');
         safeSetReady(true);
       }
     });
@@ -138,6 +139,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
   logoSrc: string;
   errorCarga: string | null;
 }) {
+  const { t } = useAppConfig();
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-noise-texture relative overflow-hidden"
       style={{ background: 'var(--black-deep)' }}>
@@ -216,7 +218,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
           {errorCarga ? (
             <div style={{ animation: 'fadeInCascade 0.5s ease forwards', marginTop: 8 }}>
               <p style={{ fontSize: 13, color: '#E05252', maxWidth: 280, lineHeight: 1.5, margin: '0 auto 12px' }}>
-                ⚠️ {errorCarga}
+                ⚠️ {errorCarga.startsWith('errors.') || errorCarga.startsWith('app.') ? t(errorCarga) : errorCarga}
               </p>
               <button type="button"
                 onClick={() => window.location.reload()}
@@ -228,7 +230,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
                   margin: '0 auto',
                 }}
               >
-                🔄 Recargar Aplicación
+                {t('app.reloadApplication')}
               </button>
             </div>
           ) : (
@@ -259,7 +261,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
                 textTransform: 'uppercase',
                 fontWeight: 600
               }}>
-                Cargando Sistema
+                {t('app.loadingSystem')}
               </p>
             </div>
           )}
@@ -273,7 +275,7 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
 export default function Page() {
   const [activeTab, setActiveTab] = useState<Tab>('inicio');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const { t, theme, setTheme } = useAppConfig();
+  const { t, theme, setTheme, lang } = useAppConfig();
   const mainRef = useRef<HTMLElement>(null);
 
   const { ready, errorCarga, nombreBarberia, setNombreBarberia, logoSrc } = useAppLoader();
@@ -387,7 +389,7 @@ export default function Page() {
             borderRadius: '20px',
             border: '1px solid var(--black-border)'
           }}>
-            {new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}
+            {new Intl.DateTimeFormat(lang, { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date())}
           </span>
           <LanguageSelector />
           <button type="button"

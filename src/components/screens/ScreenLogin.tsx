@@ -5,6 +5,7 @@ import { useState, useEffect, useReducer } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { Lock, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
 import { createAppSessionToken, getAuthorizedEmails, isPinConfigured, savePin, setGoogleToken, setGoogleUser, verifyPin } from '@/lib/auth';
+import { useAppConfig } from '@/lib/useAppConfig';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 const PIN_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', null, '0', 'backspace'] as const;
@@ -41,6 +42,7 @@ async function verifyGoogleIdToken(token: string): Promise<{ email?: string; nam
 }
 
 export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', logoSrc, onLoginSuccess }: ScreenLoginProps) {
+  const { t } = useAppConfig();
   const [googleActivo, setGoogleActivo] = useState(false);
   const [showLogo, setShowLogo] = useState(true);
   const [pinConfigurado, setPinConfigurado] = useState(() => isPinConfigured());
@@ -95,7 +97,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
 
   async function handleGoogleSuccess(credentialResponse: { credential?: string }) {
     const token = credentialResponse.credential;
-    if (!token) { dispatch({ type: 'setError', error: 'No se recibió token de Google.' }); return; }
+    if (!token) { dispatch({ type: 'setError', error: t('auth.noToken') }); return; }
     dispatch({ type: 'startCargando' });
 
     const payload = await verifyGoogleIdToken(token);
@@ -105,19 +107,19 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
 
     if (!payload || !email) {
       dispatch({ type: 'stopCargando' });
-      dispatch({ type: 'setError', error: 'Token de Google inválido o caducado. Intentá de nuevo.' });
+      dispatch({ type: 'setError', error: t('auth.tokenInvalid') });
       return;
     }
 
     if (emailsAutorizados.length === 0) {
       dispatch({ type: 'stopCargando' });
-      dispatch({ type: 'setError', error: 'No hay emails autorizados configurados. Entra con PIN y agrega al menos un email en Ajustes.' });
+      dispatch({ type: 'setError', error: t('auth.noEmails') });
       return;
     }
 
     if (!emailsAutorizados.includes(email)) {
       dispatch({ type: 'stopCargando' });
-      dispatch({ type: 'setError', error: `❌ El email ${email} no tiene acceso. Contactá al administrador.` });
+      dispatch({ type: 'setError', error: t('auth.emailNoAccess').replace('{email}', email) });
       return;
     }
 
@@ -136,7 +138,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
 
   async function configurarPinInicial() {
     if (pin.length < 4) {
-      dispatch({ type: 'setError', error: 'El PIN debe tener al menos 4 digitos.' });
+      dispatch({ type: 'setError', error: t('auth.pinMin') });
       return;
     }
 
@@ -150,7 +152,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
     if (pin !== pinInicial) {
       setPinInicial(null);
       dispatch({ type: 'clearPin' });
-      dispatch({ type: 'setError', error: 'Los PIN no coinciden. Crea el PIN inicial de nuevo.' });
+      dispatch({ type: 'setError', error: t('auth.pinMismatch') });
       return;
     }
 
@@ -162,7 +164,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
       onLoginSuccess(createAppSessionToken('pin'));
     } catch {
       dispatch({ type: 'stopCargando' });
-      dispatch({ type: 'setError', error: 'No se pudo guardar el PIN inicial. Intenta de nuevo.' });
+      dispatch({ type: 'setError', error: t('auth.pinSaveError') });
     }
   }
 
@@ -187,7 +189,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
     if (correcto) {
       onLoginSuccess(createAppSessionToken('pin'));
     } else {
-      dispatch({ type: 'setError', error: 'PIN incorrecto. Intentá de nuevo.' });
+      dispatch({ type: 'setError', error: t('auth.pinWrong') });
       dispatch({ type: 'clearPin' });
     }
   }
@@ -218,7 +220,7 @@ export default function ScreenLogin({ nombreBarberia = 'Gestión de Barberia', l
           <p style={{ fontFamily: 'var(--font-display)', fontSize: 26, color: 'var(--gold)', fontWeight: 700 }}>
             {nombreBarberia}
           </p>
-          <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 4 }}>Acceso restringido al personal</p>
+          <p style={{ fontSize: 13, color: 'var(--gray-muted)', marginTop: 4 }}>{t('auth.restrictedAccess')}</p>
         </div>
       </div>
 

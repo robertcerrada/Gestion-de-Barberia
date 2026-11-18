@@ -255,15 +255,17 @@ export function PersonSelect({
         {/* Clear + chevron */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
           {selected && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClear(e as any); } }}
               aria-label="Borrar selección"
               className="cs-clear-button"
               style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', border: 'none', background: 'transparent', padding: 0 }}
             >
               <X size={12} color="var(--gray-muted)" />
-            </button>
+            </span>
           )}
           <ChevronDown
             size={16}

@@ -6,6 +6,8 @@ export { getMesAno };
 import { sanitizeText, sanitizeNumber, sanitizeMimeType, isValidBase64, toDate, serializarFechas } from '@/shared/utils/sanitize';
 import { BackupDataSchema } from '@/shared/validation/backupSchema';
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 function adelantoPerteneceASocio(adelanto: Adelanto, socio: Socio, barberoMismoId?: Barbero) {
   if (!socio.id || adelanto.barbero_id !== socio.id) return false;
   if (adelanto.destinatario_tipo === 'socio' || adelanto.destinatario_tipo === 'devolucion_socio' || adelanto.socio_id === socio.id) return true;
@@ -68,7 +70,7 @@ export async function getComisionBrutaMes(barberoId: number, mes: Date = new Dat
       comisionBruta += reg.monto_total * barbero.porcentaje_comision;
     }
   }
-  return comisionBruta;
+  return round2(comisionBruta);
 }
 
 export async function getAdelantosMes(barberoId: number, mes: Date = new Date()): Promise<number> {
@@ -113,7 +115,7 @@ export async function getPagosSocioMes(socioId: number, mes: Date = new Date()):
 export async function getSaldoDisponibleBarbero(barberoId: number, mes: Date = new Date()): Promise<number> {
   const comision = await getComisionBrutaMes(barberoId, mes);
   const Adelantos = await getAdelantosMes(barberoId, mes);
-  return comision - Adelantos;
+  return round2(comision - Adelantos);
 }
 
 export async function getIngresosTotalesMes(mes: Date = new Date()): Promise<number> {
@@ -157,7 +159,7 @@ export async function getComisionesTotalesMes(mes: Date = new Date()): Promise<n
       }
     }
   }
-  return total;
+  return round2(total);
 }
 
 export async function getIngresosEfectivoMes(mes: Date = new Date()): Promise<number> {

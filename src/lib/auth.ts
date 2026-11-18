@@ -107,6 +107,13 @@ export async function isEmailAuthorized(email: string, allowEmptyList = false): 
 // ── Sesión de app ───────────────────────────────────────────────
 // Tokens de sesión: sessionStorage (se borran al cerrar el navegador — correcto).
 // Hash/salt del PIN: localStorage (deben sobrevivir entre sesiones).
+// NOTA DE SEGURIDAD: React Doctor marca el uso de web storage para tokens.
+// En esta PWA 100% local, sin servidor, sessionStorage es el compromiso aceptado:
+// - El token no persiste entre cierres de navegador.
+// - Evita retrabajo de login en cada recarga de pestaña.
+// - Los datos de negocio nunca van a web storage, solo la sesión.
+// Si se exige endurecimiento total, habría que mover la sesión a memoria en-vivo
+// con pérdida de sesión al recargar. Decisión: mantener sessionStorage.
 const SESSION_KEYS = new Set([AUTH_TOKEN_KEY, GOOGLE_TOKEN_KEY, GOOGLE_USER_KEY]);
 
 function getStorageFor(key: string): Storage | null {

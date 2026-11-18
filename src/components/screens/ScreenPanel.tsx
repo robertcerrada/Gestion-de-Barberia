@@ -28,6 +28,7 @@ import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet
 import { exportarAGoogleDrive } from '@/lib/drive';
 import { useMoneda } from '@/lib/useMoneda';
 import { useLanguage } from '@/shared/i18n/LanguageContext';
+import { buildPanelReportCsv } from '@/lib/panelReportCsv';
 
 function useFmt() {
   const { simbolo } = useMoneda();
@@ -62,6 +63,7 @@ type Resumen = Awaited<ReturnType<typeof getResumenMes>>;
 
 export default function ScreenPanel() {
   const formatCurrency = useFmt();
+  const { simbolo } = useMoneda();
   const { t } = useLanguage();
   const MESES = Array.from({ length: 12 }, (_, i) => t(`month_${i}` as any));
   const yearActual = getYear(new Date());
@@ -202,39 +204,18 @@ export default function ScreenPanel() {
   // ── CSV ────────────────────────────────────────────────────────
   function exportCSV() {
     if (!resumen) return;
-    const mpPromise = getMetodosPagoMes(fecha);
-    const BOM = '\uFEFF';
-    const mesLabel = `${MESES[selectedMes]} ${selectedYear}`;
-    let csv = `Reporte Mensual - Gestión de Barberia\n${mesLabel}\n\n`;
-    csv += `RESUMEN FINANCIERO\nConcepto,Monto\n`;
-    csv += `Ingresos Totales,€${resumen.ingresos.toFixed(2)}\n`;
-    csv += `Gastos Fijos,€${resumen.gastos.toFixed(2)}\n`;
-    csv += `Comisiones,€${resumen.comisiones.toFixed(2)}\n`;
-    // Añadir comision bancaria y banco bruto/neto
-    mpPromise.then(mp => {
-      csv += `Comisión Bancaria,€${mp.comisionBancaria.toFixed(2)}\n`;
-      csv += `Banco Bruto,€${mp.banco.toFixed(2)}\n`;
-      csv += `Banco Neto,€${mp.bancoNeto.toFixed(2)}\n`;
-      csv += `Saldo Neto,€${resumen.utilidad_neta.toFixed(2)}\n`;
-
-      csv += `Pago Dueña (50%),€${resumen.pago_esposa.toFixed(2)}\n`;
-      csv += `Pago Socio (50%),€${resumen.pago_socio.toFixed(2)}\n\n`;
-
-      csv += `INGRESOS POR BARBERO\nBarbero,Total Servicios,Comisión,% Comisión\n`;
-      for (const vb of ventasBarbero) {
-        csv += `${vb.nombre},€${vb.totalServicios.toFixed(2)},€${vb.comision.toFixed(2)},${(vb.porcentaje * 100).toFixed(0)}%\n`;
-      }
-      csv += `La Barbería (Productos),€${ventasProductos.toFixed(2)},—,—\n\n`;
-      csv += `GASTOS FIJOS DEL MES\nFecha,Categoría,Descripción,Monto\n`;
-      for (const g of gastosDetallados) {
-        csv += `${format(new Date(g.fecha), 'dd/MM/yyyy')},${g.categoria},${g.descripcion},€${g.monto.toFixed(2)}\n`;
-      }
-      csv += `\nREPARTO DE SOCIOS\nSocio,Porcentaje,Asignado,Pagado,Saldo,Estado\n`;
-      for (const socio of resumen.pagosPorSocio) {
-        const estado = socio.saldoPendiente > 0.01 ? 'Pendiente de pagar'
-          : socio.saldoPendiente < -0.01 ? 'Debe a la barbería' : 'Saldado';
-        csv += `${socio.nombre},${(socio.porcentaje * 100).toFixed(0)}%,${socio.monto.toFixed(2)},${socio.pagado.toFixed(2)},${socio.saldoPendiente.toFixed(2)},${estado}\n`;
-      }
+    getMetodosPagoMes(fecha).then(mp => {
+      const BOM = '\uFEFF';
+      const mesLabel = `${MESES[selectedMes]} ${selectedYear}`;
+      const csv = buildPanelReportCsv({
+        mesLabel,
+        resumen,
+        metodosPago: mp,
+        ventasBarbero,
+        ventasProductos,
+        gastosDetallados,
+        currencySymbol: simbolo,
+      });
       const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -244,7 +225,6 @@ export default function ScreenPanel() {
       URL.revokeObjectURL(url);
       setShowExportMenu(false);
     });
-    
   }
 
   // ── PDF ────────────────────────────────────────────────────────
@@ -274,36 +254,36 @@ export default function ScreenPanel() {
         <td>${format(new Date(g.fecha), 'dd/MM/yyyy')}</td>
         <td>${EMOJI_CATEGORIAS[g.categoria] || ''} ${g.categoria}</td>
         <td>${g.descripcion}</td>
-        <td class="num red">€${g.monto.toFixed(2)}</td>
+        <td class="num red">${simbolo}${g.monto.toFixed(2)}</td>
       </tr>`
     ).join('') || '<tr><td colspan="4" class="empty">Sin gastos registrados</td></tr>';
 
     const barberosHTML = ventasBarbero.filter(vb => vb.totalServicios > 0).map(vb => {
       const saldoStr = vb.saldoPendiente > 0
-        ? `<span class="gold">+€${vb.saldoPendiente.toFixed(2)}</span>`
+        ? `<span class="gold">+${simbolo}${vb.saldoPendiente.toFixed(2)}</span>`
         : `<span style="color:#888">✓</span>`;
       return `<tr>
         <td>${vb.nombre}</td>
         <td class="num">${(vb.porcentaje * 100).toFixed(0)}%</td>
-        <td class="num green">€${vb.totalServicios.toFixed(2)}</td>
-        <td class="num orange">€${vb.comision.toFixed(2)}</td>
-        <td class="num red">€${vb.pagado.toFixed(2)}</td>
+        <td class="num green">${simbolo}${vb.totalServicios.toFixed(2)}</td>
+        <td class="num orange">${simbolo}${vb.comision.toFixed(2)}</td>
+        <td class="num red">${simbolo}${vb.pagado.toFixed(2)}</td>
         <td class="num">${saldoStr}</td>
       </tr>`;
     }).join('') || '<tr><td colspan="6" class="empty">Sin ventas</td></tr>';
 
     const sociosHTML = resumen.pagosPorSocio.map(s => {
       const estado = s.saldoPendiente > 0.01
-        ? `<span class="badge-pending">Pendiente: €${s.saldoPendiente.toFixed(2)}</span>`
+        ? `<span class="badge-pending">Pendiente: ${simbolo}${s.saldoPendiente.toFixed(2)}</span>`
         : s.saldoPendiente < -0.01
-        ? `<span class="badge-debt">Debe: €${Math.abs(s.saldoPendiente).toFixed(2)}</span>`
+        ? `<span class="badge-debt">Debe: ${simbolo}${Math.abs(s.saldoPendiente).toFixed(2)}</span>`
         : `<span class="badge-ok">✓ Saldado</span>`;
       const pagos = (adelantosPorSocio[s.id] ?? []);
       const pagosHTML = pagos.length > 0
         ? pagos.map((p: any) => `
           <div class="pago-row">
             <span>${format(new Date(p.fecha), 'dd/MM')} — ${p.motivo || 'Pago'}</span>
-            <span class="${p.monto < 0 ? 'green' : 'orange'}">${p.monto < 0 ? '+' : '-'}€${Math.abs(p.monto).toFixed(2)}</span>
+            <span class="${p.monto < 0 ? 'green' : 'orange'}">${p.monto < 0 ? '+' : '-'}${simbolo}${Math.abs(p.monto).toFixed(2)}</span>
           </div>`).join('')
         : '<p class="empty" style="margin:4px 0">Sin movimientos este mes</p>';
       const cardClass = s.saldoPendiente < -0.01 ? 'debt' : s.saldoPendiente > 0.01 ? 'pending' : 'ok';
@@ -319,15 +299,15 @@ export default function ScreenPanel() {
           <div class="socio-grid">
             <div class="socio-stat">
               <span class="stat-l">Beneficio del mes</span>
-              <span class="stat-v gold">€${s.monto.toFixed(2)}</span>
+              <span class="stat-v gold">${simbolo}${s.monto.toFixed(2)}</span>
             </div>
             <div class="socio-stat">
               <span class="stat-l">Ya cobrado</span>
-              <span class="stat-v orange">€${s.pagado.toFixed(2)}</span>
+              <span class="stat-v orange">${simbolo}${s.pagado.toFixed(2)}</span>
             </div>
             <div class="socio-stat">
               <span class="stat-l">${s.saldoPendiente < 0 ? 'Debe devolver' : 'Pendiente'}</span>
-              <span class="stat-v ${s.saldoPendiente < 0 ? 'red' : 'green'}">€${Math.abs(s.saldoPendiente).toFixed(2)}</span>
+              <span class="stat-v ${s.saldoPendiente < 0 ? 'red' : 'green'}">${simbolo}${Math.abs(s.saldoPendiente).toFixed(2)}</span>
             </div>
           </div>
           ${pagos.length > 0 ? `<div class="pagos-lista">${pagosHTML}</div>` : ''}
@@ -403,15 +383,15 @@ export default function ScreenPanel() {
         </div>
       </div>
       <div class="summary">
-        <div class="box green"><span class="lbl">Ingresos</span><span class="val">€${resumen.ingresos.toFixed(2)}</span></div>
-        <div class="box red"  ><span class="lbl">Gastos</span><span class="val">€${resumen.gastos.toFixed(2)}</span></div>
-        <div class="box gold" ><span class="lbl">Comisiones</span><span class="val">€${resumen.comisiones.toFixed(2)}</span></div>
-        <div class="box ${resumen.utilidad_neta >= 0 ? 'green' : 'red'}"><span class="lbl">Saldo Neto</span><span class="val">€${resumen.utilidad_neta.toFixed(2)}</span></div>
-        <div class="box blue"><span class="lbl">Total Ventas</span><span class="val">€${totalVentas.toFixed(2)}</span></div>
-        <div class="box gold"><span class="lbl">Fondo de Caja</span><span class="val">€${saldoFondo.toFixed(2)}</span></div>
+        <div class="box green"><span class="lbl">Ingresos</span><span class="val">${simbolo}${resumen.ingresos.toFixed(2)}</span></div>
+        <div class="box red"  ><span class="lbl">Gastos</span><span class="val">${simbolo}${resumen.gastos.toFixed(2)}</span></div>
+        <div class="box gold" ><span class="lbl">Comisiones</span><span class="val">${simbolo}${resumen.comisiones.toFixed(2)}</span></div>
+        <div class="box ${resumen.utilidad_neta >= 0 ? 'green' : 'red'}"><span class="lbl">Saldo Neto</span><span class="val">${simbolo}${resumen.utilidad_neta.toFixed(2)}</span></div>
+        <div class="box blue"><span class="lbl">Total Ventas</span><span class="val">${simbolo}${totalVentas.toFixed(2)}</span></div>
+        <div class="box gold"><span class="lbl">Fondo de Caja</span><span class="val">${simbolo}${saldoFondo.toFixed(2)}</span></div>
       </div>
       <div style="margin-top:10px; margin-bottom:14px; font-size:13px; color:#555">
-        <strong>Banco:</strong> Bruto €${mp.banco.toFixed(2)} • Comisión €${mp.comisionBancaria.toFixed(2)} • Neto €${mp.bancoNeto.toFixed(2)}
+        <strong>Banco:</strong> Bruto ${simbolo}${mp.banco.toFixed(2)} • Comisión ${simbolo}${mp.comisionBancaria.toFixed(2)} • Neto ${simbolo}${mp.bancoNeto.toFixed(2)}
       </div>
       <h2>💈 Ingresos por Barbero</h2>
       <table>
@@ -420,13 +400,13 @@ export default function ScreenPanel() {
           ${barberosHTML}
           <tr style="background:#f0f7ff">
             <td class="blue">📦 La Barbería (Productos)</td><td>—</td>
-            <td class="num blue">€${ventasProductos.toFixed(2)}</td>
+            <td class="num blue">${simbolo}${ventasProductos.toFixed(2)}</td>
             <td class="num">—</td><td class="num">—</td><td class="num">—</td>
           </tr>
           <tr style="background:#f5f5f0; font-weight:700; border-top:2px solid #D4AF37;">
             <td colspan="2">TOTAL</td>
-            <td class="num">€${totalVentas.toFixed(2)}</td>
-            <td class="num gold">€${totalComisiones.toFixed(2)}</td>
+            <td class="num">${simbolo}${totalVentas.toFixed(2)}</td>
+            <td class="num gold">${simbolo}${totalComisiones.toFixed(2)}</td>
             <td colspan="2"></td>
           </tr>
         </tbody>
@@ -437,7 +417,7 @@ export default function ScreenPanel() {
         <tbody>${gastosHTML}</tbody>
         <tfoot><tr style="background:#fff5f5; font-weight:700">
           <td colspan="3" style="text-align:right; padding-right:16px; color:#888">Total gastos:</td>
-          <td class="num red">€${resumen.gastos.toFixed(2)}</td>
+          <td class="num red">${simbolo}${resumen.gastos.toFixed(2)}</td>
         </tr></tfoot>
       </table>
       <h2>🤝 Saldos de Socios / Dueños</h2>

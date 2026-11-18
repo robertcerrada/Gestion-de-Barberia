@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { db } from '@/lib/db';
+import { ventasRepository } from '@/infrastructure/repositories/ventas.repository';
 import {
   getSaldoFondoCaja,
   getArqueoDia,
@@ -89,7 +90,7 @@ export function useDashboard() {
 
       const [fondo, registrosDia, porcentajeComision, locked] = await Promise.all([
         getSaldoFondoCaja(),
-        db.registros_diarios.where('fecha').between(inicioDia, finDia, true, true).toArray(),
+        ventasRepository.getByFecha(fechaDate),
         getPorcentajeComisionBancaria(),
         isMesBloqueado(fechaDate),
       ]);
@@ -128,7 +129,7 @@ export function useDashboard() {
 
       // Fechas con registros (para el DatePicker marcado)
       const [todosRegistros, todosGastos, todosAdelantos] = await Promise.all([
-        db.registros_diarios.toArray(),
+        ventasRepository.getAll(),
         db.gastos_fijos.toArray(),
         db.Adelantos.toArray(),
       ]);

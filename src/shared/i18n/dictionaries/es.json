@@ -627,5 +627,26 @@
   "exceedsDebt": "Excede la deuda ({amount}).",
   "exceedsAccumulated": "Excede el saldo acumulado disponible ({amount}).",
   "deleteSaleConfirm": "¿Eliminar este registro de venta?",
-  "monthClosedReopen": "Este mes está cerrado. Reábrelo en el Panel para realizar cambios."
+  "monthClosedReopen": "Este mes está cerrado. Reábrelo en el Panel para realizar cambios.",
+  "app": {
+    "loadingSystem": "Cargando Sistema",
+    "reloadApplication": "🔄 Recargar Aplicación",
+    "defaultBarbershopName": "Gestión de Barberia"
+  },
+  "errors": {
+    "dbTimeout": "La base de datos tardó demasiado en cargar. Intentá recargar la página.",
+    "dbConflict": "Hubo un conflicto en la base de datos. Recargá la página o limpiá el caché del navegador.",
+    "initUnexpected": "Ocurrió un error inesperado al iniciar la app. Recargá la página."
+  },
+  "auth": {
+    "noToken": "No se recibió token de Google.",
+    "tokenInvalid": "Token de Google inválido o caducado. Intentá de nuevo.",
+    "noEmails": "No hay emails autorizados configurados. Entra con PIN y agrega al menos un email en Ajustes.",
+    "emailNoAccess": "❌ El email {email} no tiene acceso. Contactá al administrador.",
+    "pinMin": "El PIN debe tener al menos 4 digitos.",
+    "pinMismatch": "Los PIN no coinciden. Crea el PIN inicial de nuevo.",
+    "pinSaveError": "No se pudo guardar el PIN inicial. Intenta de nuevo.",
+    "pinWrong": "PIN incorrecto. Intentá de nuevo.",
+    "restrictedAccess": "Acceso restringido al personal"
+  }
 }

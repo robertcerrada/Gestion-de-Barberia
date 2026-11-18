@@ -43,6 +43,10 @@ export async function calcularComisionBancaria(montoBanco: number): Promise<numb
   return Math.round((montoBanco * porcentaje / 100) * 1000) / 1000;
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 // ─── Comisión bruta por barbero ───────────────────────────────────────────────
 
 export async function getComisionBrutaMes(
@@ -59,7 +63,7 @@ export async function getComisionBrutaMes(
 
   const itemMap = new Map(items.map(i => [i.id!, i]));
 
-  return registros
+  const total = registros
     .filter(r => r.barbero_id === barberoId)
     .reduce((sum, r) => {
       const item = itemMap.get(r.item_id);
@@ -67,6 +71,8 @@ export async function getComisionBrutaMes(
         ? sum + r.monto_total * barbero.porcentaje_comision
         : sum;
     }, 0);
+
+  return round2(total);
 }
 
 // ─── Adelantos por barbero ────────────────────────────────────────────────────
@@ -105,10 +111,12 @@ export async function getPagosSocioMes(
   ]);
   if (!socio) return 0;
 
-  return adelantos
+  const total = adelantos
     .filter(a => a.barbero_id === socioId)
     .filter(a => adelantoPerteneceASocio(a, socio, barberoMismoId))
     .reduce((sum, a) => sum + a.monto, 0);
+
+  return round2(total);
 }
 
 // ─── Saldo disponible ─────────────────────────────────────────────────────────
@@ -121,7 +129,7 @@ export async function getSaldoDisponibleBarbero(
     getComisionBrutaMes(barberoId, mes),
     getAdelantosMes(barberoId, mes),
   ]);
-  return comision - adelantos;
+  return round2(comision - adelantos);
 }
 
 // ─── Comisiones totales del mes ───────────────────────────────────────────────
@@ -136,12 +144,14 @@ export async function getComisionesTotalesMes(mes: Date = new Date()): Promise<n
   const itemMap = new Map(items.map(i => [i.id!, i]));
   const barberoMap = new Map(barberos.map(b => [b.id!, b]));
 
-  return registros.reduce((total, r) => {
+  const total = registros.reduce((total, r) => {
     const item = itemMap.get(r.item_id);
     if (item?.tipo !== 'servicio') return total;
     const barbero = barberoMap.get(r.barbero_id);
     return barbero ? total + r.monto_total * barbero.porcentaje_comision : total;
   }, 0);
+
+  return round2(total);
 }
 
 // ─── Ventas por barbero ───────────────────────────────────────────────────────
