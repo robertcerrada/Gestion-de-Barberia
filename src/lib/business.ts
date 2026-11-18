@@ -85,16 +85,18 @@ export async function getAdelantosMes(barberoId: number, mes: Date = new Date())
   const barberoMismoId = await db.barberos.get(barberoId);
   const Adelantos = todosAdelantos.filter(a => a.barbero_id === barberoId);
 
-  return Adelantos
-    .filter(a => {
-      // Excluir pagos a socios/dueÃ±os
-      if (a.destinatario_tipo === 'socio' || a.destinatario_tipo === 'devolucion_socio' || a.socio_id) return false;
-      // Excluir si el socioBÃ¡rbero (cuando ID coincide con un socio) se llevÃ³ el adelanto
-      if (socioMismoId && adelantoPerteneceASocio(a, socioMismoId, barberoMismoId)) return false;
-      // Incluir solo adelantos a barberos (destinatario_tipo === 'barbero' o sin tipo definido para compatibilidad con registros viejos)
-      return a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === '';
-    })
-    .reduce((sum, a) => sum + a.monto, 0);
+  return round2(
+    Adelantos
+      .filter(a => {
+        // Excluir pagos a socios/dueños
+        if (a.destinatario_tipo === 'socio' || a.destinatario_tipo === 'devolucion_socio' || a.socio_id) return false;
+        // Excluir si el socioBárbero (cuando ID coincide con un socio) se llevó el adelanto
+        if (socioMismoId && adelantoPerteneceASocio(a, socioMismoId, barberoMismoId)) return false;
+        // Incluir solo adelantos a barberos (destinatario_tipo === 'barbero' o sin tipo definido para compatibilidad con registros viejos)
+        return a.destinatario_tipo === 'barbero' || !a.destinatario_tipo || a.destinatario_tipo === '';
+      })
+      .reduce((sum, a) => sum + a.monto, 0)
+  );
 }
 
 export async function getPagosSocioMes(socioId: number, mes: Date = new Date()): Promise<number> {
@@ -107,9 +109,11 @@ export async function getPagosSocioMes(socioId: number, mes: Date = new Date()):
     .where('fecha').between(inicio, fin, true, true)
     .toArray();
   const adelantos = todosAdelantos.filter(a => a.barbero_id === socioId);
-  return adelantos
-    .filter(a => adelantoPerteneceASocio(a, socio, barberoMismoId))
-    .reduce((sum, a) => sum + a.monto, 0);
+  return round2(
+    adelantos
+      .filter(a => adelantoPerteneceASocio(a, socio, barberoMismoId))
+      .reduce((sum, a) => sum + a.monto, 0)
+  );
 }
 
 export async function getSaldoDisponibleBarbero(barberoId: number, mes: Date = new Date()): Promise<number> {
@@ -231,16 +235,16 @@ export async function getResumenMes(mes: Date = new Date()) {
   const comisiones = await getComisionesTotalesMes(mes);
   const metodos = await getMetodosPagoMes(mes);
   const comisionBancaria = metodos.comisionBancaria || 0;
-  const utilidad_neta = ingresos - gastos - comisiones - comisionBancaria;
+  const utilidad_neta = round2(ingresos - gastos - comisiones - comisionBancaria);
 
   // Leer socios activos para calcular reparto dinÃ¡mico
   const socios = await db.socios.filter(s => s.activo).toArray();
   const totalPorcentaje = socios.reduce((sum, s) => sum + s.porcentaje_utilidad, 0);
 
   const pagosPorSocio = await Promise.all(socios.map(async (s) => {
-    const monto = totalPorcentaje > 0 ? utilidad_neta * (s.porcentaje_utilidad / totalPorcentaje) : 0;
+    const monto = round2(totalPorcentaje > 0 ? utilidad_neta * (s.porcentaje_utilidad / totalPorcentaje) : 0);
     const pagado = s.id ? await getPagosSocioMes(s.id, mes) : 0;
-    const saldoPendiente = monto - pagado;
+    const saldoPendiente = round2(monto - pagado);
     return {
       id: s.id!,
       nombre: s.nombre,
@@ -248,7 +252,7 @@ export async function getResumenMes(mes: Date = new Date()) {
       monto,
       pagado,
       saldoPendiente,
-      debeBarberia: Math.max(0, -saldoPendiente),
+      debeBarberia: round2(Math.max(0, -saldoPendiente)),
     };
   }));
 
@@ -259,10 +263,10 @@ export async function getResumenMes(mes: Date = new Date()) {
   const pago_socio = sorted[1]?.monto ?? 0;
 
   return {
-    ingresos,
-    gastos,
-    comisiones,
-    comision_bancaria: comisionBancaria,
+    ingresos: round2(ingresos),
+    gastos: round2(gastos),
+    comisiones: round2(comisiones),
+    comision_bancaria: round2(comisionBancaria),
     utilidad_neta,
     pago_esposa,
     pago_socio,
