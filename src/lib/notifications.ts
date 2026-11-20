@@ -156,14 +156,13 @@ async function checkCargaPendiente(notifs: Notificacion[]) {
   if (!mesActualAbierto) return notifs;
 
   // Obtener datos diarios del mes actual
-  const [year, month] = [hoy.getFullYear(), hoy.getMonth() + 1];
-  const dias = await getIngresosDiariosConGastosMes(year, month);
+  const dias = await getIngresosDiariosConGastosMes(hoy);
   // Buscar último día con movimiento
   let ultimoDiaConInfo = 0;
   for (let i = dias.length - 1; i >= 0; i--) {
     const d = dias[i];
-    if (d.ingresos > 0 || d.gastos > 0 || d.ventas.length > 0) {
-      ultimoDiaConInfo = d.dia;
+    if (d.ingresos > 0 || d.gastos > 0) {
+      ultimoDiaConInfo = Number(d.dia);
       break;
     }
   }
