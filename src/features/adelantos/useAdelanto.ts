@@ -34,7 +34,7 @@ export function useAdelanto({ fechaInicial, adelantoEditar, onSuccess }: UseAdel
   const [error, setError]     = useState('');
 
   async function guardar() {
-    if (!monto || !motivo || !fecha || !destinatarioId) {
+    if (!monto || !fecha || !destinatarioId) {
       setError('Completá todos los campos.');
       return;
     }

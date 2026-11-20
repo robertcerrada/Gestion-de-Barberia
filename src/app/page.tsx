@@ -482,7 +482,7 @@ export default function Page() {
       >
         {activeTab === 'inicio' && <ScreenInicio />}
         {activeTab === 'barberos' && <ScreenBarberos />}
-        {activeTab === 'panel' && <ScreenPanel />}
+        {activeTab === 'panel' && <ScreenPanel onNavigateToSettings={() => setActiveTab('ajustes')} />}
         {activeTab === 'ajustes' && <ScreenAjustes onNombreChange={setNombreBarberia} initialDriveTab={driveConfigOpen} onDriveTabOpenHandled={() => setDriveConfigOpen(false)} />}
       </main>
 

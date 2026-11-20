@@ -62,7 +62,7 @@ const EMOJI_CATEGORIAS: Record<string, string> = {
 type VentaBarbero = Awaited<ReturnType<typeof getVentasPorBarberoMes>>[number];
 type Resumen = Awaited<ReturnType<typeof getResumenMes>>;
 
-export default function ScreenPanel() {
+export default function ScreenPanel({ onNavigateToSettings }: { onNavigateToSettings: () => void }) {
   const formatCurrency = useFmt();
   const { simbolo } = useMoneda();
   const { t } = useLanguage();
@@ -1932,7 +1932,7 @@ export default function ScreenPanel() {
                         <span style={{ fontSize: 11, color: 'var(--gray-text)' }}>{new Date(n.fecha).toLocaleString()}</span>
                         {n.tipo === 'drive_desconectado' && (
                           <div style={{ marginTop: 8 }}>
-                            <button onClick={(e) => { e.stopPropagation(); setShowNotifCenter(false); setTab('ajustes'); }} style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)', color: 'var(--gold)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>Configurar Google Drive</button>
+                            <button onClick={(e) => { e.stopPropagation(); setShowNotifCenter(false); onNavigateToSettings(); }} style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)', color: 'var(--gold)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>Configurar Google Drive</button>
                           </div>
                         )}
                       </div>

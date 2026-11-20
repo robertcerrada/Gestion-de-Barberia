@@ -1316,7 +1316,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose, fechasConRegistro }: {
   }, [barberoId, destinatarioTipo, fecha]);
 
   async function guardar() {
-    if (!barberoId || !monto || !motivo || !fecha) return;
+    if (!barberoId || !monto || !fecha) return;
     const [y, m, d] = fecha.split('-').map(Number);
     const fechaDate = new Date(y, m - 1, d, 12, 0, 0);
     if (await isMesBloqueado(fechaDate)) { setError('El mes está cerrado.'); return; }
@@ -1575,7 +1575,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose, fechasConRegistro }: {
             </div>
             <div style={{ flexShrink: 0, paddingTop: 12, borderTop: '1px solid var(--black-border)' }}>
               <button type="button" id="btn-guardar-Adelanto" className="btn-gold" style={{ width: '100%' }}
-                disabled={!barberoId || !monto || !motivo || excedeCaja || loading || (destinatarioTipo === 'barbero' && saldoBarbero !== null && saldoBarbero <= 0) || (destinatarioTipo === 'devolucion_socio' && (deudaSocio <= 0 || montoNum > deudaSocio))}
+                disabled={!barberoId || !monto || excedeCaja || loading || (destinatarioTipo === 'barbero' && saldoBarbero !== null && saldoBarbero <= 0) || (destinatarioTipo === 'devolucion_socio' && (deudaSocio <= 0 || montoNum > deudaSocio))}
                 onClick={guardar}>
                 {loading ? t('savingBtn') : destinatarioTipo === 'devolucion_socio' ? t('registerIncomeBtn') : t('confirmPaymentBtn')}
               </button>
