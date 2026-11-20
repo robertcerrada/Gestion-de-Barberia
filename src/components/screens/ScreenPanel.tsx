@@ -24,7 +24,7 @@ import {
 } from '@/lib/business';
 import { getMesAno } from '@/shared/utils/dates';
 import { format, setMonth, setYear, getYear, getMonth } from 'date-fns';
-import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet, Bell } from 'lucide-react';
+import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet } from 'lucide-react';
 import { exportarAGoogleDrive } from '@/lib/drive';
 import { useMoneda } from '@/lib/useMoneda';
 import { useLanguage } from '@/shared/i18n/LanguageContext';
@@ -197,18 +197,25 @@ export default function ScreenPanel({ onNavigateToSettings }: { onNavigateToSett
   useEffect(() => {
     if (!pendingCloseMesAno) return;
     const currentMesAno = `${String(selectedMes + 1).padStart(2, '0')}-${selectedYear}`;
-    if (currentMesAno === pendingCloseMesAno && resumen && !mesBloqueado) {
+    if (currentMesAno !== pendingCloseMesAno || !resumen || mesBloqueado) return;
+    const timer = setTimeout(() => {
       setShowCerrarModal(true);
       setPendingCloseMesAno(null);
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [pendingCloseMesAno, selectedMes, selectedYear, resumen, mesBloqueado]);
 
   // Notificaciones mensuales
   useEffect(() => {
-    setNotificaciones(loadNotificaciones());
-    checkNotificacionesMensuales().then(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
       setNotificaciones(loadNotificaciones());
-    });
+      void checkNotificacionesMensuales().then(() => {
+        if (!cancelled) setNotificaciones(loadNotificaciones());
+      });
+    }, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
   function marcarNotificacionLeida(id: string) {

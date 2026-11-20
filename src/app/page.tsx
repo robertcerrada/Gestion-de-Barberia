@@ -279,7 +279,6 @@ export default function Page() {
   const [notificaciones, setNotificaciones] = useState<any[]>([]);
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [driveConfigOpen, setDriveConfigOpen] = useState(false);
-  const [showDriveConfigModal, setShowDriveConfigModal] = useState(false);
   const { t, theme, setTheme, lang } = useAppConfig();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -294,8 +293,15 @@ export default function Page() {
   ];
 
   useEffect(() => {
-    setNotificaciones(loadNotificaciones());
-    checkNotificacionesGenerales().then(() => setNotificaciones(loadNotificaciones()));
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+      setNotificaciones(loadNotificaciones());
+      void checkNotificacionesGenerales().then(() => {
+        if (!cancelled) setNotificaciones(loadNotificaciones());
+      });
+    }, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
   useEffect(() => {

@@ -6,7 +6,6 @@
 
 import { getMesesAbiertosYPendientes, getResumenMes, getIngresosDiariosConGastosMes } from './business';
 import { getMesAno } from '@/shared/utils/dates';
-import { format } from 'date-fns';
 import { isDriveConnected } from './drive';
 
 export type Notificacion = {

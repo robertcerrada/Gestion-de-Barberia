@@ -69,12 +69,14 @@ function AjustesContenido({ onNombreChange, initialDriveTab, onDriveTabHandled }
   const [showUserPicture, setShowUserPicture] = useState(true);
 
   useEffect(() => {
-    if (initialDriveTab) {
+    if (!initialDriveTab) return;
+    const timer = setTimeout(() => {
       setShowSeguridad(true);
       setSecurityTab('drive');
       onDriveTabHandled?.();
-    }
-  }, [initialDriveTab]);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [initialDriveTab, onDriveTabHandled]);
 
   return (
     <div style={{ padding: 16, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
