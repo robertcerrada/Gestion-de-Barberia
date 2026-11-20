@@ -75,15 +75,46 @@ export default function ScreenInicio() {
 
   // ── Fechas con registro: useLiveQuery independiente para no bloquear recargar() ──
   const fechasConRegistroRaw = useLiveQuery(async () => {
-    const [registros, gastos, adelantos] = await Promise.all([
+    const [registros, gastos, adelantos, arqueos] = await Promise.all([
       db.registros_diarios.toArray(),
       db.gastos_fijos.toArray(),
       db.Adelantos.toArray(),
+      db.arqueo_caja.toArray(),
     ]);
     const s = new Set<string>();
     registros.forEach(r => s.add(format(new Date(r.fecha), 'yyyy-MM-dd')));
     gastos.forEach(g => s.add(format(new Date(g.fecha), 'yyyy-MM-dd')));
     adelantos.forEach(a => s.add(format(new Date(a.fecha), 'yyyy-MM-dd')));
+    arqueos.forEach(ar => s.add(format(new Date(ar.fecha), 'yyyy-MM-dd')));
+    return Array.from(s);
+  }, []);
+
+  // ── Fechas específicas por tipo para marcar calendarios ──
+  const fechasVentas = useLiveQuery(async () => {
+    const registros = await db.registros_diarios.toArray();
+    const s = new Set<string>();
+    registros.forEach(r => s.add(format(new Date(r.fecha), 'yyyy-MM-dd')));
+    return Array.from(s);
+  }, []);
+
+  const fechasGastos = useLiveQuery(async () => {
+    const gastos = await db.gastos_fijos.toArray();
+    const s = new Set<string>();
+    gastos.forEach(g => s.add(format(new Date(g.fecha), 'yyyy-MM-dd')));
+    return Array.from(s);
+  }, []);
+
+  const fechasAdelantos = useLiveQuery(async () => {
+    const adelantos = await db.Adelantos.toArray();
+    const s = new Set<string>();
+    adelantos.forEach(a => s.add(format(new Date(a.fecha), 'yyyy-MM-dd')));
+    return Array.from(s);
+  }, []);
+
+  const fechasArqueo = useLiveQuery(async () => {
+    const arqueos = await db.arqueo_caja.toArray();
+    const s = new Set<string>();
+    arqueos.forEach(ar => s.add(format(new Date(ar.fecha), 'yyyy-MM-dd')));
     return Array.from(s);
   }, []);
 
@@ -215,7 +246,7 @@ export default function ScreenInicio() {
       </div>
 
       {/* Métricas del día */}
-      <div className="card-gold" style={{ marginBottom: 16, background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(20,20,20,0.95) 100%)' }}>
+      <div className="card-gold" style={{ marginBottom: 16, background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, var(--black-card) 100%)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
           <p style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>📈 {t('todaySales')}</p>
           {arqueoDelDia && (
@@ -337,19 +368,19 @@ export default function ScreenInicio() {
 
       {/* Modales */}
       {showVentaModal && (
-        <ModalVenta barberos={barberos || []} servicios={servicios || []} fechaInicial={fechaFiltro} fechasConRegistro={fechasConRegistroRaw ?? []}
+        <ModalVenta barberos={barberos || []} servicios={servicios || []} fechaInicial={fechaFiltro} fechasConRegistro={fechasVentas ?? []}
           onClose={() => { setShowVentaModal(false); recargar(); }} />
       )}
       {showGastoModal && (
-        <ModalGasto fechaInicial={fechaFiltro}
+        <ModalGasto fechaInicial={fechaFiltro} fechasConRegistro={fechasGastos ?? []}
           onClose={() => { setShowGastoModal(false); recargar(); }} />
       )}
       {showAdelantoModal && (
-        <ModalAdelanto barberos={barberos || []} fechaInicial={fechaFiltro}
+        <ModalAdelanto barberos={barberos || []} fechaInicial={fechaFiltro} fechasConRegistro={fechasAdelantos ?? []}
           onClose={() => { setShowAdelantoModal(false); recargar(); }} />
       )}
       {showArqueoModal && (
-        <ModalArqueoCaja fechaInicial={fechaFiltro}
+        <ModalArqueoCaja fechaInicial={fechaFiltro} fechasConRegistro={fechasArqueo ?? []}
           onClose={() => { setShowArqueoModal(false); recargar(); }} />
       )}
       {registroAEditar && (
@@ -627,7 +658,7 @@ function RegistrosDelDia({ fechaFiltro, simbolo, comisionesTransacciones, comisi
           <div style={{ marginTop: 12 }} />
         )}
         {comisionesTransacciones?.length > 0 && (
-          <div className="card-gold" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(20,20,20,0.95) 100%)' }}>
+          <div className="card-gold" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.08) 0%, var(--black-card) 100%)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>💸 {t('bankCommissionLabel')}</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold)' }}>{fc(comisionBancariaDia)}</span>
@@ -1160,7 +1191,7 @@ function ModalVenta({ barberos, servicios, fechaInicial, fechasConRegistro, onCl
 }
 
 // ─── MODAL GASTO ──────────────────────────────────────────────────────────────
-function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
+function ModalGasto({ fechaInicial, onClose, fechasConRegistro }: { fechaInicial?: string; onClose: () => void; fechasConRegistro?: string[] }) {
   const { t } = useLanguage();
   const [categoria, setCategoria] = useState<GastoFijo['categoria']>('alquiler');
   const [monto, setMonto] = useState('');
@@ -1211,7 +1242,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} markedDates={fechasConRegistro ?? []} /></div>
               <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('categoryLabel')}</label><CustomSelect id="gasto-categoria" value={categoria} onChange={v => setCategoria(v as GastoFijo['categoria'])} placeholder="— Categoría —" grouped={false} searchThreshold={99} options={catOptions} /></div>
               <div>
                 <label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}>{t('amountLabel')} <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -1234,7 +1265,7 @@ function ModalGasto({ fechaInicial, onClose }: { fechaInicial?: string; onClose:
 }
 
 // ─── MODAL ADELANTO ───────────────────────────────────────────────────────────
-function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[]; fechaInicial?: string; onClose: () => void }) {
+function ModalAdelanto({ barberos, fechaInicial, onClose, fechasConRegistro }: { barberos: Barbero[]; fechaInicial?: string; onClose: () => void; fechasConRegistro?: string[] }) {
   const { t } = useLanguage();
   const [destinatarioTipo, setDestinatarioTipo] = useState<'barbero' | 'socio' | 'devolucion_socio'>('barbero');
   const [barberoId, setBarberoId] = useState('');
@@ -1347,7 +1378,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
         ) : (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: 14, paddingBottom: 4 }}>
-              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+              <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} markedDates={fechasConRegistro ?? []} /></div>
               {!barberoId && efectivoCaja !== null && (
                 <div className="card" style={{ padding: '10px 14px', background: efectivoCaja <= 0 ? 'rgba(224,82,82,0.08)' : 'rgba(76,175,130,0.06)', borderColor: efectivoCaja <= 0 ? 'rgba(224,82,82,0.3)' : 'rgba(76,175,130,0.2)' }}>
                   <p style={{ fontSize: 11, color: 'var(--gray-muted)', marginBottom: 2 }}>💵 {t('availableCash')}</p>
@@ -1557,7 +1588,7 @@ function ModalAdelanto({ barberos, fechaInicial, onClose }: { barberos: Barbero[
 }
 
 // ─── MODAL ARQUEO DE CAJA ─────────────────────────────────────────────────────
-function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onClose: () => void }) {
+function ModalArqueoCaja({ fechaInicial, onClose, fechasConRegistro }: { fechaInicial?: string; onClose: () => void; fechasConRegistro?: string[] }) {
   const { t } = useLanguage();
   const { simbolo } = useMoneda();
   const fc = (n: number) => formatCurrency(n, simbolo);
@@ -1614,7 +1645,7 @@ function ModalArqueoCaja({ fechaInicial, onClose }: { fechaInicial?: string; onC
           <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--success)' }}><CheckCircle2 size={48} style={{ margin: '0 auto 12px' }} /><p style={{ fontSize: 16, fontWeight: 600 }}>{tieneArqueo ? t('auditUpdated') : t('auditSaved')}</p></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} /></div>
+            <div><label style={{ fontSize: 12, color: 'var(--gray-muted)', display: 'block', marginBottom: 6 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Calendar size={12} /> {t('dateLabel')}</span></label><DatePicker value={fecha} onChange={setFecha} markedDates={fechasConRegistro ?? []} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="stat-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}><span className="stat-label">{t('totalSalesLabel')}</span><span className="stat-value gold" style={{ fontSize: 20 }}>{fc(totalVentas)}</span></div>
               <div className="stat-card" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}><span className="stat-label">{t('cashFundLabel2')}</span><span className="stat-value gold" style={{ fontSize: 20 }}>{fc(fondoCaja)}</span></div>

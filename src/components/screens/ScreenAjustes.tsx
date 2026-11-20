@@ -16,7 +16,7 @@ import { useMoneda, emitirCambioMoneda } from '@/lib/useMoneda';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '';
 
-export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (nombre: string) => void }) {
+export default function ScreenAjustes({ onNombreChange, initialDriveTab, onDriveTabOpenHandled }: { onNombreChange?: (nombre: string) => void; initialDriveTab?: boolean; onDriveTabOpenHandled?: () => void }) {
   const { t } = useAppConfig();
   if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.includes('PON_TU_CLIENT_ID_AQUI')) {
     return (
@@ -33,11 +33,11 @@ export default function ScreenAjustes({ onNombreChange }: { onNombreChange?: (no
             </div>
           </div>
         </div>
-        <AjustesContenido onNombreChange={onNombreChange} />
+        <AjustesContenido onNombreChange={onNombreChange} initialDriveTab={initialDriveTab} onDriveTabHandled={onDriveTabOpenHandled} />
       </div>
     );
   }
-  return <AjustesContenido onNombreChange={onNombreChange} />;
+  return <AjustesContenido onNombreChange={onNombreChange} initialDriveTab={initialDriveTab} onDriveTabHandled={onDriveTabOpenHandled} />;
 }
 
 const IDIOMAS: { code: Lang; label: string; flag: string }[] = [
@@ -49,7 +49,7 @@ const IDIOMAS: { code: Lang; label: string; flag: string }[] = [
   { code: 'ar', label: 'AR', flag: '🇸🇦' },
 ];
 
-function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string) => void }) {
+function AjustesContenido({ onNombreChange, initialDriveTab, onDriveTabHandled }: { onNombreChange?: (nombre: string) => void; initialDriveTab?: boolean; onDriveTabHandled?: () => void }) {
   const { t, lang } = useAppConfig();
   const [showBarberos, setShowBarberos] = useState(false);
   const [showServicios, setShowServicios] = useState(false);
@@ -59,6 +59,7 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
   const [showSeguridad, setShowSeguridad] = useState(false);
   const [showApariencia, setShowApariencia] = useState(false);
   const [showFinanzas, setShowFinanzas] = useState(false);
+  const [securityTab, setSecurityTab] = useState<'emails' | 'pin' | 'drive'>('emails');
 
   const googleUser = typeof window !== 'undefined' ? getGoogleUser() : null;
   const userName = googleUser?.name ?? null;
@@ -66,6 +67,14 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
   const rawPicture = googleUser?.picture ?? null;
   const userPicture = rawPicture?.startsWith('https://lh3.googleusercontent.com') ? rawPicture : null;
   const [showUserPicture, setShowUserPicture] = useState(true);
+
+  useEffect(() => {
+    if (initialDriveTab) {
+      setShowSeguridad(true);
+      setSecurityTab('drive');
+      onDriveTabHandled?.();
+    }
+  }, [initialDriveTab]);
 
   return (
     <div style={{ padding: 16, direction: lang === 'ar' ? 'rtl' : 'ltr' }}>
@@ -144,7 +153,7 @@ function AjustesContenido({ onNombreChange }: { onNombreChange?: (nombre: string
       {showFondo && <ModalFondoCaja onClose={() => setShowFondo(false)} />}
       {showSocios && <ModalGestionSocios onClose={() => setShowSocios(false)} />}
       {showConfigBarberia && <ModalConfigBarberia onClose={() => setShowConfigBarberia(false)} onNombreChange={onNombreChange} />}
-      {showSeguridad && <ModalSeguridad onClose={() => setShowSeguridad(false)} />}
+      {showSeguridad && <ModalSeguridad onClose={() => setShowSeguridad(false)} initialTab={securityTab} />}
       {showApariencia && <ModalAparienciaIdioma onClose={() => setShowApariencia(false)} />}
       {showFinanzas && <ModalFinanzas onClose={() => setShowFinanzas(false)} />}
     </div>
@@ -1369,16 +1378,16 @@ function ModalConfigBarberia({ onClose, onNombreChange }: { onClose: () => void;
   );
 }
 
-function ModalSeguridad({ onClose }: { onClose: () => void }) {
+function ModalSeguridad({ onClose, initialTab }: { onClose: () => void; initialTab?: 'emails' | 'pin' | 'drive' }) {
   const { t } = useAppConfig();
-  const [tab, setTab] = useState<'emails' | 'pin' | 'drive'>('emails');
+  const [tab, setTab] = useState<'emails' | 'pin' | 'drive'>(initialTab || 'emails');
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
         <div className="modal-handle" />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 className="section-title">{t('securityAccessTitle')}</h2>
+          <h2 className="section-title">{tab === 'drive' ? t('driveTab') : t('securityAccessTitle')}</h2>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-muted)' }}><X size={22} /></button>
         </div>
 

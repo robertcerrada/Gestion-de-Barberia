@@ -33,10 +33,10 @@
   --black-deep:    #f0ede6;
   --black-card:    #faf8f4;
   --black-surface: #ffffff;
-  --black-border:  #ddd8cc;
+  --black-border:  #c9c1b3;
   --black-hover:   #f5f2ec;
-  --gray-text:     #4a4640;
-  --gray-muted:    #7a7570;
+  --gray-text:     #3a3530;
+  --gray-muted:    #5a5450;
   --white-soft:    #1a1714;
   --gold:          #B8960C;
   --gold-light:    #D4AF37;
@@ -656,6 +656,20 @@ body {
   overflow: visible;
 }
 
+[data-theme="light"] .pnb {
+  background: rgba(250, 248, 244, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="light"] .pnb__icon {
+  color: var(--gray-text);
+}
+
+[data-theme="light"] .pnb__label {
+  color: var(--gray-text);
+}
+
 /* Estado oculto: se desliza hacia abajo fuera de pantalla */
 .pnb--hidden {
   transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px) + 16px));
@@ -1061,8 +1075,8 @@ input[type="date"].input-dark:valid::before {
 
 /* Content area with bottom padding for tab bar */
 .content-area {
-  /* 64px altura pnb + safe-area + margen de aire */
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 24px);
+  /* 160px altura pnb + safe-area + margen de aire */
+  padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px));
   min-height: 100dvh;
 }
 
@@ -1379,4 +1393,24 @@ input[type='number'] {
 @keyframes fadeInCascade {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── FIXES MODO CLARO: contraste de texto y elementos ─────────────────── */
+[data-theme="light"] .btn-gold {
+  color: var(--white-soft);
+}
+[data-theme="light"] .fab {
+  color: var(--white-soft);
+}
+[data-theme="light"] .dp-day--today {
+  background: rgba(0,0,0,0.08);
+}
+[data-theme="light"] .cs-option-btn:hover:not(:disabled) {
+  background: rgba(0,0,0,0.04);
+}
+[data-theme="light"] .cs-clear-button {
+  background: rgba(0,0,0,0.06);
+}
+[data-theme="light"] .modal-handle {
+  background: #c9c1b3;
 }

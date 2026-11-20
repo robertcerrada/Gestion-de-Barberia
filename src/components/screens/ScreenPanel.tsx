@@ -24,11 +24,12 @@ import {
 } from '@/lib/business';
 import { getMesAno } from '@/shared/utils/dates';
 import { format, setMonth, setYear, getYear, getMonth } from 'date-fns';
-import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet } from 'lucide-react';
+import { AlertTriangle, Lock, Unlock, CheckCircle2, X, Download, FileSpreadsheet, FileImage, FileText, ChevronLeft, ChevronRight, ChevronDown, Wallet, Bell } from 'lucide-react';
 import { exportarAGoogleDrive } from '@/lib/drive';
 import { useMoneda } from '@/lib/useMoneda';
 import { useLanguage } from '@/shared/i18n/LanguageContext';
 import { buildPanelReportCsv } from '@/lib/panelReportCsv';
+import { checkNotificacionesMensuales, loadNotificaciones, saveNotificaciones } from '@/lib/notifications';
 
 function useFmt() {
   const { simbolo } = useMoneda();
@@ -90,6 +91,9 @@ export default function ScreenPanel() {
   const [ingresosMetodoPago, setIngresosMetodoPago] = useState<{ efectivo: number; banco: number; bancoNeto: number; comisionBancaria: number }>({ efectivo: 0, banco: 0, bancoNeto: 0, comisionBancaria: 0 });
   const [modalLiquidacion, setModalLiquidacion] = useState<{ mesAno: string; mes: string } | null>(null);
   const [comisionesAbiertas, setComisionesAbiertas] = useState(false);
+  const [pendingCloseMesAno, setPendingCloseMesAno] = useState<string | null>(null);
+  const [notificaciones, setNotificaciones] = useState<any[]>([]);
+  const [showNotifCenter, setShowNotifCenter] = useState(false);
 
   const hoy = new Date();
   const esMesActual = selectedMes === hoy.getMonth() && selectedYear === hoy.getFullYear();
@@ -175,19 +179,55 @@ export default function ScreenPanel() {
     const cancelled = { current: false };
     const t = setTimeout(() => {
       if (cancelled.current) return;
-      try { 
+      try {
         requestAnimationFrame(() => {
           if (!cancelled.current) cargarDatos();
         });
-      } catch (err) { 
-        console.warn('[ScreenPanel] cargarDatos failed:', err); 
+      } catch (err) {
+        console.warn('[ScreenPanel] cargarDatos failed:', err);
       }
     }, 0);
-    return () => { 
-      cancelled.current = true; 
-      clearTimeout(t); 
+    return () => {
+      cancelled.current = true;
+      clearTimeout(t);
     };
   }, [cargarDatos]);
+
+  // Abrir modal de cierre cuando se pide desde la tarjeta de meses pendientes
+  useEffect(() => {
+    if (!pendingCloseMesAno) return;
+    const currentMesAno = `${String(selectedMes + 1).padStart(2, '0')}-${selectedYear}`;
+    if (currentMesAno === pendingCloseMesAno && resumen && !mesBloqueado) {
+      setShowCerrarModal(true);
+      setPendingCloseMesAno(null);
+    }
+  }, [pendingCloseMesAno, selectedMes, selectedYear, resumen, mesBloqueado]);
+
+  // Notificaciones mensuales
+  useEffect(() => {
+    setNotificaciones(loadNotificaciones());
+    checkNotificacionesMensuales().then(() => {
+      setNotificaciones(loadNotificaciones());
+    });
+  }, []);
+
+  function marcarNotificacionLeida(id: string) {
+    const updated = notificaciones.map(n => n.id === id ? { ...n, leida: true } : n);
+    const all = loadNotificaciones();
+    const idx = all.findIndex(n => n.id === id);
+    if (idx >= 0) {
+      all[idx] = { ...all[idx], leida: true };
+    }
+    saveNotificaciones(all);
+    setNotificaciones(updated);
+  }
+
+  function eliminarNotificacion(id: string) {
+    const updated = notificaciones.filter(n => n.id !== id);
+    const all = loadNotificaciones().filter(n => n.id !== id);
+    saveNotificaciones(all);
+    setNotificaciones(updated);
+  }
 
   async function handleReabrirMes() {
     if (!confirm(t('reopenMonthConfirm').replace('{month}', MESES[selectedMes]).replace('{year}', String(selectedYear)))) return;
@@ -828,6 +868,7 @@ export default function ScreenPanel() {
   });
 
   return (
+    <>
     <div style={{ padding: '16px', paddingBottom: 100 }}>
       {/* Navegador de mes premium */}
       <div className="card-gold" style={{ marginBottom: 16, padding: '14px 16px', background: 'linear-gradient(135deg, rgba(212,175,55,0.07) 0%, transparent 100%)' }}>
@@ -869,15 +910,17 @@ export default function ScreenPanel() {
           </div>
 
           {/* Flecha derecha */}
-          <button
-            onClick={navSiguiente}
-            disabled={esMesActual}
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--black-border)', borderRadius: 10, padding: '8px 10px', cursor: esMesActual ? 'default' : 'pointer', color: esMesActual ? 'var(--black-border)' : 'var(--white-soft)', display: 'flex', alignItems: 'center', flexShrink: 0, opacity: esMesActual ? 0.35 : 1, transition: 'background 0.15s' }}
-            onMouseEnter={e => { if (!esMesActual) e.currentTarget.style.background = 'rgba(212,175,55,0.12)'; }}
-            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-          >
-            <ChevronRight size={18} />
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={navSiguiente}
+              disabled={esMesActual}
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--black-border)', borderRadius: 10, padding: '8px 10px', cursor: esMesActual ? 'default' : 'pointer', color: esMesActual ? 'var(--black-border)' : 'var(--white-soft)', display: 'flex', alignItems: 'center', flexShrink: 0, opacity: esMesActual ? 0.35 : 1, transition: 'background 0.15s' }}
+              onMouseEnter={e => { if (!esMesActual) e.currentTarget.style.background = 'rgba(212,175,55,0.12)'; }}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Botón "Ir a hoy" — solo si no estamos en el mes actual */}
@@ -910,6 +953,26 @@ export default function ScreenPanel() {
           }}>
             <Unlock size={13} /> {reabriendo ? t('reopening') : t('reopenMonth')}
           </button>
+        </div>
+      )}
+
+      {/* 🔔 NOTIFICACIONES */}
+      {notificaciones.length > 0 && (
+        <div style={{ marginBottom: 20, borderRadius: 12, border: '1px solid rgba(212,175,55,0.25)', background: 'rgba(212,175,55,0.04)', overflow: 'hidden' }}>
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(212,175,55,0.1)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gold)' }}>
+            <AlertTriangle size={18} />
+            <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              🔔 {notificaciones.length} {t('notifications')}
+            </span>
+          </div>
+          <div style={{ padding: '12px' }}>
+            {notificaciones.slice(0, 3).map(n => (
+              <div key={n.id} style={{ padding: '10px 12px', marginBottom: 8, borderRadius: 8, background: 'rgba(212,175,55,0.08)', border: '1px solid rgba(212,175,55,0.15)', fontSize: 13, color: 'var(--white-soft)' }}>
+                <strong style={{ color: 'var(--gold)' }}>{n.titulo}</strong>
+                <p style={{ margin: '4px 0 0', color: 'var(--gray-muted)', fontSize: 12 }}>{n.mensaje}</p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -982,6 +1045,7 @@ export default function ScreenPanel() {
                       const [mes, año] = mesPend.mesAno.split('-').map(Number);
                       setSelectedYear(año);
                       setSelectedMes(mes - 1);
+                      setPendingCloseMesAno(mesPend.mesAno);
                     }}
                     style={{
                       padding: '8px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6,
@@ -1844,7 +1908,50 @@ export default function ScreenPanel() {
           onClose={() => { setModalLiquidacion(null); cargarDatos(); }}
         />
       )}
+
+      {/* Centro de Notificaciones */}
+      {showNotifCenter && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowNotifCenter(false)}>
+          <div style={{ background: 'var(--black-card)', border: '1px solid var(--black-border)', borderRadius: 16, width: '100%', maxWidth: 500, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--black-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: 'var(--gold)', fontSize: 18 }}>Centro de Notificaciones</h3>
+              <button onClick={() => setShowNotifCenter(false)} style={{ background: 'transparent', border: 'none', color: 'var(--gray-text)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
+              {notificaciones.length === 0 ? (
+                <p style={{ color: 'var(--gray-text)', textAlign: 'center', marginTop: 32 }}>No hay notificaciones</p>
+              ) : (
+                notificaciones.map(n => (
+                  <div key={n.id} style={{ padding: 12, borderRadius: 12, background: n.leida ? 'rgba(255,255,255,0.02)' : 'rgba(212,175,55,0.06)', border: '1px solid var(--black-border)', marginBottom: 12, cursor: 'pointer' }} onClick={() => !n.leida && marcarNotificacionLeida(n.id)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div>
+                        <strong style={{ color: 'var(--gold)', fontSize: 14 }}>{n.titulo}</strong>
+                        <p style={{ margin: '4px 0', color: 'var(--white-soft)', fontSize: 13 }}>{n.mensaje}</p>
+                        <span style={{ fontSize: 11, color: 'var(--gray-text)' }}>{new Date(n.fecha).toLocaleString()}</span>
+                        {n.tipo === 'drive_desconectado' && (
+                          <div style={{ marginTop: 8 }}>
+                            <button onClick={(e) => { e.stopPropagation(); setShowNotifCenter(false); setTab('ajustes'); }} style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)', color: 'var(--gold)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>Configurar Google Drive</button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {!n.leida && (
+                          <button onClick={(e) => { e.stopPropagation(); marcarNotificacionLeida(n.id); }} style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', color: 'var(--gold)', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}>Marcar leída</button>
+                        )}
+                        <button onClick={(e) => { e.stopPropagation(); eliminarNotificacion(n.id); }} style={{ background: 'rgba(224,82,82,0.1)', border: '1px solid rgba(224,82,82,0.3)', color: 'var(--danger)', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}>Eliminar</button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    </>
   );
 }
 

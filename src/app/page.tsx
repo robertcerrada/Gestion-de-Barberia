@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Home, BarChart3, Settings, Sun, Moon } from 'lucide-react';
+import { Home, BarChart3, Settings, Sun, Moon, Bell } from 'lucide-react';
 import { seedInitialData, getConfig } from '@/lib/db';
 import { getAppToken, setAppToken } from '@/lib/auth';
 import { useAppConfig } from '@/lib/useAppConfig';
+import { loadNotificaciones, saveNotificaciones, checkNotificacionesGenerales } from '@/lib/notifications';
 import '@/lib/autoBackup';
 import AppLogo from '@/shared/components/AppLogo';
 import ScreenInicio from '@/components/screens/ScreenInicio';
@@ -275,6 +276,10 @@ function SplashScreen({ nombreBarberia, logoSrc, errorCarga }: {
 export default function Page() {
   const [activeTab, setActiveTab] = useState<Tab>('inicio');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [notificaciones, setNotificaciones] = useState<any[]>([]);
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const [driveConfigOpen, setDriveConfigOpen] = useState(false);
+  const [showDriveConfigModal, setShowDriveConfigModal] = useState(false);
   const { t, theme, setTheme, lang } = useAppConfig();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -287,6 +292,11 @@ export default function Page() {
     { id: 'panel' as Tab, label: t('navPanel'), icon: BarChart3 },
     { id: 'ajustes' as Tab, label: t('navSettings'), icon: Settings },
   ];
+
+  useEffect(() => {
+    setNotificaciones(loadNotificaciones());
+    checkNotificacionesGenerales().then(() => setNotificaciones(loadNotificaciones()));
+  }, []);
 
   useEffect(() => {
     const cancelled = { current: false };
@@ -307,6 +317,21 @@ export default function Page() {
     };
   }, []);
 
+  function marcarLeida(id: string) {
+    const updated = notificaciones.map(n => n.id === id ? { ...n, leida: true } : n);
+    const all = loadNotificaciones();
+    const idx = all.findIndex(n => n.id === id);
+    if (idx >= 0) all[idx] = { ...all[idx], leida: true };
+    saveNotificaciones(all);
+    setNotificaciones(updated);
+  }
+  function eliminar(id: string) {
+    const updated = notificaciones.filter(n => n.id !== id);
+    const all = loadNotificaciones().filter(n => n.id !== id);
+    saveNotificaciones(all);
+    setNotificaciones(updated);
+  }
+
   if (!ready) {
     return <SplashScreen nombreBarberia={nombreBarberia} logoSrc={logoSrc} errorCarga={errorCarga} />;
   }
@@ -325,10 +350,12 @@ export default function Page() {
   }
 
   return (
+    <>
     <div style={{
       position: 'relative',
       zIndex: 1,
-      height: '100dvh',
+      height: '100vh',
+      maxHeight: '-webkit-fill-available',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -393,6 +420,32 @@ export default function Page() {
           </span>
           <LanguageSelector />
           <button type="button"
+            onClick={() => setShowNotifModal(true)}
+            style={{
+              background: 'rgba(212, 175, 55, 0.05)',
+              border: '1.5px solid rgba(212, 175, 55, 0.25)',
+              borderRadius: '10px',
+              width: 34,
+              height: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--gold)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+              position: 'relative'
+            }}
+            aria-label="Notificaciones"
+          >
+            <Bell size={16} />
+            {notificaciones.filter(n => !n.leida).length > 0 && (
+              <span style={{ position: 'absolute', top: -4, right: -4, background: 'var(--danger)', color: 'white', fontSize: 10, borderRadius: '50%', minWidth: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {notificaciones.filter(n => !n.leida).length}
+              </span>
+            )}
+          </button>
+          <button type="button"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             style={{
               background: 'rgba(212, 175, 55, 0.05)',
@@ -424,13 +477,13 @@ export default function Page() {
           overflowY: 'auto',
           WebkitOverflowScrolling: 'touch',
           position: 'relative',
-          paddingBottom: 'calc(84px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'calc(160px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         {activeTab === 'inicio' && <ScreenInicio />}
         {activeTab === 'barberos' && <ScreenBarberos />}
         {activeTab === 'panel' && <ScreenPanel />}
-        {activeTab === 'ajustes' && <ScreenAjustes onNombreChange={setNombreBarberia} />}
+        {activeTab === 'ajustes' && <ScreenAjustes onNombreChange={setNombreBarberia} initialDriveTab={driveConfigOpen} onDriveTabOpenHandled={() => setDriveConfigOpen(false)} />}
       </main>
 
       {/* Tab Bar */}
@@ -441,5 +494,48 @@ export default function Page() {
         scrollContainerRef={mainRef}
       />
     </div>
+
+    {/* Modal Notificaciones Global */}
+    {showNotifModal && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setShowNotifModal(false)}>
+        <div style={{ background: 'var(--black-card)', border: '1px solid var(--black-border)', borderRadius: 16, width: '100%', maxWidth: 500, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--black-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, color: 'var(--gold)', fontSize: 18 }}>Notificaciones</h3>
+            <button onClick={() => setShowNotifModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--gray-text)', cursor: 'pointer' }}>
+              <Bell size={20} />
+            </button>
+          </div>
+          <div style={{ overflowY: 'auto', padding: 16, flex: 1 }}>
+            {notificaciones.length === 0 ? (
+              <p style={{ color: 'var(--gray-text)', textAlign: 'center', marginTop: 32 }}>No hay notificaciones</p>
+            ) : (
+              notificaciones.map(n => (
+                <div key={n.id} style={{ padding: 12, borderRadius: 12, background: n.leida ? 'rgba(255,255,255,0.02)' : 'rgba(212,175,55,0.06)', border: '1px solid var(--black-border)', marginBottom: 12, cursor: 'pointer' }} onClick={() => !n.leida && marcarLeida(n.id)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div>
+                      <strong style={{ color: 'var(--gold)', fontSize: 14 }}>{n.titulo}</strong>
+                      <p style={{ margin: '4px 0', color: 'var(--white-soft)', fontSize: 13 }}>{n.mensaje}</p>
+                      <span style={{ fontSize: 11, color: 'var(--gray-text)' }}>{new Date(n.fecha).toLocaleString()}</span>
+                      {n.tipo === 'drive_desconectado' && (
+                        <div style={{ marginTop: 8 }}>
+                          <button onClick={(e) => { e.stopPropagation(); setShowNotifModal(false); setActiveTab('ajustes'); setDriveConfigOpen(true); }} style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.4)', color: 'var(--gold)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>Configurar Google Drive</button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {!n.leida && (
+                        <button onClick={(e) => { e.stopPropagation(); marcarLeida(n.id); }} style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.3)', color: 'var(--gold)', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}>Leída</button>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); eliminar(n.id); }} style={{ background: 'rgba(224,82,82,0.1)', border: '1px solid rgba(224,82,82,0.3)', color: 'var(--danger)', borderRadius: 6, padding: '4px 8px', fontSize: 12, cursor: 'pointer' }}>Eliminar</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

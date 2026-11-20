@@ -45,6 +45,7 @@ next-env.d.ts
 # o datos de configuración del entorno de desarrollo.
 .opencode/
 .unlighthouse/
+.claude/
 skills/
 superpowers
 merge-dicts.js
@@ -57,3 +58,4 @@ react_doctor_report.json
 temp_*
 build.log
 build2.log
+currency_audit_report.md
