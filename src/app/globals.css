@@ -1010,13 +1010,14 @@ input[type="date"].input-dark:valid::before {
   font-weight: 400;
 }
 
-/* Modal overlay */
+/* Modal overlay — z alto para evitar que fixed+backdrop-filter en mobile Safari
+   cree stacking contexts problemáticos que pongan el modal detrás del navbar */
 .modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.85);
   backdrop-filter: blur(4px);
-  z-index: 200;
+  z-index: 99997;
   display: flex;
   align-items: flex-end;
   justify-content: center;
